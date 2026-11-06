@@ -27,7 +27,7 @@ Abrí `config.js` y pegá esos dos datos en `SUPABASE_URL` y `SUPABASE_KEY`. Cam
 > La clave "anon" es pública: se puede ver dentro de la página y está bien que así sea. **Nunca** pegues la clave `service_role`.
 
 ### 3. Publicar en GitHub Pages
-1. Creá un repositorio público llamado `cargaya` y subí todos los archivos.
+1. Creá un repositorio público llamado `CargaYa` y subí todos los archivos.
 2. En el repositorio, entrá a **Settings → Pages**. En **Source** elegí `Deploy from a branch`, después la rama `main` y la carpeta `/ (root)`, y guardá.
 3. Al minuto, la app queda en `https://<tu-usuario>.github.io/cargaya/`.
 

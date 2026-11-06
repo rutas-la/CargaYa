@@ -321,6 +321,7 @@ function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carre
 
 /* ---- Inicio: elegir rol ---- */
 let rolElegido=null;
+try{const q=new URLSearchParams(location.search).get('rol');if(['vendedor','comprador','carretillero'].includes(q))rolElegido=q}catch(e){}
 function vInicio(){
   if(!rolElegido)return `<div class="card" style="max-width:520px;margin:0 auto"><h2>¿Cómo vas a usar CargaYa?</h2><p class="sub">Se elige una vez en este teléfono.</p>
    <div class="grid" style="margin-top:12px">${[['vendedor','🚚 Soy vendedor','Despacho mercancía desde mi camión'],['comprador','🛒 Soy comprador','Compro y la mercancía va a mi vehículo'],['carretillero','🛞 Soy carretillero','Llevo la mercancía en carretilla'],['admin','📊 Administración','Panel del mercado (pide clave)']].map(([r,t,d])=>`<button class="btn o" style="text-align:left;padding:14px" data-rol="${r}"><div style="font-size:18px">${t}</div><div class="hint" style="font-weight:500">${d}</div></button>`).join('')}</div>

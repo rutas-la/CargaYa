@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16181c">
+<title>CargaYa · Mercado Mayor de Coche</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  --ink:#16181c; --ink2:#4a4f58; --mute:#8a9099; --line:#e2e0d8; --bg:#f6f4ee; --card:#fff;
+  --yel:#ffc400; --yel2:#fff3c4; --grn:#12a150; --grn2:#dcf5e6; --red:#e0362c; --red2:#fde3e1;
+  --blu:#1f6feb; --blu2:#e0ecff; --org:#f07b14; --org2:#ffe9d6;
+  --r:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Barlow,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:16px}
+h1,h2,h3{font-family:"Barlow Condensed",sans-serif;letter-spacing:.2px;margin:0}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ink)}
+label{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin:12px 0 5px}
+header{background:var(--ink);color:#fff;padding:14px 18px 0;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:36px;height:36px;border-radius:9px;background:var(--yel);display:grid;place-items:center;color:var(--ink);font-family:"Barlow Condensed";font-weight:800;font-size:20px}
+.logo h1{font-size:24px;line-height:1}
+.logo small{display:block;color:#b9bcc2;font-size:12.5px;font-family:Barlow;font-weight:500}
+.geo{font-size:12.5px;color:#cfd2d6;display:flex;align-items:center;gap:6px}
+.geo i{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 3px rgba(61,220,132,.25)}
+nav{display:flex;gap:4px;margin-top:12px;overflow-x:auto}
+nav button{background:none;border:0;color:#b9bcc2;padding:10px 14px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}
+nav button.on{color:#fff;border-color:var(--yel)}
+main{max-width:1180px;margin:0 auto;padding:18px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1.35fr 1fr}
+@media(max-width:880px){.g2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card h2{font-size:21px;margin-bottom:4px}
+.sub{color:var(--ink2);font-size:14px;margin:0 0 6px}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media(max-width:880px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi b{font-family:"Barlow Condensed";font-size:32px;display:block;line-height:1.05}
+.kpi span{font-size:13px;color:var(--ink2)}
+.btn{border:0;border-radius:11px;padding:12px 16px;font-weight:700;background:var(--ink);color:#fff}
+.btn.y{background:var(--yel);color:var(--ink)}
+.btn.g{background:var(--grn)}
+.btn.o{background:#fff;color:var(--ink);border:1.5px solid var(--ink)}
+.btn.big{width:100%;padding:16px;font-size:18px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.st-pendiente{background:#eceae3;color:var(--ink2)}
+.st-asignado{background:var(--blu2);color:var(--blu)}
+.st-en_ruta{background:var(--org2);color:#b35200}
+.st-en_vehiculo{background:var(--yel2);color:#8a6500}
+.st-entregado{background:var(--grn2);color:#0b7a3c}
+.list{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.item{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px}
+.item .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.item .meta{font-size:13.5px;color:var(--ink2)}
+.plate{font-family:"Share Tech Mono",monospace;background:var(--ink);color:var(--yel);padding:2px 8px;border-radius:6px;font-size:14px;letter-spacing:1px}
+.loc{font-family:"Barlow Condensed";font-weight:700}
+.timeline{display:flex;gap:4px;margin-top:2px}
+.timeline i{flex:1;height:5px;border-radius:3px;background:#eceae3}
+.timeline i.on{background:var(--grn)}
+.mapwrap{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:10px;overflow:hidden}
+svg.map{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2);margin:6px 4px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.hint{font-size:13px;color:var(--mute)}
+.ok{color:var(--grn);font-weight:700}
+.bad{color:var(--red);font-weight:700}
+.found{background:var(--grn2);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14.5px}
+.notfound{background:var(--red2);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14.5px}
+.photo{width:100%;max-height:220px;object-fit:cover;border-radius:12px;display:block;background:#eceae3}
+.photo.sm{width:96px;height:72px}
+.carbox{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
+.dist{display:flex;align-items:center;gap:14px;background:var(--ink);color:#fff;border-radius:14px;padding:12px 16px;margin-top:12px}
+.dist b{font-family:"Barlow Condensed";font-size:40px;line-height:1}
+.dist .arrow{width:52px;height:52px;border-radius:50%;background:var(--yel);display:grid;place-items:center;flex:0 0 52px}
+.dist .arrow svg{transition:transform .3s}
+.demo{background:#eef3ff;border:1px dashed #9db8f5;border-radius:10px;padding:10px;margin-top:10px;font-size:13.5px}
+.demo input[type=range]{padding:0;border:0}
+.notif{border-left:4px solid var(--org);background:var(--org2);border-radius:10px;padding:10px 12px;font-size:14.5px}
+.trip{border:2px solid var(--ink);border-radius:16px;padding:16px;background:#fff}
+.trip .dest{font-family:"Barlow Condensed";font-size:34px;line-height:1.05;font-weight:800}
+.steps{display:grid;gap:10px;margin-top:12px}
+.stepbox{border:1px dashed var(--line);border-radius:12px;padding:12px}
+.stepbox.done{border-style:solid;border-color:var(--grn);background:var(--grn2)}
+.stepbox h3{font-size:18px}
+.log{font-size:13.5px;max-height:280px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.log div{border-left:3px solid var(--line);padding-left:8px}
+.log time{color:var(--mute);font-family:"Share Tech Mono";font-size:12px;margin-right:6px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(120px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;transition:.25s;z-index:50;max-width:92vw}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.pin{font-family:"Share Tech Mono";font-size:34px;letter-spacing:8px;background:var(--yel2);border-radius:10px;padding:6px 12px;display:inline-block}
+.seg{display:flex;background:#eceae3;border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font-weight:600;color:var(--ink2)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.hidden{display:none!important}
+.route{stroke-dasharray:10 8;animation:dash 1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-18}}
+.pulse{animation:pu 1.2s ease-in-out infinite}
+@keyframes pu{50%{opacity:.25}}
+.empty{color:var(--mute);text-align:center;padding:22px 8px;font-size:14.5px}
+footer{max-width:1180px;margin:0 auto;padding:0 18px 30px;color:var(--mute);font-size:12.5px}
+.geo i{display:inline-block}
+#nav:empty{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo"><div class="logo-mark">C</div><div><h1>CargaYa</h1><small>Mercado Mayor de Coche · Caracas</small></div></div>
+    <div class="geo" id="estado"></div>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main id="app"></main>
+<footer>CargaYa · versión piloto</footer>
+<div class="toast" id="toast"></div>
+<script>
+/* =====================================================================
+   CargaYa · versión piloto
+   - Datos compartidos en tiempo real con Supabase (config.js)
+   - Sin config.js completo funciona en "modo local" (solo este teléfono)
+   ===================================================================== */
+const CFG=Object.assign({SUPABASE_URL:'',SUPABASE_KEY:'',CLAVE_ADMIN:'1234',GEOCERCA_ACTIVA:true,RADIO_GEOCERCA_M:800,DISTANCIA_ENTREGA_M:30},window.CARGAYA_CONFIG||{});
+const ONLINE=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY&&window.supabase);
+const sb=ONLINE?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY):null;
+
+/* ===================== Plano y geolocalización ===================== */
+// Plano trazado sobre la vista satelital (norte arriba). Escala aprox: 0,7 m por unidad.
+// Ancla: estación Metro Mercado (L3) 10.439694, -66.926833 en el punto (905,465) del plano.
+const M_PX=0.7, ANCLA={x:905,y:465,lat:10.439694,lng:-66.926833};
+function toLatLng(x,y){return {lat:ANCLA.lat-(y-ANCLA.y)*M_PX/110574,lng:ANCLA.lng+(x-ANCLA.x)*M_PX/109477}}
+function fromLatLng(lat,lng){return {x:ANCLA.x+(lng-ANCLA.lng)*109477/M_PX,y:ANCLA.y-(lat-ANCLA.lat)*110574/M_PX}}
+const CENTRO=toLatLng(520,400);
+function distM(a,b){const R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r;const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function rumbo(a,b){const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);const g=(Math.atan2(y,x)/r+360)%360;return {g,txt:['norte','noreste','este','sureste','sur','suroeste','oeste','noroeste'][Math.round(g/45)%8]}}
+const dentroMercado=f=>!CFG.GEOCERCA_ACTIVA||distM(f,CENTRO)<=CFG.RADIO_GEOCERCA_M;
+const enPlano=f=>f&&f.lat!=null&&distM(f,CENTRO)<=1500;
+const ANG=-61;
+function rot(cx,cy,ang,lx,ly){const a=ang*Math.PI/180;return [cx+lx*Math.cos(a)-ly*Math.sin(a),cy+lx*Math.sin(a)+ly*Math.cos(a)]}
+const VZ={cx:456,cy:474,w:270,h:118,N:[529,343],S:[383,605]};
+const VPOLY=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>rot(VZ.cx,VZ.cy,ANG,a*VZ.w/2,b*VZ.h/2));
+const GEO=[[235,85],[905,68],[995,330],[905,560],[740,710],[300,705],[60,650],[60,440],[200,330]];
+const AREAS=[
+  {id:'NE',nombre:'Estacionamiento Noreste',poly:[[712,205],[800,172],[905,330],[805,388],[715,352]],salida:'N',via:[[600,338],[700,348]]},
+  {id:'SO',nombre:'Estacionamiento Suroeste',poly:[[70,480],[160,440],[290,595],[240,640],[90,590]],salida:'S',via:[[300,628]]},
+  {id:'ZEA',nombre:'Frente al Galpón Calle Zea',poly:[[532,218],[610,216],[602,290],[540,282]],salida:'N',via:[[585,300]]},
+];
+const EDIF=[
+  {n:'Galpón norte',p:'335,95 482,92 382,388 250,332',l:[365,235],r:-61},
+  {n:'Galpón Calle Zea',p:'500,104 772,104 772,206 520,216',l:[640,162],r:0},
+  {n:'Barco Pesca',p:'612,214 706,236 682,336 600,316',l:[645,300],r:0},
+  {n:'Agua Viva',p:'402,214 470,206 530,248 520,346 398,312',l:[462,286],r:-61},
+  {n:'Nave Cate',p:'382,330 432,346 332,588 276,562',l:[318,500],r:-61},
+  {n:'INMERCA',p:'602,344 652,360 500,652 446,630',l:[548,500],r:-61},
+];
+const HITOS=[{n:'Barco Pesca',x:655,y:275},{n:'el Galpón Calle Zea',x:640,y:160},{n:'INMERCA',x:548,y:500},{n:'la Nave Cate',x:352,y:460},{n:'Agua Viva',x:462,y:280},{n:'el Hospital',x:930,y:180},{n:'el Metro Mercado',x:905,y:465},{n:'el Galpón norte',x:340,y:230},{n:'los puestos',x:670,y:540}];
+function pip(x,y,poly){let a=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)a=!a}return a}
+const areaOf=(x,y)=>AREAS.find(a=>pip(x,y,a.poly))||(pip(x,y,VPOLY)?{id:'V',nombre:'Zona de camiones vendedores',via:[]}:null);
+function lugar(f){if(!f||f.lat==null)return {zona:'Sin ubicación',cerca:''};if(!enPlano(f))return {zona:'Fuera del mercado (prueba)',cerca:`${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}`};
+  const {x,y}=fromLatLng(f.lat,f.lng);const a=areaOf(x,y);const h=HITOS.reduce((b,h)=>Math.hypot(h.x-x,h.y-y)<Math.hypot(b.x-x,b.y-y)?h:b);
+  return {zona:a?a.nombre:'Dentro del mercado',cerca:'cerca de '+h.n}}
+function locTxt(f){const l=lugar(f);return l.cerca?`${l.zona} · ${l.cerca}`:l.zona}
+const f1=n=>Math.round(n*10)/10;
+const XY=f=>{const p=fromLatLng(f.lat,f.lng);return [p.x,p.y]};
+
+/* ===================== GPS del teléfono ===================== */
+function errGPS(e){return e&&e.code===1?'Le negaste el permiso de ubicación a la página. Activalo en los ajustes del navegador (candado junto a la dirección) y probá de nuevo.':e&&e.code===3?'El GPS tardó demasiado. Probá al aire libre, lejos de techos.':(e&&e.message)||'No se pudo leer el GPS.'}
+function mejorFix(ms=12000){return new Promise((res,rej)=>{
+  if(!navigator.geolocation)return rej(new Error('Este teléfono o navegador no permite usar el GPS.'));
+  let best=null,done=false;const fin=()=>{if(done)return;done=true;clearTimeout(t);navigator.geolocation.clearWatch(w);best?res(best):rej(new Error('No se obtuvo señal GPS. Probá al aire libre.'))};
+  const w=navigator.geolocation.watchPosition(p=>{const f={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy)};if(!best||f.acc<best.acc)best=f;if(best.acc<=8)fin()},
+    e=>{if(!best&&!done){done=true;clearTimeout(t);navigator.geolocation.clearWatch(w);rej(e)}},{enableHighAccuracy:true,maximumAge:0,timeout:ms});
+  const t=setTimeout(fin,ms)})}
+let GPS=null,gpsWatch=null,gpsErr=null,lastUp=0;
+function seguirGPS(){if(gpsWatch!=null||!navigator.geolocation)return;
+  gpsWatch=navigator.geolocation.watchPosition(p=>{GPS={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),t:Date.now()};gpsErr=null;
+    const trip=viajeActual();if(trip&&trip.estado==='en_ruta'&&Date.now()-lastUp>15000){lastUp=Date.now();const k=S.carretillero[ME.id];if(k)guardar('carretillero',{...k,lat:GPS.lat,lng:GPS.lng,acc:GPS.acc,gpsT:Date.now()})}
+    pedirRender()},e=>{gpsErr=errGPS(e);pedirRender()},{enableHighAccuracy:true,maximumAge:3000,timeout:20000})}
+function pararGPS(){if(gpsWatch!=null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null}}
+
+/* ===================== Datos ===================== */
+const S={vendedor:{},comprador:{},carretillero:{},despacho:{},log:[]};
+let conexion=ONLINE?'conectando':'local';
+const LKEY='cargaya-piloto-local',QKEY='cargaya-piloto-cola',MEKEY='cargaya-piloto-yo';
+let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
+function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
+let cola=[];try{cola=JSON.parse(localStorage.getItem(QKEY)||'[]')}catch(e){}
+const saveCola=()=>{try{localStorage.setItem(QKEY,JSON.stringify(cola))}catch(e){}};
+function saveLocal(){if(ONLINE)return;try{localStorage.setItem(LKEY,JSON.stringify(S))}catch(e){}}
+
+async function cargar(){
+  if(!ONLINE){try{Object.assign(S,JSON.parse(localStorage.getItem(LKEY)||'{}'))}catch(e){}return}
+  const r=await sb.from('registros').select('tipo,id,data');
+  if(r.error){conexion='error';toast('No se pudo conectar con la base de datos');return}
+  r.data.forEach(x=>{if(S[x.tipo])S[x.tipo][x.id]=x.data});
+  const a=await sb.from('actividad').select('t,m').order('id',{ascending:false}).limit(80);
+  if(!a.error)S.log=a.data.map(l=>({t:Date.parse(l.t),m:l.m}));
+  sb.channel('cargaya').on('postgres_changes',{event:'*',schema:'public',table:'registros'},p=>{const x=p.new;if(!x||!x.tipo||!S[x.tipo])return;const antes=S[x.tipo][x.id];S[x.tipo][x.id]=x.data;avisar(x.tipo,antes,x.data);pedirRender()})
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'actividad'},p=>{S.log.unshift({t:Date.parse(p.new.t),m:p.new.m});S.log=S.log.slice(0,80);pedirRender()})
+    .subscribe(st=>{conexion=st==='SUBSCRIBED'?'en línea':st==='CLOSED'||st==='CHANNEL_ERROR'||st==='TIMED_OUT'?'sin conexión':conexion;pintarEstado()});
+}
+async function enviar(op){if(op.k==='r')return sb.from('registros').upsert({tipo:op.tipo,id:op.obj.id,data:op.obj,updated_at:new Date().toISOString()});return sb.from('actividad').insert({m:op.m})}
+async function vaciarCola(){if(!ONLINE||!cola.length)return;while(cola.length){let r;try{r=await enviar(cola[0])}catch(e){r={error:e}}if(r&&r.error){conexion='sin conexión';pintarEstado();return}cola.shift();saveCola()}pintarEstado()}
+async function guardar(tipo,obj){S[tipo][obj.id]=obj;saveLocal();pedirRender();if(!ONLINE)return;cola.push({k:'r',tipo,obj});saveCola();await vaciarCola()}
+async function log(m){if(!ONLINE){S.log.unshift({t:Date.now(),m});S.log=S.log.slice(0,80);saveLocal();return}cola.push({k:'a',m});saveCola();await vaciarCola()}
+setInterval(vaciarCola,10000);window.addEventListener('online',vaciarCola);
+
+const L=t=>Object.values(S[t]);
+const vend=id=>S.vendedor[id],comp=p=>S.comprador[p],carr=id=>S.carretillero[id];
+const compradoresActivos=()=>L('comprador').filter(c=>c.activo!==false);
+const normPlaca=s=>(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const hhmm=t=>t?new Date(t).toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'}):'';
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const nuevoId=p=>p+'-'+Date.now().toString(36).slice(-4).toUpperCase()+Math.random().toString(36).slice(2,4).toUpperCase();
+function wa(tel){let d=(tel||'').replace(/\D/g,'');if(!d)return null;if(d.startsWith('0'))d='58'+d.slice(1);else if(!d.startsWith('58')&&d.length===10)d='58'+d;return 'https://wa.me/'+d}
+function waBtn(tel,txt){const u=wa(tel);return u?`<a class="btn o" style="display:inline-block;text-decoration:none;text-align:center" href="${u}" target="_blank" rel="noopener">💬 ${txt}</a> <span class="hint">${esc(tel)}</span>`:''}
+const ESTADOS=['pendiente','asignado','en_ruta','en_vehiculo','entregado'];
+const ETQ={pendiente:'Pendiente',asignado:'Asignado',en_ruta:'En camino',en_vehiculo:'En el vehículo · falta confirmar',entregado:'Entregado'};
+function chip(e){return `<span class="chip st-${e}">${ETQ[e]}</span>`}
+function tl(d){const i=ESTADOS.indexOf(d.estado);return `<div class="timeline">${ESTADOS.slice(1).map((_,k)=>`<i class="${k<i?'on':''}"></i>`).join('')}</div>`}
+function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),3000)}
+function sonar(){try{const c=sonar.c||(sonar.c=new (window.AudioContext||window.webkitAudioContext)());[0,.18].forEach(s=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(c.destination);o.start(c.currentTime+s);o.stop(c.currentTime+s+.12)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+function avisar(tipo,antes,d){if(tipo!=='despacho'||!ME)return;const cambio=!antes||antes.estado!==d.estado||antes.carretillero!==d.carretillero;if(!cambio)return;let m=null;
+  if(ME.rol==='carretillero'&&d.carretillero===ME.id&&(!antes||antes.carretillero!==ME.id))m=`Nuevo viaje: ${d.bultos} bultos para ${d.placa}`;
+  else if(ME.rol==='carretillero'&&d.estado==='pendiente'&&!antes)m=`Hay un viaje libre: ${d.bultos} bultos`;
+  else if(ME.rol==='comprador'&&d.placa===ME.id){if(d.estado==='en_ruta')m=`Tu mercancía va en camino (${d.desc})`;if(d.estado==='en_vehiculo')m=`Dejaron ${d.bultos} bultos en tu vehículo: confirmá`;if(!antes)m=`${vend(d.vendedor)?.nombre||'Un vendedor'} registró un despacho para vos`}
+  else if(ME.rol==='vendedor'&&d.vendedor===ME.id&&['en_vehiculo','entregado'].includes(d.estado))m=`${d.id}: ${ETQ[d.estado]}`;
+  if(m){toast(m);sonar()}}
+
+/* ===================== Rutas y mapa ===================== */
+function routePts(d){const c=comp(d.placa);if(!c||!enPlano(c))return null;const v=vend(d.vendedor);const end=XY(c);const a=areaOf(...end);
+  const ex=a&&a.salida?VZ[a.salida]:(Math.hypot(VZ.N[0]-end[0],VZ.N[1]-end[1])<Math.hypot(VZ.S[0]-end[0],VZ.S[1]-end[1])?VZ.N:VZ.S);
+  return [...(v&&enPlano(v)?[XY(v)]:[]),ex,...(a&&a.via?a.via:[]),end]}
+function baseSVG(){
+  let s=`<rect x="-300" y="-300" width="1600" height="1400" fill="#e9e6dc"/>
+  <polygon points="${GEO.map(p=>p.join(',')).join(' ')}" fill="#efede6" stroke="#3ddc84" stroke-width="2" stroke-dasharray="6 6"/>
+  <g fill="none" stroke="#d3cfc2" stroke-linecap="round" stroke-linejoin="round">
+   <polyline points="230,82 1009,72" stroke-width="18"/><polyline points="840,760 1009,380" stroke-width="20"/>
+   <polyline points="245,95 240,560 300,628 470,690 650,705" stroke-width="14"/><polyline points="490,98 400,205" stroke-width="10"/>
+   <polyline points="529,343 600,338 700,348 860,235 900,80" stroke-width="12"/><polyline points="383,605 300,628" stroke-width="12"/></g>
+  <polygon points="662,372 800,382 712,702 545,702" fill="#f2dfc2"/>
+  <text x="672" y="560" font-family="Barlow Condensed" font-size="15" fill="#a0784a" text-anchor="middle" transform="rotate(-72 672 560)">PUESTOS / BUHONEROS</text>`;
+  EDIF.forEach(e=>{s+=`<polygon points="${e.p}" fill="#cbc7bb" stroke="#b8b3a5"/><text x="${e.l[0]}" y="${e.l[1]}" font-family="Barlow Condensed" font-weight="700" font-size="14" fill="#5d6169" text-anchor="middle" transform="rotate(${e.r} ${e.l[0]} ${e.l[1]})">${e.n.toUpperCase()}</text>`});
+  AREAS.forEach(a=>{const cx=a.poly.reduce((s,p)=>s+p[0],0)/a.poly.length,cy=a.poly.reduce((s,p)=>s+p[1],0)/a.poly.length;
+    s+=`<polygon points="${a.poly.map(p=>p.join(',')).join(' ')}" fill="#e0ecff" fill-opacity=".7" stroke="#1f6feb" stroke-opacity=".5" stroke-dasharray="5 4"/><text x="${f1(cx)}" y="${f1(cy)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="#1f6feb" opacity=".7">COMPRADORES</text>`});
+  s+=`<polygon points="${VPOLY.map(p=>p.map(f1).join(',')).join(' ')}" fill="#fff3c4" stroke="#e8c96a"/>
+  <text x="${VZ.cx}" y="${VZ.cy}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="13" fill="#b08a1a" transform="rotate(${ANG} ${VZ.cx} ${VZ.cy})">CAMIONES VENDEDORES</text>
+  <text x="620" y="66" font-size="13" font-weight="600" fill="#7c8089">Calle Zea</text>
+  <text x="935" y="600" font-size="13" font-weight="600" fill="#7c8089" transform="rotate(-66 935 600)">Av. Intercomunal de El Valle</text>
+  <circle cx="905" cy="465" r="13" fill="#1f6feb"/><text x="905" y="470" text-anchor="middle" font-weight="700" font-size="14" fill="#fff">M</text>
+  <text x="905" y="495" text-anchor="middle" font-size="11.5" fill="#4a4f58">Metro Mercado</text>
+  <circle cx="930" cy="180" r="11" fill="#e0362c"/><text x="930" y="185" text-anchor="middle" font-weight="700" font-size="13" fill="#fff">H</text>
+  <g transform="translate(90 120)"><circle r="18" fill="#fff" stroke="#cbc7bb"/><path d="M0,-12 L6,6 L0,2 L-6,6Z" fill="#16181c"/><text y="-22" text-anchor="middle" font-size="11" font-weight="700" fill="#4a4f58">N</text></g>`;
+  return s}
+const PERSON='<circle r="9" fill="#1f6feb" stroke="#fff" stroke-width="3"/><circle r="22" fill="#1f6feb" fill-opacity=".15"/>';
+function mapSVG(opts={}){
+  const focus=opts.focus;const activos=L('despacho').filter(d=>d.estado!=='entregado');
+  const conPend=new Set(activos.map(d=>d.placa)),enRuta=new Set(activos.filter(d=>d.estado==='en_ruta').map(d=>d.placa));
+  let vb='40 40 960 690';const zp=focus?routePts(focus):opts.zoom||null;
+  if(zp&&zp.length){const xs=zp.map(q=>q[0]),ys=zp.map(q=>q[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+    let w=Math.max(x1-x0+170,opts.minW||420),h=Math.max(y1-y0+170,300);if(w/h<1.4)w=h*1.4;else h=w/1.4;vb=`${f1((x0+x1)/2-w/2)} ${f1((y0+y1)/2-h/2)} ${f1(w)} ${f1(h)}`}
+  let s=`<svg class="map" ${opts.id?`id="${opts.id}"`:''} viewBox="${vb}" role="img" aria-label="Plano del Mercado Mayor de Coche" ${opts.pick?'style="cursor:crosshair"':''}>${baseSVG()}`;
+  L('vendedor').filter(enPlano).forEach(v=>{const [x,y]=XY(v),hl=focus&&v.id===focus.vendedor;
+    s+=`<g transform="translate(${f1(x)} ${f1(y)}) rotate(${ANG})"><rect x="-17" y="-8" width="34" height="16" rx="3" fill="${hl?'#ffc400':'#16181c'}" stroke="${hl?'#16181c':'none'}" stroke-width="2"/><text y="3.5" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="${hl?'#16181c':'#ffc400'}">${esc(v.id)}</text><title>${esc(v.nombre)}</title></g>`});
+  compradoresActivos().filter(enPlano).forEach(c=>{if(opts.skip===c.id)return;const [x,y]=XY(c),isF=(focus&&c.id===focus.placa)||c.id===opts.mine;
+    const fill=isF?'#ffc400':enRuta.has(c.id)?'#f07b14':conPend.has(c.id)?'#1f6feb':'#16181c';
+    s+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(Math.min(c.acc||6,40)/M_PX)}" fill="${fill}" fill-opacity=".15"/><circle cx="${f1(x)}" cy="${f1(y)}" r="${isF?8:6}" fill="${fill}" stroke="${isF?'#16181c':'#fff'}" stroke-width="2"><title>${esc(c.id)} · ${esc(c.vehiculo)}</title></circle>`;
+    if(isF||opts.labels)s+=`<text x="${f1(x)}" y="${f1(y-13)}" text-anchor="middle" font-family="Share Tech Mono" font-size="12" fill="#16181c" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(c.id)}</text>`;
+    if(isF&&focus)s+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="18" fill="none" stroke="#e0362c" stroke-width="3" class="pulse"/>`});
+  (focus?[focus]:activos.filter(d=>d.estado==='en_ruta')).forEach(d=>{const p=routePts(d);if(!p)return;
+    s+=`<polyline points="${p.map(q=>f1(q[0])+','+f1(q[1])).join(' ')}" fill="none" stroke="${focus?'#e0362c':'#f07b14'}" stroke-width="${focus?4:3}" stroke-linejoin="round" stroke-linecap="round" class="route"/>`});
+  L('carretillero').forEach(k=>{const yo=ME&&ME.rol==='carretillero'&&k.id===ME.id;const f=yo&&GPS?GPS:k;const viaje=L('despacho').some(d=>d.carretillero===k.id&&d.estado==='en_ruta');
+    if((viaje||yo)&&enPlano(f)){const [x,y]=XY(f);s+=`<g transform="translate(${f1(x)} ${f1(y)})">${PERSON}<title>${esc(k.nombre)}</title></g>`}});
+  if(opts.pin&&enPlano(opts.pin)){const [x,y]=XY(opts.pin);s+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(Math.min(opts.pin.acc||6,40)/M_PX)}" fill="#e0362c" fill-opacity=".18"/><circle cx="${f1(x)}" cy="${f1(y)}" r="8" fill="#e0362c" stroke="#fff" stroke-width="3" class="pulse"/>`}
+  s+='</svg>';
+  return `<div class="mapwrap">${s}<div class="legend"><span><i style="background:#16181c;border-radius:50%"></i>Vehículo de comprador</span><span><i style="background:#1f6feb;border-radius:50%"></i>Con mercancía por llegar</span><span><i style="background:#f07b14;border-radius:50%"></i>En camino</span><span><i style="background:#1f6feb;border-radius:50%;box-shadow:0 0 0 3px #cfe0ff"></i>Carretillero</span></div></div>`}
+function svgPoint(svg,ev){const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const r=pt.matrixTransform(svg.getScreenCTM().inverse());return toLatLng(r.x,r.y)}
+function fotoInput(input,cb){if(!input)return;input.onchange=()=>{const f=input.files[0];if(!f)return;const img=new Image();img.onload=()=>{const sc=Math.min(1,480/Math.max(img.width,img.height));const cv=document.createElement('canvas');cv.width=img.width*sc;cv.height=img.height*sc;cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);cb(cv.toDataURL('image/jpeg',0.6))};img.src=URL.createObjectURL(f)}}
+
+/* ===================== Render ===================== */
+let view=null,pendiente=false;
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','vendedor','comprador','carretillero'];return [ME.rol]}
+const NOMBRES={mercado:'Panel del mercado',vendedor:'Vendedor',comprador:'Comprador',carretillero:'Carretillero'};
+function pedirRender(){const a=document.activeElement;if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
+document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
+const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]),#app textarea')].some(i=>i.value!==i.defaultValue);
+const ocupado=()=>!!(reg&&reg.ocupado)||!!corrigiendo||formSucio();
+function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
+  el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">cambiar</a>`:''}`;
+  const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();pararGPS();setME(null);view=null;render()}}
+function render(){
+  const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
+  const nav=document.getElementById('nav');nav.innerHTML=vs.length>1?vs.map(v=>`<button data-v="${v}" class="${v===view?'on':''}">${NOMBRES[v]}</button>`).join(''):'';
+  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;view=b.dataset.v;render()};
+  pintarEstado();
+  if(ME&&ME.rol==='carretillero')seguirGPS();
+  const app=document.getElementById('app');
+  if(!ME){app.innerHTML=vInicio();bind.inicio();return}
+  app.innerHTML=({mercado:vMercado,vendedor:vVendedor,comprador:vComprador,carretillero:vCarretillero})[view]();
+  bind[view]&&bind[view]();
+}
+function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
+  return `<div class="item"><div class="top"><div><b>${esc(d.id)}</b> · ${esc(d.desc)} · ${d.bultos} bultos</div>${chip(d.estado)}</div>
+   <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(locTxt(c))}</span> · `:''}${k?'Carretillero: '+esc(k.nombre):'Sin carretillero'}</div>
+   ${tl(d)}<div class="meta">Creado ${hhmm(d.t.creado)}${d.t.en_ruta?' · Salió '+hhmm(d.t.en_ruta):''}${d.t.entregado?' · Entregado '+hhmm(d.t.entregado):''}${d.verif&&d.estado==='entregado'?` · ✓ ${d.verif.gps?'GPS a '+d.verif.dist+' m':'⚠ sin GPS'}, placa, ${d.verif.quien==='pin'?'PIN':'confirmó el comprador'}`:''}</div></div>`}
+
+/* ---- Inicio: elegir rol ---- */
+let rolElegido=null;
+function vInicio(){
+  if(!rolElegido)return `<div class="card" style="max-width:520px;margin:0 auto"><h2>¿Cómo vas a usar CargaYa?</h2><p class="sub">Se elige una vez en este teléfono.</p>
+   <div class="grid" style="margin-top:12px">${[['vendedor','🚚 Soy vendedor','Despacho mercancía desde mi camión'],['comprador','🛒 Soy comprador','Compro y la mercancía va a mi vehículo'],['carretillero','🛞 Soy carretillero','Llevo la mercancía en carretilla'],['admin','📊 Administración','Panel del mercado (pide clave)']].map(([r,t,d])=>`<button class="btn o" style="text-align:left;padding:14px" data-rol="${r}"><div style="font-size:18px">${t}</div><div class="hint" style="font-weight:500">${d}</div></button>`).join('')}</div>
+   ${ONLINE?'':'<div class="notfound" style="margin-top:14px">Modo local: falta completar config.js. Los datos no se comparten con otros teléfonos.</div>'}</div>`;
+  const r=rolElegido;
+  return `<div class="card" style="max-width:520px;margin:0 auto"><h2>${{vendedor:'Datos del vendedor',comprador:'Datos del comprador',carretillero:'Datos del carretillero',admin:'Administración'}[r]}</h2>
+   <form id="fYo">${r==='admin'?'<label>Clave</label><input id="yClave" type="password" inputmode="numeric" required>':`
+    <label>${r==='vendedor'?'Nombre del puesto o negocio':r==='comprador'?'Nombre o negocio':'Tu nombre'}</label><input id="yNombre" required>
+    <label>Teléfono (WhatsApp)</label><input id="yTel" inputmode="tel" placeholder="0414-000-0000" ${r==='carretillero'?'':'required'}>
+    ${r==='comprador'?'<label>Placa de tu vehículo</label><input id="yPlaca" placeholder="Ej: AB123CD" required>':''}`}
+    <div class="row" style="margin-top:16px"><button class="btn o" type="button" id="atras">Atrás</button><button class="btn y" type="submit">Entrar</button></div></form></div>`}
+
+/* ---- Panel del mercado ---- */
+function vMercado(){
+  const ds=L('despacho'),ent=ds.filter(d=>d.estado==='entregado'&&d.t.en_vehiculo&&d.t.en_ruta);
+  const prom=ent.length?Math.round(ent.reduce((a,d)=>a+(d.t.en_vehiculo-d.t.en_ruta),0)/ent.length/60000):0;
+  return `<div class="grid"><div class="kpis">
+   <div class="kpi"><b>${ds.length}</b><span>Despachos</span></div>
+   <div class="kpi"><b>${ds.filter(d=>d.estado==='entregado').length}</b><span>Entregados y verificados</span></div>
+   <div class="kpi"><b>${ds.filter(d=>d.estado==='en_ruta').length}</b><span>En camino ahora</span></div>
+   <div class="kpi"><b>${prom} min</b><span>Trayecto promedio</span></div>
+   <div class="kpi"><b>${compradoresActivos().length} / ${L('vendedor').length} / ${L('carretillero').length}</b><span>Compradores / vendedores / carretilleros</span></div></div>
+  <div class="grid g2"><div>${mapSVG({labels:true})}</div>
+   <div class="card"><h2>Actividad</h2><p class="sub">Cada paso queda registrado con la hora.</p>
+    <div class="log">${S.log.map(l=>`<div><time>${hhmm(l.t)}</time>${esc(l.m)}</div>`).join('')||'<div class="empty">Sin actividad todavía</div>'}</div></div></div>
+  <div class="card"><h2>Despachos</h2><div class="list">${ds.sort((a,b)=>b.t.creado-a.t.creado).map(d=>itemDesp(d)).join('')||'<div class="empty">Todavía no hay despachos</div>'}</div></div></div>`}
+
+/* ---- Vendedor ---- */
+function vVendedor(){
+  const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];
+  if(!v)return '<div class="card empty">Todavía no hay vendedores registrados.</div>';
+  const mis=L('despacho').filter(d=>d.vendedor===v.id).sort((a,b)=>b.t.creado-a.t.creado);
+  const ocup=new Set(L('despacho').filter(d=>['asignado','en_ruta','en_vehiculo'].includes(d.estado)).map(d=>d.carretillero));
+  return `<div class="grid g2"><div class="grid" style="align-content:start">
+   <div class="card"><h2>Mi camión</h2><p class="sub">${esc(v.nombre)} · ${v.lat!=null?esc(locTxt(v))+` (±${v.acc} m, ${hhmm(v.gpsT)})`:'<b class="bad">sin ubicación</b>'}</p>
+    <button class="btn ${v.lat!=null?'o':'y'}" id="vGPS" style="width:100%">📍 ${v.lat!=null?'Actualizar':'Guardar'} ubicación de mi camión</button><div id="vRes"></div></div>
+   <div class="card"><h2>Nuevo despacho</h2><p class="sub">Escribí la placa que te dice el comprador.</p>
+   <form id="fDesp"><label>Placa del comprador</label>
+    <input id="placa" list="placas" placeholder="Ej: AB123CD" autocomplete="off" required>
+    <datalist id="placas">${compradoresActivos().map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')}</datalist>
+    <div id="placaInfo"></div>
+    <div class="row"><div><label>Mercancía</label><input id="desc" placeholder="Ej: Papa blanca" required></div>
+    <div style="flex:0 0 110px"><label>Bultos</label><input id="bultos" type="number" min="1" value="1" required></div></div>
+    <label>Carretillero</label>
+    <select id="kSel"><option value="">Sin asignar (lo toma el primero libre)</option>${L('carretillero').map(k=>`<option value="${esc(k.id)}">${esc(k.nombre)} ${ocup.has(k.id)?'(ocupado)':'(libre)'}</option>`).join('')}</select>
+    <div style="margin-top:14px"><button class="btn y big" type="submit">Crear despacho</button></div></form></div></div>
+  <div class="card"><h2>Mis despachos</h2><div class="list">${mis.map(d=>itemDesp(d,'vendedor')).join('')||'<div class="empty">Todavía no creaste despachos</div>'}</div></div></div>`}
+
+/* ---- Comprador ---- */
+let reg=null,corrigiendo=null;
+function vComprador(){
+  const c=ME.rol==='comprador'?comp(ME.id):compradoresActivos()[0];
+  if(ME.rol==='comprador'&&(!c||c.lat==null||reg))return vRegistro(c);
+  if(!c)return '<div class="card empty">Todavía no hay compradores registrados.</div>';
+  const mis=L('despacho').filter(d=>d.placa===c.id).sort((a,b)=>b.t.creado-a.t.creado);
+  const enCamino=mis.filter(d=>d.estado==='en_ruta'),porConf=mis.filter(d=>d.estado==='en_vehiculo'),pend=mis.filter(d=>d.estado!=='entregado');
+  const l=lugar(c);
+  return `<div class="grid g2"><div class="grid" style="align-content:start">
+   <div class="card"><h2>Mi vehículo</h2>
+    <div class="carbox" style="margin-top:6px">${c.foto?`<img class="photo sm" src="${c.foto}" alt="Foto del vehículo">`:'<div class="photo sm" style="display:grid;place-items:center;color:#8a9099;font-size:12px">Sin foto</div>'}
+     <div><span class="plate">${esc(c.id)}</span> ${esc(c.vehiculo)}<div class="loc" style="font-size:20px;margin-top:4px">${esc(l.zona)}</div><div class="meta">${esc(l.cerca)}${c.ref?' · '+esc(c.ref):''}</div>
+     <div class="hint">GPS ±${c.acc} m · marcado ${hhmm(c.gpsT)}</div></div></div>
+    ${corrigiendo?`<div class="found" style="margin-top:10px">Tocá en el mapa el lugar exacto donde está tu vehículo.</div><div style="margin-top:8px">${mapSVG({id:'pick',pick:true,pin:corrigiendo,skip:c.id,zoom:[XY(corrigiendo)],minW:480})}</div>
+      <div class="row" style="margin-top:10px"><button class="btn o" id="cancelCorr">Cancelar</button><button class="btn y" id="okCorr">Guardar ubicación</button></div>`
+     :`<div class="row" style="margin-top:12px"><button class="btn o" id="regps">📍 Estoy junto al vehículo: actualizar GPS</button>${enPlano(c)?'<button class="btn o" id="corr">Corregir en el mapa</button>':''}</div><div id="cRes"></div>
+      ${enPlano(c)?`<div style="margin-top:10px">${mapSVG({mine:c.id,zoom:[XY(c)],minW:520})}</div>`:''}`}
+    <div class="row" style="margin-top:14px;align-items:flex-end"><div><div class="hint">PIN de entrega (dáselo solo si estás presente)</div><span class="pin">${c.pin}</span></div>
+     ${ME.rol==='comprador'?'<div style="flex:0 0 auto"><button class="btn o" id="meVoy">Ya me fui del mercado</button></div>':''}</div></div>
+   ${enCamino.map(d=>{const k=carr(d.carretillero);const m=k&&k.lat!=null?Math.round(distM(k,c)):null;return `<div class="notif"><b>${esc(k?.nombre||'')}</b> va en camino con ${d.bultos} bultos de ${esc(d.desc)}${m!=null?` · a ${m} m`:''} ${k?.tel?'<br>'+waBtn(k.tel,'Escribir al carretillero'):''}</div>`}).join('')}
+   ${porConf.length?`<div class="card" style="border:2px solid var(--yel)"><h2>Confirmá la recepción</h2><p class="sub">Dejaron mercancía en tu vehículo. Revisala y confirmá.</p>
+     <div class="list">${porConf.map(d=>`<div class="item"><div class="top"><b>${esc(d.id)} · ${esc(d.desc)} · ${d.bultos} bultos</b>${chip(d.estado)}</div>
+     ${d.foto?`<img class="photo" src="${d.foto}" alt="Foto de la entrega">`:''}
+     <div class="meta">Dejado a las ${hhmm(d.t.en_vehiculo)} por ${esc(carr(d.carretillero)?.nombre||'')} · ${d.verif?.gps?`GPS a ${d.verif.dist} m de tu vehículo`:'⚠ sin verificación GPS'}</div>
+     <div class="row"><button class="btn g" data-conf="${esc(d.id)}">Recibí ${d.bultos} bultos completos</button><button class="btn o" style="flex:0 0 auto" data-recl="${esc(d.id)}">Falta algo</button></div></div>`).join('')}</div></div>`:''}
+  </div>
+  <div class="card"><h2>Mis compras</h2><p class="sub">${pend.length} por llegar · ${mis.length-pend.length} recibidas</p>
+   <div class="list">${mis.map(d=>`${itemDesp(d,'comprador')}${d.estado!=='entregado'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}`).join('')||'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver acá</div>'}</div></div></div>`}
+function vRegistro(c){
+  const r=reg||(reg={veh:c?.vehiculo||'',ref:c?.ref||'',foto:c?.foto||null});
+  return `<div class="grid g2"><div class="card">
+   <h2>Llegué y estacioné</h2><p class="sub">Antes de alejarte del vehículo, guardá su ubicación. Así los carretilleros lo encuentran sin que estés ahí.</p>
+   <form id="fReg"><div class="found"><span class="plate">${esc(ME.id)}</span> ${esc(ME.nombre)}</div>
+    <label>Vehículo (tipo y color)</label><input id="rVeh" placeholder="Ej: Camión 350 blanco" value="${esc(r.veh)}" required>
+    <label>Referencia (opcional)</label><input id="rRef" placeholder="Ej: detrás del camión cava azul" value="${esc(r.ref)}">
+    <label>Foto del vehículo y lo que lo rodea</label>
+    <div class="row"><label class="btn o" style="margin:0;text-align:center">${r.foto?'Cambiar foto':'📷 Tomar foto'}<input type="file" accept="image/*" capture="environment" id="rFoto" class="hidden"></label>${r.foto?`<img class="photo sm" style="flex:0 0 96px" src="${r.foto}" alt="">`:''}</div>
+    <label>Ubicación</label>
+    <button type="button" class="btn y" id="btnGPS" style="width:100%">📍 Estoy junto a mi vehículo: guardar GPS</button>
+    <div id="gpsRes">${r.err?`<div class="notfound">${esc(r.err)}</div>`:r.pos?(dentroMercado(r.pos)?`<div class="found">${CFG.GEOCERCA_ACTIVA?'Dentro del mercado ✓ · ':''}${esc(locTxt(r.pos))} · ±${r.pos.acc} m${r.pos.acc>25?'<br><b>La señal es débil.</b> Si podés, esperá unos segundos y volvé a tocar el botón.':''}${enPlano(r.pos)?'<br><span class="hint">Si el punto no está bien, tocá el mapa para corregirlo.</span>':''}</div>`:'<div class="notfound">Estás fuera del Mercado Mayor de Coche. La app solo funciona dentro del mercado.</div>'):''}</div>
+    <div class="row" style="margin-top:16px">${c&&c.lat!=null?'<button class="btn o" type="button" id="cancelReg">Cancelar</button>':''}<button class="btn y" type="submit">Guardar y empezar a comprar</button></div></form></div>
+   <div>${mapSVG({id:'pick',pick:!!r.pos,pin:r.pos,zoom:r.pos&&enPlano(r.pos)?[XY(r.pos)]:null,minW:560})}</div></div>`}
+
+/* ---- Carretillero ---- */
+let sinGPS=false;
+function viajeActual(){if(!ME)return null;return L('despacho').filter(d=>d.carretillero===ME.id&&['en_ruta','en_vehiculo'].includes(d.estado)).sort((a,b)=>a.t.creado-b.t.creado)[0]}
+function vCarretillero(){
+  const k=ME.rol==='carretillero'?carr(ME.id):L('carretillero')[0];
+  if(!k)return '<div class="card empty">Todavía no hay carretilleros registrados.</div>';
+  const yo=ME.rol==='carretillero';
+  const mios=L('despacho').filter(d=>d.carretillero===k.id&&d.estado!=='entregado').sort((a,b)=>a.t.creado-b.t.creado);
+  const actual=mios.find(d=>['en_ruta','en_vehiculo'].includes(d.estado))||mios[0];
+  const libres=L('despacho').filter(d=>d.estado==='pendiente');
+  const hechos=L('despacho').filter(d=>d.carretillero===k.id&&d.estado==='entregado').length;
+  let trip='<div class="card empty">No tenés viajes asignados. Cuando un vendedor te asigne uno, suena y aparece acá.</div>';
+  if(actual){const v=vend(actual.vendedor),c=comp(actual.placa),e=actual.estado,l=lugar(c);
+    const pos=yo?GPS:(k.lat!=null?k:null);const dist=pos?Math.round(distM(pos,c)):null,rb=pos?rumbo(pos,c):null;
+    const umbral=CFG.DISTANCIA_ENTREGA_M+Math.min(20,pos?.acc||0);const cerca=(dist!=null&&dist<=umbral)||sinGPS;
+    const d1=['en_ruta','en_vehiculo','entregado'].includes(e),d2=['en_vehiculo','entregado'].includes(e);
+    trip=`<div class="trip"><div class="row"><div><div class="hint">${esc(actual.id)} · ${esc(actual.desc)} · ${actual.bultos} bultos</div>
+     <div class="dest">${esc(l.zona)}</div><div class="meta">${esc(l.cerca)}</div></div>${chip(e)}</div>
+     <div class="carbox" style="margin-top:10px">${c.foto?`<img class="photo sm" src="${c.foto}" alt="Foto del vehículo">`:''}
+      <div><div style="font-size:18px;font-weight:700">${esc(c.vehiculo)}</div><span class="plate">${esc(c.id)}</span> ${esc(c.nombre)}${c.ref?`<div class="meta">📌 ${esc(c.ref)}</div>`:''}</div></div>
+     ${c.foto?`<details style="margin-top:8px"><summary class="hint">Ver foto grande</summary><img class="photo" src="${c.foto}" alt=""></details>`:''}
+     ${e==='en_ruta'||e==='asignado'?(dist!=null?`<div class="dist"><div class="arrow"><svg width="26" height="26" viewBox="-13 -13 26 26" style="transform:rotate(${Math.round(rb.g)}deg)"><path d="M0,-11 L8,8 L0,3 L-8,8Z" fill="#16181c"/></svg></div>
+       <div><b>${dist} m</b><div>hacia el ${rb.txt} (la flecha apunta según el norte) · GPS ±${pos.acc} m</div></div></div>`:`<div class="notfound" style="margin-top:12px">${esc(gpsErr||'Esperando señal GPS del teléfono…')}</div>`):''}
+     <div class="hint" style="margin-top:8px">Retirar en: ${esc(v?.nombre||actual.vendedor)} ${v?.lat!=null?'· '+esc(locTxt(v)):''}</div>
+     <div class="row" style="margin-top:8px">${waBtn(c.tel,'Escribir al comprador')}</div>
+     ${enPlano(c)?`<div style="margin-top:10px">${mapSVG({focus:actual})}</div>`:''}
+     ${yo?`<div class="steps">
+      <div class="stepbox ${d1?'done':''}"><h3>1 · Cargar y salir</h3>
+       ${d1?`<div class="ok">Salida ${hhmm(actual.t.en_ruta)} · se avisó al comprador</div>`:`<button class="btn y big" data-salir="${esc(actual.id)}">Cargué la mercancía · Salir</button>`}</div>
+      <div class="stepbox ${d2?'done':''}"><h3>2 · Llegar al vehículo</h3>
+       ${d2?`<div class="ok">Llegada registrada ✓ ${actual.verif?.gps?`(GPS a ${actual.verif.dist} m, placa correcta)`:'(sin GPS, placa correcta)'}</div>`:d1?`
+        <p class="sub">${cerca?(sinGPS?'Sin verificación GPS: la foto es obligatoria.':'Estás cerca. Buscá el vehículo, escribí la placa que ves y dejá la mercancía.'):`El botón se habilita cuando estés a menos de ${umbral} m del vehículo.`}</p>
+        <label>Placa que ves en el vehículo</label><input id="plIn" placeholder="Ej: AB123CD" ${cerca?'':'disabled'}>
+        <label>Foto de la mercancía en el vehículo ${sinGPS?'(obligatoria)':'(recomendada)'}</label>
+        <label class="btn o" style="display:block;text-align:center;margin:0;${cerca?'':'opacity:.4;pointer-events:none'}">${window._fotoTmp?'Foto lista ✓':'📷 Tomar foto'}<input type="file" accept="image/*" capture="environment" id="entFoto" class="hidden"></label>
+        <div style="margin-top:10px"><button class="btn y big" data-llegue="${esc(actual.id)}" ${cerca?'':'disabled'}>Dejé la mercancía en el vehículo</button></div><div id="llRes"></div>
+        ${!cerca&&!sinGPS?'<p style="margin-top:8px"><a href="#" id="sinGPS" class="hint">Estoy junto al vehículo pero el GPS no me deja</a></p>':''}`:'<p class="hint">Disponible al salir</p>'}</div>
+      <div class="stepbox"><h3>3 · Confirmación del comprador</h3>
+       ${d2?`<p class="sub">Al comprador le llegó el aviso para confirmar. Si está presente, pedile su PIN.</p>
+        <div class="row"><input id="pinIn" inputmode="numeric" maxlength="4" placeholder="PIN"><button class="btn g" style="flex:0 0 auto" data-pin="${esc(actual.id)}">Confirmar con PIN</button></div><div id="pinRes"></div>`:'<p class="hint">Disponible al llegar</p>'}</div></div>`:''}
+    </div>`}
+  return `<div class="grid g2"><div class="grid" style="align-content:start">
+    <div><h2 style="font-size:26px">Hola, ${esc(k.nombre)}</h2><p class="sub">${hechos} entregas · ${mios.length} en cola${yo?` · GPS ${GPS?'±'+GPS.acc+' m':gpsErr?'<span class="bad">sin permiso</span>':'buscando…'}`:''}</p></div>${trip}</div>
+   <div class="grid" style="align-content:start">
+    <div class="card"><h2>Mi cola</h2><div class="list">${mios.filter(d=>d!==actual).map(d=>itemDesp(d)).join('')||'<div class="empty">Nada más en cola</div>'}</div></div>
+    <div class="card"><h2>Viajes libres</h2><div class="list">${libres.map(d=>`${itemDesp(d)}${yo?`<button class="btn o" data-tomar="${esc(d.id)}">Tomar este viaje</button>`:''}`).join('')||'<div class="empty">No hay viajes libres</div>'}</div></div></div></div>`}
+
+/* ===================== Acciones ===================== */
+const $=id=>document.getElementById(id);
+function setEstado(d,e){return {...d,estado:e,t:{...d.t,[e]:Date.now()}}}
+const bind={
+  inicio(){
+    document.querySelectorAll('[data-rol]').forEach(b=>b.onclick=()=>{rolElegido=b.dataset.rol;render()});
+    if($('atras'))$('atras').onclick=()=>{rolElegido=null;render()};
+    if($('fYo'))$('fYo').onsubmit=async e=>{e.preventDefault();const r=rolElegido;
+      if(r==='admin'){if($('yClave').value!==String(CFG.CLAVE_ADMIN)){toast('Clave incorrecta');return}setME({rol:'admin',id:'admin',nombre:'Administración'});rolElegido=null;view='mercado';render();return}
+      const nombre=$('yNombre').value.trim(),tel=$('yTel').value.trim();
+      if(r==='comprador'){const p=normPlaca($('yPlaca').value);if(p.length<6){toast('Revisá la placa');return}
+        const prev=comp(p);setME({rol:'comprador',id:p,nombre,tel});if(prev){await guardar('comprador',{...prev,nombre,tel,activo:true})}rolElegido=null;reg=null;render();return}
+      const id=nuevoId(r==='vendedor'?'V':'K');const obj={id,nombre,tel,creado:Date.now()};
+      await guardar(r,obj);setME({rol:r,id,nombre});log(`Se registró ${r==='vendedor'?'el vendedor':'el carretillero'} ${nombre}`);rolElegido=null;render()};
+  },
+  mercado(){},
+  vendedor(){
+    const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
+    $('vGPS').onclick=async()=>{$('vRes').innerHTML='<p class="hint">Leyendo GPS…</p>';try{const f=await mejorFix();if(!dentroMercado(f)){$('vRes').innerHTML='<div class="notfound">Estás fuera del mercado.</div>';return}
+      await guardar('vendedor',{...v,lat:f.lat,lng:f.lng,acc:f.acc,gpsT:Date.now()});toast('Ubicación del camión guardada')}catch(e){$('vRes').innerHTML=`<div class="notfound">${esc(errGPS(e))}</div>`}};
+    const pin=$('placa'),info=$('placaInfo');
+    pin.oninput=()=>{const p=normPlaca(pin.value);if(p.length<5){info.innerHTML='';return}const c=comp(p);
+      info.innerHTML=c&&c.activo!==false&&c.lat!=null?`<div class="found carbox">${c.foto?`<img class="photo sm" src="${c.foto}" alt="">`:''}<div><span class="plate">${esc(c.id)}</span> ${esc(c.nombre)}<br>${esc(c.vehiculo)}<br><b class="loc" style="font-size:20px">${esc(locTxt(c))}</b><div class="hint">GPS marcado ${hhmm(c.gpsT)} · ±${c.acc} m</div></div></div>`:`<div class="notfound">Esa placa no está registrada o no marcó su ubicación. Pedile al comprador que la marque en la app.</div>`};
+    $('fDesp').onsubmit=async e=>{e.preventDefault();const p=normPlaca(pin.value),c=comp(p);if(!c||c.lat==null){toast('Placa no registrada');return}
+      const k=$('kSel').value;const id=nuevoId('D');
+      const d={id,vendedor:v.id,placa:p,desc:$('desc').value.trim(),bultos:+$('bultos').value,carretillero:k||null,estado:k?'asignado':'pendiente',t:{creado:Date.now(),...(k?{asignado:Date.now()}:{})},verif:null};
+      $('fDesp').reset();info.innerHTML='';await guardar('despacho',d);log(`${v.nombre} creó ${id} (${d.bultos} bultos) para ${p}${k?' → '+carr(k).nombre:''}`);toast(`Despacho ${id} creado`)};
+  },
+  comprador(){
+    const c=ME.rol==='comprador'?comp(ME.id):compradoresActivos()[0];
+    if(ME.rol==='comprador'&&(!c||c.lat==null||reg)){
+      const keep=()=>{reg.veh=$('rVeh').value;reg.ref=$('rRef').value};
+      fotoInput($('rFoto'),url=>{keep();reg.foto=url;render()});
+      $('btnGPS').onclick=async()=>{keep();reg.err=null;reg.ocupado=true;$('gpsRes').innerHTML='<p class="hint">Leyendo GPS del teléfono… (hasta 12 segundos)</p>';
+        try{reg.pos=await mejorFix()}catch(e){reg.err=errGPS(e)}reg.ocupado=false;render()};
+      const svg=$('pick');if(svg&&reg.pos)svg.onclick=ev=>{keep();const p=svgPoint(svg,ev);if(!dentroMercado(p)){toast('Fuera del mercado');return}reg.pos={...p,acc:5,manual:true};render()};
+      if($('cancelReg'))$('cancelReg').onclick=()=>{reg=null;render()};
+      $('fReg').onsubmit=async e=>{e.preventDefault();keep();if(!reg.pos){toast('Primero guardá el GPS junto al vehículo');return}if(!dentroMercado(reg.pos)){toast('Fuera del mercado');return}
+        const obj={...(c||{}),id:ME.id,nombre:ME.nombre,tel:c?.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),lat:reg.pos.lat,lng:reg.pos.lng,acc:reg.pos.acc,gpsT:Date.now(),
+          pin:c?.pin||String(Math.floor(1000+Math.random()*9000)),llegada:c?.llegada&&c.activo!==false?c.llegada:Date.now(),foto:reg.foto||null,activo:true};
+        if(!obj.tel)obj.tel=ME.tel||'';
+        reg=null;await guardar('comprador',obj);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) marcó su vehículo en ${locTxt(obj)}`);toast('Vehículo guardado')};
+      return}
+    if(!c)return;
+    if($('regps'))$('regps').onclick=async()=>{$('cRes').innerHTML='<p class="hint">Leyendo GPS…</p>';try{const f=await mejorFix();if(!dentroMercado(f)){$('cRes').innerHTML='<div class="notfound">Estás fuera del mercado.</div>';return}
+      await guardar('comprador',{...c,lat:f.lat,lng:f.lng,acc:f.acc,gpsT:Date.now()});log(`${c.id} actualizó su ubicación`);toast('Ubicación actualizada')}catch(e){$('cRes').innerHTML=`<div class="notfound">${esc(errGPS(e))}</div>`}};
+    if($('corr'))$('corr').onclick=()=>{corrigiendo={lat:c.lat,lng:c.lng,acc:c.acc};render()};
+    if($('cancelCorr'))$('cancelCorr').onclick=()=>{corrigiendo=null;render()};
+    if($('okCorr'))$('okCorr').onclick=async()=>{const p=corrigiendo;corrigiendo=null;await guardar('comprador',{...c,lat:p.lat,lng:p.lng,acc:5,gpsT:Date.now()});log(`${c.id} corrigió su ubicación en el mapa`);toast('Ubicación guardada')};
+    const svg=$('pick');if(svg)svg.onclick=ev=>{const p=svgPoint(svg,ev);if(!dentroMercado(p)){toast('Fuera del mercado');return}corrigiendo={...p,acc:5};render()};
+    if($('meVoy'))$('meVoy').onclick=async()=>{await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);setME(null);render()};
+    document.querySelectorAll('[data-conf]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.conf];const n=setEstado(d,'entregado');n.verif={...(n.verif||{}),quien:'comprador'};
+      await guardar('despacho',n);log(`${d.id} entregado a ${d.placa}: confirmó el comprador`);toast('Recepción confirmada')});
+    document.querySelectorAll('[data-recl]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.recl];log(`⚠ ${d.placa} reportó un faltante en ${d.id}`);toast('Se avisó al vendedor. Escribile por WhatsApp para resolverlo.')});
+  },
+  carretillero(){
+    if(ME.rol!=='carretillero')return;
+    document.querySelectorAll('[data-tomar]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.tomar];if(d.estado!=='pendiente'){toast('Otro carretillero ya lo tomó');return}
+      await guardar('despacho',{...setEstado(d,'asignado'),carretillero:ME.id});log(`${ME.nombre} tomó ${d.id}`);toast('Viaje tomado')});
+    document.querySelectorAll('[data-salir]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.salir];sinGPS=false;window._fotoTmp=null;
+      await guardar('despacho',setEstado(d,'en_ruta'));const k=carr(ME.id);if(k&&GPS)guardar('carretillero',{...k,lat:GPS.lat,lng:GPS.lng,acc:GPS.acc,gpsT:Date.now()});
+      log(`${ME.nombre} salió con ${d.id} hacia ${d.placa} (${locTxt(comp(d.placa))})`);toast('Se avisó al comprador')});
+    if($('sinGPS'))$('sinGPS').onclick=e=>{e.preventDefault();sinGPS=true;render()};
+    fotoInput($('entFoto'),url=>{window._fotoTmp=url;const a=document.activeElement;a&&a.blur&&a.blur();render()});
+    document.querySelectorAll('[data-llegue]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.llegue],c=comp(d.placa);const pl=normPlaca($('plIn').value);
+      if(pl!==c.id){const otro=comp(pl);$('llRes').innerHTML=`<p class="bad">✗ Esa placa no coincide${otro?': es el vehículo de '+esc(otro.nombre):''}. Buscá: ${esc(c.vehiculo)}, ${esc(c.id)}.</p>`;log(`Placa equivocada en ${d.id} (escribió ${pl})`);return}
+      if(sinGPS&&!window._fotoTmp){$('llRes').innerHTML='<p class="bad">Sin GPS, la foto es obligatoria.</p>';return}
+      const dist=GPS?Math.round(distM(GPS,c)):null;const n=setEstado(d,'en_vehiculo');n.verif={gps:!sinGPS&&dist!=null,dist,placa:true};n.foto=window._fotoTmp||null;window._fotoTmp=null;sinGPS=false;
+      await guardar('despacho',n);log(`${ME.nombre} dejó ${d.id} en ${c.id} (${n.verif.gps?'GPS a '+dist+' m':'⚠ sin GPS'}, placa ok). Esperando confirmación`);toast('Se pidió confirmación al comprador')});
+    document.querySelectorAll('[data-pin]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.pin],c=comp(d.placa);
+      if($('pinIn').value.trim()!==c.pin){$('pinRes').innerHTML='<p class="bad">PIN incorrecto.</p>';return}
+      const n=setEstado(d,'entregado');n.verif={...(n.verif||{}),quien:'pin'};await guardar('despacho',n);log(`${d.id} entregado a ${d.placa}: PIN verificado por ${ME.nombre}`);toast('Entrega completada ✓')});
+  }
+};
+
+/* ===================== Arranque ===================== */
+(async()=>{render();await cargar();if(ONLINE&&conexion!=='error'&&ME&&['vendedor','carretillero'].includes(ME.rol)&&!S[ME.rol][ME.id]){setME(null);toast('Tu registro no está en la base: elegí tu rol de nuevo')}pedirRender();vaciarCola()})();
+setInterval(()=>{if(ME&&ME.rol!=='carretillero')pedirRender()},30000);
+
+</script>
+</body>
+</html>

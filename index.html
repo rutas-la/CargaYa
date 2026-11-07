@@ -137,6 +137,23 @@ footer{max-width:1180px;margin:0 auto;padding:0 18px 30px;color:var(--mute);font
   .ficha .fc{grid-column:1;font-size:8pt;color:#555;text-align:center}
   .ficha .fl{grid-column:2;font-size:12pt;margin:.8mm 0}
   .ficha .fp{grid-column:1/3;font-size:8pt;color:#333;align-self:end}
+  @page cred{size:A4;margin:0}
+  .hoja-cred{page:cred;width:210mm;height:296mm;display:grid;grid-template-columns:105mm 105mm;grid-template-rows:148mm 148mm;break-after:page;overflow:hidden}
+  .cred{position:relative;width:105mm;height:148mm;padding:5mm;box-sizing:border-box;outline:.2mm dashed #bbb;outline-offset:-.1mm;font-family:Barlow,Arial,sans-serif;color:#16181c}
+  .cred.vacia{outline:none}
+  .cred .in{height:100%;box-sizing:border-box;border:1.2mm solid #16181c;border-radius:5mm;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:#fff}
+  .cred .top{height:12mm;width:100%;position:relative}
+  .cred .hole{position:absolute;top:3.5mm;width:5mm;height:5mm;border:.4mm dashed #777;border-radius:50%;box-sizing:border-box}
+  .cred .hole.l{left:24mm}.cred .hole.r{right:24mm}
+  .cred .top span{position:absolute;top:4.6mm;left:0;right:0;text-align:center;font-size:6pt;color:#999}
+  .cred .band{width:100%;background:#ffc400;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;font-family:'Barlow Condensed',Arial;font-weight:800;font-size:25pt;letter-spacing:1.5pt;line-height:13mm;height:13mm}
+  .cred .num{font-family:'Barlow Condensed',Arial;font-weight:800;font-size:60pt;line-height:1;margin-top:1.5mm}
+  .cred .num small{font-size:24pt;vertical-align:28pt;margin-right:1mm}
+  .cred img{width:62mm;height:62mm;image-rendering:pixelated;margin-top:1mm}
+  .cred .esc{font-size:9.5pt;font-weight:600;text-align:center;line-height:1.2;margin:1.5mm 6mm 0}
+  .cred .nom{font-size:10pt;margin-top:auto;margin-bottom:2mm;width:78mm;border-bottom:.3mm solid #16181c;padding-bottom:.5mm;color:#4a4f58}
+  .cred .foot{width:100%;background:#16181c;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;font-size:8.5pt;line-height:8mm;height:8mm}
+  .cred .foot b{color:#ffc400}
   .hoja-carnets{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
   .carnet{height:50mm;border:1px solid #333;border-radius:3mm;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto 1fr;align-items:center;padding:3mm 4mm;column-gap:4mm;break-inside:avoid;font-family:Barlow,Arial,sans-serif}
   .carnet .cn{grid-column:2;font-family:'Barlow Condensed',Arial;font-weight:800;font-size:44pt;line-height:1}
@@ -500,9 +517,10 @@ function vCarretilleros(){const ks=L('carretillero').filter(k=>!k.baja).sort((a,
 
 /* ---- Imprimir ---- */
 function vImprimir(){return `<div class="grid g2">
-  <div class="card"><h2>Carnets de carretillero</h2><p class="sub">10 por hoja, para recortar y plastificar.</p>
-   <div class="row"><div><label>Desde el número</label><input id="pkDesde" type="number" min="1" value="1"></div><div><label>Cantidad</label><input id="pkCant" type="number" min="1" value="30"></div></div>
-   <button class="btn y" id="pkGo" style="width:100%;margin-top:10px">Preparar e imprimir carnets</button></div>
+  <div class="card"><h2>Credenciales de carretillero</h2><p class="sub">Para colgar del cuello. Tamaño A6 (10,5 × 14,8 cm), 4 por hoja A4. Recorta por la línea punteada, plastifica y perfora los dos círculos para el cordón.</p>
+   <div class="row"><div><label>Desde el número</label><input id="pkDesde" type="number" min="1" value="1"></div><div><label>Cantidad</label><input id="pkCant" type="number" min="1" value="8"></div></div>
+   <label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="pkDorso" checked style="width:auto"> Imprimir también el dorso (doble faz), para que el QR se vea aunque la credencial se dé vuelta</label>
+   <button class="btn y" id="pkGo" style="width:100%;margin-top:10px">Preparar e imprimir credenciales</button></div>
   <div class="card"><h2>QR para entrar a la app</h2><p class="sub">Para que vendedores y compradores entren con su rol ya elegido.</p><a class="btn o" style="display:block;text-align:center;text-decoration:none" href="qr.html" target="_blank" rel="noopener">Abrir QR de vendedor y comprador</a></div></div>`}
 function cargarQRlib(){return window.qrcode?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='lib/qrcode.js';s.onload=res;s.onerror=()=>{toast('No se pudo cargar el generador de QR. Revisa la conexión.');rej()};document.head.appendChild(s)})}
 function qrImg(txt,px){const q=qrcode(0,'M');q.addData(txt);q.make();const n=q.getModuleCount();return q.createDataURL(Math.max(2,Math.floor(px/(n+4))),2)}
@@ -619,9 +637,14 @@ const bind={
       const k=carrPorNum(num);if(k)await guardar('carretillero',{...k,nombre:nom||k.nombre});else await carretilleroPorNum(num,nom);$('kNum').value='';$('kNom').value='';toast(`Carretillero #${num} guardado`);render()};
   },
   imprimir(){
-    $('pkGo').onclick=async()=>{await cargarQRlib();const desde=Math.max(1,+$('pkDesde').value||1),cant=Math.min(200,Math.max(1,+$('pkCant').value||1));let h='<div class="hoja-carnets">';
-      for(let i=0;i<cant;i++){const num=pad(desde+i,2);h+=`<div class="carnet"><div class="cn">#${num}</div><img src="${qrImg(urlCarnet(num),200)}" alt=""><div class="ct">CARRETILLERO<br><span>Mercado Mayor de Coche</span></div></div>`}
-      await imprimir(h+'</div>')};
+    $('pkGo').onclick=async()=>{await cargarQRlib();const desde=Math.max(1,+$('pkDesde').value||1),cant=Math.min(200,Math.max(1,+$('pkCant').value||1)),dorso=$('pkDorso').checked;
+      const cred=n=>n==null?'<div class="cred vacia"></div>':`<div class="cred"><div class="in"><div class="top"><i class="hole l"></i><i class="hole r"></i><span>perforar</span></div><div class="band">CARRETILLERO</div>
+        <div class="num"><small>N°</small>${n}</div><img src="${qrImg(urlCarnet(n),400)}" alt=""><div class="esc">Comprador: escanea este código<br>al recibir tu mercancía</div>
+        <div class="nom">Nombre:</div><div class="foot"><b>CargaYa</b> · Mercado Mayor de Coche</div></div></div>`;
+      const nums=[...Array(cant)].map((_,i)=>pad(desde+i,2));let html='';
+      for(let i=0;i<nums.length;i+=4){const g=[0,1,2,3].map(k=>nums[i+k]??null);html+=`<div class="hoja-cred">${g.map(cred).join('')}</div>`;
+        if(dorso)html+=`<div class="hoja-cred">${[g[1],g[0],g[3],g[2]].map(cred).join('')}</div>`}
+      await imprimir(html)};
   },
   calibrar(){
     const medir=async(id,nombre,nota)=>{calMidiendo=id;render();try{const f=await mejorFix(20000);await guardar('calibracion',{id,nombre,nota,lat:f.lat,lng:f.lng,acc:f.acc,t:Date.now()});log(`Calibración: ${nombre} medido (±${f.acc} m)`);toast(`Guardado ±${f.acc} m`)}catch(e){toast(errGPS(e))}calMidiendo=null;render()};

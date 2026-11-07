@@ -37,14 +37,14 @@ small{color:var(--ink2)}
 <body>
 <header><h1>CargaYa · Guía para la prueba</h1><p>Mercado Mayor de Coche · para la persona que hace las pruebas en el lugar</p></header>
 <main>
-<p>Gracias por ayudar. <b>Cómo funciona:</b> el comprador marca con su teléfono dónde estacionó, y la app le asigna la <b>zona</b> con el nombre que todos usan en el mercado (ej: "Detrás del Barco"). El vendedor ve esa zona y se la muestra al carretillero, que <b>no necesita teléfono</b>, solo tiene un <b>número</b> (y si se puede, un carnet con ese número). Cuando llega la mercancía, el comprador lo confirma en su teléfono y dice qué número de carretillero se la trajo.</p>
+<p>Gracias por ayudar. <b>Cómo funciona:</b> el comprador marca con su teléfono dónde estacionó, y la app le asigna la <b>zona</b> con el nombre que todos usan en el mercado (ej: "Detrás del Barco"). El vendedor ve esa zona y se la muestra al carretillero, que <b>no necesita teléfono</b>: solo lleva su <b>carnet con número y QR</b>. Cuando entrega, el comprador <b>escanea el carnet</b> con su teléfono y la entrega queda confirmada.</p>
 <nav class="idx"><a href="#material">Material</a><a href="#zonas">1 · Zonas</a><a href="#sola">2 · Prueba sola</a><a href="#real">3 · Prueba real</a><a href="#problemas">Problemas</a></nav>
 
 <section id="material">
 <h2>Material que necesitas</h2>
 <table>
 <tr><th>Qué</th><th>Para qué</th><th>Cuánto</th></tr>
-<tr><td><b>Carnets de carretillero</b> (opcional)</td><td>Uno por carretillero, con su número. Si no hay carnets, el vendedor escribe el número a mano.</td><td>Para el piloto alcanza con 2 o 3</td></tr>
+<tr><td><b>Carnets de carretillero</b></td><td>Uno por carretillero, con su número y QR. Recórtalos y, si puedes, plastifícalos. Se usan siempre, no hay que imprimir nada por cliente.</td><td>Para el piloto alcanza con 2 o 3</td></tr>
 </table>
 <p>Miguel te manda el PDF de carnets. Si necesitas más, en la app entra como <b>Administración → Imprimir</b>.</p>
 <ul>
@@ -82,7 +82,7 @@ small{color:var(--ink2)}
 <li><b>En B:</b> en <b>Número del carretillero</b>, escanea un carnet o escribe un número (ej: 7). Toca <b>Despachar</b>.</li>
 <li>Aparece la pantalla grande con el <b>nombre de la zona</b>: esa es la que el vendedor le muestra al carretillero.</li>
 <li>Camina hasta el vehículo como si fueras el carretillero.</li>
-<li><b>En A:</b> en <b>Por recibir</b>, toca <b>Ya me llegó</b>, escribe el número del carretillero y toca <b>Recibí completo</b>. Prueba también <b>Reportar faltante</b>.</li>
+<li><b>En A:</b> en <b>Por recibir</b>, toca <b>Ya me llegó</b> y luego <b>Escanear el carnet del carretillero</b>. Debe decir <b>"verificado"</b>. Toca <b>Recibí completo</b>. Prueba también escanear un carnet <b>distinto</b> (debe avisar que no es el mismo) y <b>Reportar faltante</b>.</li>
 <li><b>En B:</b> el despacho debe pasar a <b>Entregado</b> (o <b>Reclamo</b>).</li>
 </ol>
 <h3>Qué observar</h3>
@@ -99,15 +99,15 @@ small{color:var(--ink2)}
 <h3>Al empezar</h3>
 <ul>
 <li><b>Vendedor y comprador:</b> que escaneen su QR, se registren y toquen <b>Permitir</b> para ubicación y cámara. Que agreguen la app a la pantalla de inicio (Chrome → menú <b>⋮</b> → <b>Agregar a la pantalla principal</b>).</li>
-<li><b>Carretillero:</b> dale su número (o carnet) y explícale: <b>1)</b> antes de salir, el vendedor le muestra la zona en el teléfono; <b>2)</b> va a esa zona y busca el vehículo por la descripción, la placa y la referencia; <b>3)</b> si el comprador está, que le diga su número.</li>
+<li><b>Carretillero:</b> dale su carnet y explícale: <b>1)</b> el vendedor escanea su carnet y le muestra la zona en el teléfono; <b>2)</b> va a esa zona y busca el vehículo por la descripción, la placa y la referencia; <b>3)</b> al entregar, le muestra el carnet al comprador para que lo escanee.</li>
 </ul>
 <h3>Durante la prueba</h3>
 <ol>
 <li>El <b>comprador</b> marca su vehículo con el GPS antes de irse a comprar.</li>
 <li>Compra y le dice su <b>placa</b> al vendedor.</li>
-<li>El <b>vendedor</b> pone el número del carretillero, despacha y le muestra la pantalla de la zona.</li>
+<li>El <b>vendedor</b> escanea el carnet del carretillero, despacha y le muestra la pantalla de la zona.</li>
 <li>El <b>carretillero</b> lleva la mercancía al vehículo.</li>
-<li>El <b>comprador</b> toca <b>Ya me llegó</b>, dice el número del carretillero y confirma, o reporta si falta algo.</li>
+<li>El <b>comprador</b> toca <b>Ya me llegó</b>, escanea el carnet del carretillero y confirma, o reporta si falta algo. También puede escanear el carnet con la cámara normal del teléfono: se abre la app directo en la confirmación.</li>
 </ol>
 <h3>Anota para cada entrega</h3>
 <table>
@@ -129,8 +129,10 @@ small{color:var(--ink2)}
 <p>Acerca o aleja el teléfono y busca buena luz. Si igual no lo lee, escribe el <b>número</b> en la casilla que está al lado del botón.</p>
 <h3>El comprador queda "Fuera de zona" o con la zona equivocada</h3>
 <p>El comprador puede elegir su zona de la lista en <b>Mi vehículo</b>. Si pasa seguido en el mismo lugar, agrega más puntos a esa zona en <b>Zonas</b>.</p>
-<h3>El comprador no vio el número del carretillero</h3>
-<p>Puede dejar el número en blanco y confirmar igual. Queda registrado que confirmó sin número.</p>
+<h3>El comprador no estaba cuando llegó la mercancía</h3>
+<p>Al volver, toca <b>Ya me llegó</b> y confirma sin escanear (puede escribir el número del carretillero si lo sabe). Queda registrado que confirmó sin carnet.</p>
+<h3>Al escanear dice "pero este despacho lo lleva el #…"</h3>
+<p>El carnet no es del carretillero asignado. Revisen con el vendedor antes de confirmar.</p>
 <h3>Arriba dice "Sin conexión"</h3>
 <p>La app guarda lo que hagas y lo envía cuando vuelve la señal.</p>
 <div class="ojo">Cualquier otro problema: saca una <b>captura de pantalla</b> y mándasela a Miguel con una línea de qué estabas haciendo.</div>

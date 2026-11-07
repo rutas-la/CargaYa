@@ -417,7 +417,7 @@ function render(){
 function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
   return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${esc(d.desc)} · ${d.bultos} bultos</div>${chip(d.estado)}</div>
    <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(lugar(c).zona)}</span> · `:''}${k?`Carretillero <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}`:'Sin carretillero'}</div>
-   ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${({ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||'')+(d.verif?.carrOk===true?' · N° de carretillero verificado':d.verif?.carrOk===false?' · ⚠ dijo otro N° de carretillero ('+esc(d.verif.carrDicho)+')':'')}`:''}${d.estado==='reclamo'?` · ⚠ ${esc(d.reclamo||'falta mercancía')}`:''}</div></div>`}
+   ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${({carnet:'el comprador escaneó el carnet del carretillero',ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||'')+(d.verif?.carrOk===true&&d.verif?.metodo!=='carnet'?' · N° de carretillero verificado':d.verif?.carrOk===false?' · ⚠ dijo otro N° de carretillero ('+esc(d.verif.carrDicho)+')':'')}`:''}${d.estado==='reclamo'?` · ⚠ ${esc(d.reclamo||'falta mercancía')}`:''}</div></div>`}
 
 /* ---- Inicio ---- */
 let rolElegido=null;
@@ -458,7 +458,7 @@ function bindFichaURL(){const salir=()=>{fichaURL=null;try{history.replaceState(
   const d=despDeFicha(fichaURL);
   if($('fuOk'))$('fuOk').onclick=async()=>{await confirmar(d,'ficha');salir()};
   if($('fuMal'))$('fuMal').onclick=async()=>{await reclamar(d,$('fuRecl').value.trim());salir()}}
-async function confirmar(d,metodo,extra){await guardar('despacho',{...d,estado:'entregado',t:{...d.t,entregado:Date.now()},verif:{metodo,...(extra||{})}});log(`${nro(d)} recibido en ${d.placa} (${metodo==='vendedor'?'lo confirmó el vendedor':'confirmó el comprador'}${extra?.carrOk===true?', N° de carretillero correcto':extra?.carrOk===false?', ⚠ N° de carretillero distinto':''})`);toast('Recepción confirmada ✓')}
+async function confirmar(d,metodo,extra){await guardar('despacho',{...d,estado:'entregado',t:{...d.t,entregado:Date.now()},verif:{metodo,...(extra||{})}});log(`${nro(d)} recibido en ${d.placa} (${metodo==='vendedor'?'lo confirmó el vendedor':metodo==='carnet'?'el comprador escaneó el carnet #'+extra.carrDicho:'confirmó el comprador'}${extra?.carrOk===true&&metodo!=='carnet'?', N° de carretillero correcto':extra?.carrOk===false?', ⚠ N° de carretillero distinto':''})`);toast('Recepción confirmada ✓')}
 async function reclamar(d,txt){await guardar('despacho',{...d,estado:'reclamo',reclamo:txt||'falta mercancía',t:{...d.t,reclamo:Date.now()}});log(`⚠ ${d.placa} reportó un faltante en ${nro(d)}: ${txt||'sin detalle'}`);toast('Se avisó al vendedor')}
 
 /* ---- Panel ---- */
@@ -543,7 +543,7 @@ function vVendedor(){
   <div class="card"><h2>Mis despachos</h2><div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}${d.estado==='en_ruta'?`<div class="row"><button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button></div>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}`).join('')||'<div class="empty">Todavía no despachaste</div>'}</div></div></div>`}
 
 /* ---- Comprador ---- */
-let reg=null,corrigiendo=null,recibiendo=null;
+let reg=null,corrigiendo=null,recibiendo=null,carnetOk={};
 function vComprador(){
   const c=ME.rol==='comprador'?comp(ME.id):compradoresActivos()[0];
   if(ME.rol==='comprador'&&(!c||c.lat==null||reg))return vRegistro(c);
@@ -562,10 +562,12 @@ function vComprador(){
      :`<div class="row" style="margin-top:12px"><button class="btn o" id="regps">📍 Estoy junto al vehículo: actualizar GPS</button>${enPlano(c)?'<button class="btn o" id="corr">Corregir en el mapa</button>':''}</div><div id="cRes"></div>`}
     ${ME.rol==='comprador'?'<div style="margin-top:12px"><button class="btn o" id="meVoy" style="width:100%">Ya me fui del mercado</button></div>':''}</div>
    <div class="card" style="${enCamino.length?'border:2px solid var(--yel)':''}"><h2>Por recibir</h2>
-    <p class="sub">Cuando te llegue la mercancía, revísala y confírmala aquí.</p>
+    <p class="sub">Cuando te llegue la mercancía, revísala y escanea el carnet del carretillero para confirmar.</p>
     ${enCamino.map(d=>{const k=carr(d.carretillero);const abierto=recibiendo===d.id;return `<div class="item" style="margin-top:10px"><div class="top"><b>${esc(d.desc)} · ${d.bultos} bultos</b>${chip(d.estado)}</div>
       <div class="meta">De ${esc(vend(d.vendedor)?.nombre||'')} · salió ${hhmm(d.t.creado)}</div>
-      ${abierto?`<label>¿Qué número tiene el carretillero que te la trajo? (si lo viste)</label><input id="rcN" inputmode="numeric" placeholder="Ej: 07">
+      ${abierto?`${carnetOk[d.id]?`<div class="found" style="margin-top:8px;font-size:17px">✓ Carnet <b>#${esc(carnetOk[d.id])}</b> verificado: es el carretillero de este despacho</div>`
+        :`<button class="btn y big" data-rscan="${esc(d.id)}" style="margin-top:8px">📷 Escanear el carnet del carretillero</button>
+        <label>¿No puedes escanearlo? Escribe su número (si lo viste)</label><input id="rcN" inputmode="numeric" placeholder="Ej: 07">`}
         <button class="btn g big" data-rok="${esc(d.id)}" style="margin-top:10px">Recibí ${d.bultos} bultos completos</button>
         <label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: llegaron 5 bultos, faltó 1"><div class="row" style="margin-top:8px"><button class="btn o" data-rmal="${esc(d.id)}">Reportar faltante</button><button class="btn o" style="flex:0 0 auto" id="rcCancel">Cancelar</button></div>`
        :`<button class="btn y" data-rabrir="${esc(d.id)}">Ya me llegó</button>`}</div>`}).join('')||'<div class="empty">No tienes mercancía en camino</div>'}</div></div>
@@ -673,8 +675,12 @@ const bind={
     if($('cZona'))$('cZona').onchange=async()=>{const v=$('cZona').value||null;await guardar('comprador',{...c,zonaManual:v});log(`${c.id} ${v?'eligió la zona "'+v+'"':'volvió a la zona automática'}`);setTimeout(render,0)};
     document.querySelectorAll('[data-rabrir]').forEach(b=>b.onclick=()=>{recibiendo=b.dataset.rabrir;render()});
     if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;render()};
-    document.querySelectorAll('[data-rok]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rok];const n=$('rcN').value.replace(/\D/g,'');const k=carr(d.carretillero);
-      const extra=n?{carrDicho:pad(n,2),carrOk:!!k&&k.num===pad(n,2)}:{};recibiendo=null;await confirmar(d,'boton',extra)});
+    document.querySelectorAll('[data-rok]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rok];const k=carr(d.carretillero);
+      if(carnetOk[d.id]){const num=carnetOk[d.id];delete carnetOk[d.id];recibiendo=null;await confirmar(d,'carnet',{carrDicho:num,carrOk:true});return}
+      const n=$('rcN')?$('rcN').value.replace(/\D/g,''):'';const extra=n?{carrDicho:pad(n,2),carrOk:!!k&&k.num===pad(n,2)}:{};recibiendo=null;await confirmar(d,'boton',extra)});
+    document.querySelectorAll('[data-rscan]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rscan];const t=await escanear('Escanea el carnet','El QR del carnet del carretillero que te trajo la mercancía');if(!t)return;
+      const q=parseCodigo(t);if(!q||q.tipo!=='k'){toast('Ese código no es un carnet de CargaYa');return}const k=carr(d.carretillero);
+      if(k&&k.num===q.num){carnetOk[d.id]=q.num;render()}else{toast(`Ese carnet es el #${q.num}, pero este despacho lo lleva el #${k?.num||'?'}`);log(`⚠ ${d.placa} escaneó el carnet #${q.num} en ${nro(d)}, asignado al #${k?.num||'?'}`)}});
     document.querySelectorAll('[data-rmal]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rmal];const t=$('rcRecl').value.trim();recibiendo=null;await reclamar(d,t)});
     if($('meVoy'))$('meVoy').onclick=async()=>{await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);setME(null);render()};
   }
@@ -683,7 +689,12 @@ const bind={
 /* ===================== Arranque ===================== */
 (async()=>{render();await cargar();cargado=true;
   if(ONLINE&&conexion!=='error'&&ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){setME(null);toast('Tu registro no está en la base: elige tu rol de nuevo')}
-  if(kURL&&!fichaURL){const k=carrPorNum(kURL.num);toast(k?`Carretillero #${k.num} ${k.nombre||''}`:`Carnet #${kURL.num} (todavía sin registrar)`)}
+  if(kURL&&!fichaURL){const k=carrPorNum(kURL.num);
+    const d=ME&&ME.rol==='comprador'&&k?L('despacho').filter(x=>x.placa===ME.id&&x.estado==='en_ruta'&&x.carretillero===k.id).sort((a,b)=>a.t.creado-b.t.creado)[0]:null;
+    if(d){recibiendo=d.id;carnetOk[d.id]=k.num;view='comprador'}
+    else if(ME&&ME.rol==='comprador')toast(`El carretillero #${kURL.num} no tiene entregas pendientes para tu vehículo`);
+    else toast(k?`Carretillero #${k.num} ${k.nombre||''}`:`Carnet #${kURL.num} (todavía sin registrar)`);
+    try{history.replaceState(null,'',location.pathname)}catch(e){}}
   if(conexion==='conectando')conexion=ONLINE?'en línea':'local';
   render();vaciarCola()})();
 setInterval(()=>{if(ME)pedirRender()},30000);

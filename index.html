@@ -268,7 +268,7 @@ function toast(m){const el=document.getElementById('toast');el.textContent=m;el.
 function sonar(){try{const c=sonar.c||(sonar.c=new (window.AudioContext||window.webkitAudioContext)());[0,.18].forEach(s=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(c.destination);o.start(c.currentTime+s);o.stop(c.currentTime+s+.12)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
 function avisar(tipo,antes,d){if(tipo!=='despacho'||!ME)return;if(antes&&antes.estado===d.estado)return;let m=null;
   if(ME.rol==='comprador'&&d.placa===ME.id&&!antes)m=`${vend(d.vendedor)?.nombre||'Un vendedor'} despachó ${d.bultos} bultos a tu vehículo`;
-  else if(ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&d.estado!=='en_ruta')m=`Ficha ${d.ficha?.num||d.id}: ${ETQ[d.estado]}`;
+  else if(ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&d.estado!=='en_ruta')m=`${nro(d)} para ${d.placa}: ${ETQ[d.estado]}`;
   if(m){toast(m);sonar()}}
 
 /* ===================== Rutas y mapa ===================== */
@@ -369,6 +369,7 @@ function parseCodigo(txt){if(!txt)return null;txt=String(txt).trim();
   let m=txt.match(/^F:?\s*(\d{1,6})(?:[-\s]+([A-Z0-9]{3}))?$/i);if(m)return {tipo:'f',num:pad(m[1],4),cod:m[2]?m[2].toUpperCase():null};
   m=txt.match(/^K:?\s*(\d{1,4})$/i);if(m)return {tipo:'k',num:pad(m[1],2)};return null}
 const carrPorNum=num=>L('carretillero').find(k=>k.num===num);
+const nro=d=>d.ficha?'Ficha '+d.ficha.num:'Despacho '+d.id.slice(-4);
 
 /* ===================== Escáner con la cámara ===================== */
 function cargarJsQR(){return window.jsQR?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='lib/jsQR.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
@@ -397,7 +398,7 @@ const NOMBRES={mercado:'Panel',zonas:'Zonas',carretilleros:'Carretilleros',impri
 function pedirRender(){const a=document.activeElement;if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]),#app textarea')].some(i=>i.value!==i.defaultValue);
-const ocupado=()=>!!(reg&&reg.ocupado)||!!corrigiendo||!!calMidiendo||!!zonaMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!desp.k||!!desp.f||formSucio();
+const ocupado=()=>!!(reg&&reg.ocupado)||!!corrigiendo||!!calMidiendo||!!zonaMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!desp.k||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
   el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">cambiar</a>`:''}`;
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();setME(null);view=null;render()}}
@@ -414,9 +415,9 @@ function render(){
   bind[view]&&bind[view]();
 }
 function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
-  return `<div class="item"><div class="top"><div><b>${d.ficha?'Ficha '+esc(d.ficha.num):esc(d.id)}</b> · ${esc(d.desc)} · ${d.bultos} bultos</div>${chip(d.estado)}</div>
+  return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${esc(d.desc)} · ${d.bultos} bultos</div>${chip(d.estado)}</div>
    <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(lugar(c).zona)}</span> · `:''}${k?`Carretillero <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}`:'Sin carretillero'}</div>
-   ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${{ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador (sin escanear)',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||''}`:''}${d.estado==='reclamo'?` · ⚠ ${esc(d.reclamo||'falta mercancía')}`:''}</div></div>`}
+   ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${({ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||'')+(d.verif?.carrOk===true?' · N° de carretillero verificado':d.verif?.carrOk===false?' · ⚠ dijo otro N° de carretillero ('+esc(d.verif.carrDicho)+')':'')}`:''}${d.estado==='reclamo'?` · ⚠ ${esc(d.reclamo||'falta mercancía')}`:''}</div></div>`}
 
 /* ---- Inicio ---- */
 let rolElegido=null;
@@ -424,7 +425,7 @@ try{const q=new URLSearchParams(location.search).get('rol');if(['vendedor','comp
 function vInicio(){
   if(!rolElegido)return `<div class="card" style="max-width:520px;margin:0 auto"><h2>¿Cómo vas a usar CargaYa?</h2><p class="sub">Se elige una vez en este teléfono.</p>
    <div class="grid" style="margin-top:12px">${[['vendedor','🚚 Soy vendedor','Despacho mercancía desde mi camión'],['comprador','🛒 Soy comprador','Compro y la mercancía llega a mi vehículo'],['admin','📊 Administración','Zonas, carretilleros, impresión y panel (pide clave)']].map(([r,t,d])=>`<button class="btn o" style="text-align:left;padding:14px" data-rol="${r}"><div style="font-size:18px">${t}</div><div class="hint" style="font-weight:500">${d}</div></button>`).join('')}</div>
-   <p class="hint" style="margin-top:12px">Los carretilleros no necesitan teléfono: usan su carnet con número.</p>
+   <p class="hint" style="margin-top:12px">Los carretilleros no necesitan teléfono: solo su número.</p>
    ${ONLINE?'':'<div class="notfound" style="margin-top:14px">Modo local: falta completar config.js. Los datos no se comparten con otros teléfonos.</div>'}</div>`;
   const r=rolElegido;
   return `<div class="card" style="max-width:520px;margin:0 auto"><h2>${{vendedor:'Datos del vendedor',comprador:'Datos del comprador',admin:'Administración'}[r]}</h2>
@@ -457,8 +458,8 @@ function bindFichaURL(){const salir=()=>{fichaURL=null;try{history.replaceState(
   const d=despDeFicha(fichaURL);
   if($('fuOk'))$('fuOk').onclick=async()=>{await confirmar(d,'ficha');salir()};
   if($('fuMal'))$('fuMal').onclick=async()=>{await reclamar(d,$('fuRecl').value.trim());salir()}}
-async function confirmar(d,metodo){await guardar('despacho',{...d,estado:'entregado',t:{...d.t,entregado:Date.now()},verif:{metodo}});log(`Ficha ${d.ficha?.num||d.id} recibida en ${d.placa} (${metodo==='ficha'?'escaneó la ficha':metodo==='boton'?'confirmó sin escanear':'lo confirmó el vendedor'})`);toast('Recepción confirmada ✓')}
-async function reclamar(d,txt){await guardar('despacho',{...d,estado:'reclamo',reclamo:txt||'falta mercancía',t:{...d.t,reclamo:Date.now()}});log(`⚠ ${d.placa} reportó un faltante en la ficha ${d.ficha?.num||d.id}: ${txt||'sin detalle'}`);toast('Se avisó al vendedor')}
+async function confirmar(d,metodo,extra){await guardar('despacho',{...d,estado:'entregado',t:{...d.t,entregado:Date.now()},verif:{metodo,...(extra||{})}});log(`${nro(d)} recibido en ${d.placa} (${metodo==='vendedor'?'lo confirmó el vendedor':'confirmó el comprador'}${extra?.carrOk===true?', N° de carretillero correcto':extra?.carrOk===false?', ⚠ N° de carretillero distinto':''})`);toast('Recepción confirmada ✓')}
+async function reclamar(d,txt){await guardar('despacho',{...d,estado:'reclamo',reclamo:txt||'falta mercancía',t:{...d.t,reclamo:Date.now()}});log(`⚠ ${d.placa} reportó un faltante en ${nro(d)}: ${txt||'sin detalle'}`);toast('Se avisó al vendedor')}
 
 /* ---- Panel ---- */
 function vMercado(){
@@ -499,9 +500,6 @@ function vCarretilleros(){const ks=L('carretillero').filter(k=>!k.baja).sort((a,
 
 /* ---- Imprimir ---- */
 function vImprimir(){return `<div class="grid g2">
-  <div class="card"><h2>Talonario de fichas</h2><p class="sub">Fichas de entrega con QR, 8 por hoja. Cada número se usa una sola vez.</p>
-   <div class="row"><div><label>Desde el número</label><input id="pfDesde" type="number" min="1" value="1"></div><div><label>Cantidad</label><input id="pfCant" type="number" min="8" step="8" value="80"></div></div>
-   <button class="btn y" id="pfGo" style="width:100%;margin-top:10px">Preparar e imprimir fichas</button></div>
   <div class="card"><h2>Carnets de carretillero</h2><p class="sub">10 por hoja, para recortar y plastificar.</p>
    <div class="row"><div><label>Desde el número</label><input id="pkDesde" type="number" min="1" value="1"></div><div><label>Cantidad</label><input id="pkCant" type="number" min="1" value="30"></div></div>
    <button class="btn y" id="pkGo" style="width:100%;margin-top:10px">Preparar e imprimir carnets</button></div>
@@ -524,7 +522,6 @@ function vVendedor(){
      <div class="carbox" style="margin-top:12px">${c.foto?`<img class="photo" style="width:140px;height:105px" src="${c.foto}" alt="Foto del vehículo">`:''}
       <div><div style="font-size:22px;font-weight:700">${esc(c.vehiculo)}</div><span class="plate" style="font-size:24px">${esc(c.id)}</span>${c.ref?`<div style="font-size:17px;margin-top:4px">📌 ${esc(c.ref)}</div>`:''}</div></div>
      ${c.foto?`<img class="photo" style="margin-top:10px;max-height:320px" src="${c.foto}" alt="">`:''}
-     <div class="nota" style="background:#fff3c4;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:17px">✍️ Escribe en la ficha ${d.ficha?`<b>${esc(d.ficha.num)}</b>`:''}: <b>${l.codigo?esc(l.codigo)+' · ':''}${esc(c.id)}</b></div>
      ${enPlano(c)?`<div style="margin-top:10px">${mapSVG({focus:d,nolegend:true})}</div>`:''}
      <button class="btn y big" id="fvListo" style="margin-top:12px">Listo, salió</button></div>`}
   const mis=L('despacho').filter(d=>d.vendedor===v.id).sort((a,b)=>b.t.creado-a.t.creado);
@@ -537,19 +534,16 @@ function vVendedor(){
     <div id="placaInfo"></div>
     <div class="row"><div><label>2 · Mercancía</label><input id="desc" placeholder="Ej: Papa blanca" value="${esc(desp.desc||'')}" required></div>
     <div style="flex:0 0 100px"><label>Bultos</label><input id="bultos" type="number" min="1" value="${esc(desp.bultos||1)}" required></div></div>
-    <label>3 · Carretillero</label>
+    <label>3 · Número del carretillero</label>
     ${k?`<div class="found" style="display:flex;justify-content:space-between;align-items:center">Carnet <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}<a href="#" id="kQuitar">cambiar</a></div>`
       :`<div class="row"><button type="button" class="btn o" id="dScanK">📷 Escanear carnet</button><div style="flex:0 0 110px"><input id="dNumK" inputmode="numeric" placeholder="o N°"></div></div>`}
-    <label>4 · Ficha de entrega</label>
-    ${desp.f?`<div class="found" style="display:flex;justify-content:space-between;align-items:center">Ficha <b>${esc(desp.f.num)}</b>${desp.f.cod?'':' (escrita a mano)'}<a href="#" id="fQuitar">cambiar</a></div>`
-      :`<div class="row"><button type="button" class="btn o" id="dScanF">📷 Escanear ficha</button><div style="flex:0 0 110px"><input id="dNumF" inputmode="numeric" placeholder="o N°"></div></div>`}
     <div style="margin-top:14px"><button class="btn y big" type="submit">Despachar</button></div></form></div>
    <div class="card"><h2>Mi camión</h2><p class="sub">${esc(v.nombre)} · ${v.lat!=null?esc(locTxt(v))+` (±${v.acc} m, ${hhmm(v.gpsT)})`:'<b class="bad">sin ubicación</b>'}</p>
     <button class="btn o" id="vGPS" style="width:100%">📍 ${v.lat!=null?'Actualizar':'Guardar'} ubicación de mi camión</button><div id="vRes"></div></div></div>
   <div class="card"><h2>Mis despachos</h2><div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}${d.estado==='en_ruta'?`<div class="row"><button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button></div>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}`).join('')||'<div class="empty">Todavía no despachaste</div>'}</div></div></div>`}
 
 /* ---- Comprador ---- */
-let reg=null,corrigiendo=null;
+let reg=null,corrigiendo=null,recibiendo=null;
 function vComprador(){
   const c=ME.rol==='comprador'?comp(ME.id):compradoresActivos()[0];
   if(ME.rol==='comprador'&&(!c||c.lat==null||reg))return vRegistro(c);
@@ -567,12 +561,14 @@ function vComprador(){
       <div class="row" style="margin-top:10px"><button class="btn o" id="cancelCorr">Cancelar</button><button class="btn y" id="okCorr">Guardar ubicación</button></div>`
      :`<div class="row" style="margin-top:12px"><button class="btn o" id="regps">📍 Estoy junto al vehículo: actualizar GPS</button>${enPlano(c)?'<button class="btn o" id="corr">Corregir en el mapa</button>':''}</div><div id="cRes"></div>`}
     ${ME.rol==='comprador'?'<div style="margin-top:12px"><button class="btn o" id="meVoy" style="width:100%">Ya me fui del mercado</button></div>':''}</div>
-   <div class="card" style="${enCamino.length?'border:2px solid var(--yel)':''}"><h2>Recibir mercancía</h2>
-    <p class="sub">Cada carga llega con una <b>ficha de papel</b>. Escanéala para confirmar que la recibiste.</p>
-    <button class="btn y big" id="cScanF">📷 Escanear ficha</button>
-    ${enCamino.map(d=>{const k=carr(d.carretillero);return `<div class="item" style="margin-top:10px"><div class="top"><b>${d.ficha?'Ficha '+esc(d.ficha.num)+' · ':''}${esc(d.desc)} · ${d.bultos} bultos</b>${chip(d.estado)}</div>
-      <div class="meta">De ${esc(vend(d.vendedor)?.nombre||'')} · salió ${hhmm(d.t.creado)}${k?` · carretillero #${esc(k.num)}`:''}</div>
-      <div class="row"><button class="btn o" data-sinf="${esc(d.id)}">Recibí (no tengo la ficha)</button><button class="btn o" style="flex:0 0 auto" data-recl="${esc(d.id)}">Falta algo</button></div></div>`}).join('')}</div></div>
+   <div class="card" style="${enCamino.length?'border:2px solid var(--yel)':''}"><h2>Por recibir</h2>
+    <p class="sub">Cuando te llegue la mercancía, revísala y confírmala aquí.</p>
+    ${enCamino.map(d=>{const k=carr(d.carretillero);const abierto=recibiendo===d.id;return `<div class="item" style="margin-top:10px"><div class="top"><b>${esc(d.desc)} · ${d.bultos} bultos</b>${chip(d.estado)}</div>
+      <div class="meta">De ${esc(vend(d.vendedor)?.nombre||'')} · salió ${hhmm(d.t.creado)}</div>
+      ${abierto?`<label>¿Qué número tiene el carretillero que te la trajo? (si lo viste)</label><input id="rcN" inputmode="numeric" placeholder="Ej: 07">
+        <button class="btn g big" data-rok="${esc(d.id)}" style="margin-top:10px">Recibí ${d.bultos} bultos completos</button>
+        <label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: llegaron 5 bultos, faltó 1"><div class="row" style="margin-top:8px"><button class="btn o" data-rmal="${esc(d.id)}">Reportar faltante</button><button class="btn o" style="flex:0 0 auto" id="rcCancel">Cancelar</button></div>`
+       :`<button class="btn y" data-rabrir="${esc(d.id)}">Ya me llegó</button>`}</div>`}).join('')||'<div class="empty">No tienes mercancía en camino</div>'}</div></div>
   <div class="card"><h2>Mis compras</h2><p class="sub">${enCamino.length} por recibir · ${mis.length-enCamino.length} cerradas</p>
    <div class="list">${mis.map(d=>`${itemDesp(d,'comprador')}${d.estado!=='entregado'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}`).join('')||'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver aquí</div>'}</div></div></div>`}
 function vRegistro(c){
@@ -621,10 +617,6 @@ const bind={
       const k=carrPorNum(num);if(k)await guardar('carretillero',{...k,nombre:nom||k.nombre});else await carretilleroPorNum(num,nom);$('kNum').value='';$('kNom').value='';toast(`Carretillero #${num} guardado`);render()};
   },
   imprimir(){
-    $('pfGo').onclick=async()=>{await cargarQRlib();const desde=Math.max(1,+$('pfDesde').value||1),cant=Math.min(400,Math.max(1,+$('pfCant').value||8));let h='<div class="hoja-fichas">';
-      for(let i=0;i<cant;i++){const n=desde+i,num=pad(n,4),cod=codFicha(n);h+=`<div class="ficha"><div class="fh"><b>CargaYa</b> · Ficha de entrega</div><div class="fn">N° ${num}</div><img src="${qrImg(urlFicha(num,cod),220)}" alt=""><div class="fc">código ${cod}</div>
-        <div class="fl">Zona: ________</div><div class="fl">Placa: ______________</div><div class="fl">Bultos: _____</div><div class="fp">Comprador: escanea este código para confirmar que recibiste.</div></div>`}
-      await imprimir(h+'</div>')};
     $('pkGo').onclick=async()=>{await cargarQRlib();const desde=Math.max(1,+$('pkDesde').value||1),cant=Math.min(200,Math.max(1,+$('pkCant').value||1));let h='<div class="hoja-carnets">';
       for(let i=0;i<cant;i++){const num=pad(desde+i,2);h+=`<div class="carnet"><div class="cn">#${num}</div><img src="${qrImg(urlCarnet(num),200)}" alt=""><div class="ct">CARRETILLERO<br><span>Mercado Mayor de Coche</span></div></div>`}
       await imprimir(h+'</div>')};
@@ -649,15 +641,10 @@ const bind={
       if(p&&p.tipo==='k'){const k=await carretilleroPorNum(p.num);desp.k=k.id;render()}else if(t)toast('Ese código no es un carnet')};
     if($('dNumK'))$('dNumK').onchange=async()=>{keep();const n=$('dNumK').value.replace(/\D/g,'');if(!n)return;const k=await carretilleroPorNum(pad(n,2));desp.k=k.id;setTimeout(render,0)};
     if($('kQuitar'))$('kQuitar').onclick=e=>{e.preventDefault();keep();desp.k=null;render()};
-    if($('dScanF'))$('dScanF').onclick=async()=>{keep();const p=await procesarScanFicha();if(p){desp.f=p;render()}};
-    if($('dNumF'))$('dNumF').onchange=()=>{keep();const n=$('dNumF').value.replace(/\D/g,'');if(!n)return;desp.f={tipo:'f',num:pad(n,4),cod:null};setTimeout(render,0)};
-    if($('fQuitar'))$('fQuitar').onclick=e=>{e.preventDefault();keep();desp.f=null;render()};
     $('fDesp').onsubmit=async e=>{e.preventDefault();keep();const p=normPlaca(desp.placa),c=comp(p);if(!c||c.lat==null){toast('Placa no registrada');return}
       if(!desp.k){toast('Falta el carretillero: escanea su carnet o escribe su número');return}
-      if(!desp.f){toast('Falta la ficha: escanéala o escribe su número');return}
-      const usada=L('despacho').find(d=>d.ficha&&d.ficha.num===desp.f.num&&d.estado==='en_ruta');if(usada){toast(`La ficha ${desp.f.num} ya está en uso`);return}
-      const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,desc:desp.desc.trim(),bultos:+desp.bultos||1,carretillero:desp.k,ficha:{num:desp.f.num,cod:desp.f.cod},estado:'en_ruta',t:{creado:Date.now()},verif:null};
-      desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ficha ${d.ficha.num} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero #${k?.num}`);render()};
+      const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,desc:desp.desc.trim(),bultos:+desp.bultos||1,carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
+      desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero #${k?.num}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});
     document.querySelectorAll('[data-vok]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await confirmar(S.despacho[b.dataset.vok],'vendedor')});
   },
@@ -684,10 +671,12 @@ const bind={
     if($('okCorr'))$('okCorr').onclick=async()=>{const p=corrigiendo;corrigiendo=null;await guardar('comprador',{...c,lat:p.lat,lng:p.lng,acc:5,gpsT:Date.now()});log(`${c.id} corrigió su ubicación en el mapa`);toast('Ubicación guardada')};
     const svg=$('pick');if(svg)svg.onclick=ev=>{const p=svgPoint(svg,ev);if(!dentroMercado(p)){toast('Fuera del mercado');return}corrigiendo={...p,acc:5};render()};
     if($('cZona'))$('cZona').onchange=async()=>{const v=$('cZona').value||null;await guardar('comprador',{...c,zonaManual:v});log(`${c.id} ${v?'eligió la zona "'+v+'"':'volvió a la zona automática'}`);setTimeout(render,0)};
+    document.querySelectorAll('[data-rabrir]').forEach(b=>b.onclick=()=>{recibiendo=b.dataset.rabrir;render()});
+    if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;render()};
+    document.querySelectorAll('[data-rok]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rok];const n=$('rcN').value.replace(/\D/g,'');const k=carr(d.carretillero);
+      const extra=n?{carrDicho:pad(n,2),carrOk:!!k&&k.num===pad(n,2)}:{};recibiendo=null;await confirmar(d,'boton',extra)});
+    document.querySelectorAll('[data-rmal]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rmal];const t=$('rcRecl').value.trim();recibiendo=null;await reclamar(d,t)});
     if($('meVoy'))$('meVoy').onclick=async()=>{await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);setME(null);render()};
-    $('cScanF').onclick=async()=>{const p=await procesarScanFicha();if(!p)return;fichaURL=p;render()};
-    document.querySelectorAll('[data-sinf]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await confirmar(S.despacho[b.dataset.sinf],'boton')});
-    document.querySelectorAll('[data-recl]').forEach(b=>b.onclick=()=>{fichaURL={tipo:'f',num:S.despacho[b.dataset.recl].ficha?.num,cod:null};render()});
   }
 };
 

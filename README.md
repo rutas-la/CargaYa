@@ -36,9 +36,9 @@ Si vas a probar desde fuera del mercado, poné `GEOCERCA_ACTIVA: false` en `conf
 
 ## Cómo funciona (versión sin teléfono para el carretillero)
 1. **Comprador:** al estacionar, marca su vehículo con el GPS del teléfono, con tipo, color y foto. La app le asigna la **zona** con el nombre que usan en el mercado (ej: "Detrás del Barco"). Si no es la correcta, el comprador la elige de una lista.
-2. **Vendedor:** escribe la placa, escanea el **carnet** del carretillero y una **ficha** en blanco, y toca *Despachar*. La pantalla muestra el nombre de la zona en grande para el carretillero.
-3. **Carretillero (sin teléfono):** va a la zona y busca el vehículo por la descripción, la placa y la referencia, y deja la mercancía con la ficha.
-4. **Comprador:** escanea la ficha y confirma, o reporta un faltante.
-5. **Administración:** registra las zonas guardando uno o más puntos GPS por zona, administra los carretilleros, imprime fichas y carnets, y sigue todo en el panel.
+2. **Vendedor:** escribe la placa y el número del carretillero (o escanea su **carnet**), y toca *Despachar*. La pantalla muestra el nombre de la zona en grande para el carretillero.
+3. **Carretillero (sin teléfono):** va a la zona y busca el vehículo por la descripción, la placa y la referencia, y deja la mercancía.
+4. **Comprador:** en la app toca *Ya me llegó*, escribe el número del carretillero (se verifica contra el despacho) y confirma, o reporta un faltante.
+5. **Administración:** registra las zonas guardando uno o más puntos GPS por zona, administra los carretilleros, imprime carnets, y sigue todo en el panel.
 
 La guía para la persona en el mercado está en `guia.html`.

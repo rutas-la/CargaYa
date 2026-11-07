@@ -34,29 +34,11 @@ Abrí `config.js` y pegá esos dos datos en `SUPABASE_URL` y `SUPABASE_KEY`. Cam
 ### 4. Probar antes de ir al mercado
 Si vas a probar desde fuera del mercado, poné `GEOCERCA_ACTIVA: false` en `config.js`. Abrí el link en tres teléfonos (o en tres navegadores distintos) y hacé el recorrido completo. **Antes de la prueba real**, volvé a ponerlo en `true` y borrá los datos de prueba: en el SQL Editor ejecutá `delete from registros; delete from actividad;`.
 
-## La prueba piloto: 1 vendedor, 1 carretillero, 1 comprador
+## Cómo funciona (versión sin teléfono para el carretillero)
+1. **Comprador:** al estacionar, marca su vehículo con el GPS del teléfono, con tipo, color y foto. La app le asigna la **zona** del cartel más cercano (A1, B3…).
+2. **Vendedor:** escribe la placa, escanea el **carnet** del carretillero y una **ficha** en blanco, y toca *Despachar*. La pantalla muestra la ZONA en grande para el carretillero.
+3. **Carretillero (sin teléfono):** busca el cartel de la zona y el vehículo por la descripción y la placa, y deja la mercancía con la ficha.
+4. **Comprador:** escanea la ficha y confirma, o reporta un faltante.
+5. **Administración:** registra las zonas parándose junto a cada cartel, administra los carretilleros, imprime fichas, carnets y carteles, y sigue todo en el panel.
 
-**Antes del día de la prueba**
-- A cada participante mandale el link por WhatsApp. Pedile que lo abra, que **acepte el permiso de ubicación** y que use "Agregar a pantalla de inicio".
-- Cada uno elige su rol una sola vez. El comprador escribe la placa de su vehículo.
-
-**El día de la prueba**
-1. **Vendedor:** al llegar toca "Guardar ubicación de mi camión".
-2. **Comprador:** estaciona, y **antes de alejarse del vehículo** toca "Estoy junto a mi vehículo: guardar GPS". Pone tipo y color del vehículo y saca una foto.
-3. **Comprador → vendedor:** compra y le dice su placa.
-4. **Vendedor:** crea el despacho y elige al carretillero.
-5. **Carretillero:** le suena el aviso. Carga, toca "Salir" y sigue la flecha con la distancia. Cuando está cerca, escribe la placa, saca una foto de la mercancía en el vehículo y toca "Dejé la mercancía".
-6. **Comprador:** le llega el aviso y confirma "Recibí", o da su PIN si está presente.
-7. **Vos:** seguís todo en vivo desde el panel, entrando con la clave de administración.
-
-**Qué medir**
-- Minutos desde "Salir" hasta "Dejé la mercancía". Compararlo con cuánto tarda hoy un carretillero en encontrar un vehículo.
-- La precisión del GPS de cada marca (aparece como "±X m").
-- Si el carretillero encontró el vehículo con la distancia, la foto y la referencia.
-- Qué le costó a cada uno y qué pediría que cambie.
-
-## Limitaciones de esta versión piloto
-- **Sin contraseñas:** quien tenga el link puede entrar. Alcanza para el piloto, pero no para abrirla a todo el mercado.
-- **Avisos con la app abierta:** el teléfono suena y vibra solo si CargaYa está abierta en pantalla. Como respaldo están los botones de WhatsApp.
-- **El plano es aproximado:** está trazado sobre una foto satelital. Las distancias que ve el carretillero salen del GPS real y no dependen del plano.
-- **Sin señal:** las acciones se guardan en el teléfono y se envían cuando vuelve la conexión.
+La guía para la persona en el mercado está en `guia.html`.

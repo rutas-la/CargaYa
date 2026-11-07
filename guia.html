@@ -27,7 +27,7 @@ li{margin:5px 0}
 .ok{background:var(--grn2);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:15.5px}
 .ojo{background:var(--red2);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:15.5px}
 table{width:100%;border-collapse:collapse;font-size:15px;margin-top:8px}
-td,th{border:1px solid var(--line);padding:6px 8px;text-align:left}
+td,th{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 th{background:#f1efe8}
 .check li{list-style:none;margin-left:-22px}
 .check li::before{content:"☐ ";font-weight:700}
@@ -37,112 +37,103 @@ small{color:var(--ink2)}
 <body>
 <header><h1>CargaYa · Guía para la prueba</h1><p>Mercado Mayor de Coche · para la persona que hace las pruebas en el lugar</p></header>
 <main>
-<p>Gracias por ayudar. La prueba tiene <b>tres etapas</b>. Haz cada una en orden y, al terminar cada etapa, envíale a Miguel lo que se pide.</p>
-<nav class="idx"><a href="#antes">Antes de empezar</a><a href="#calibrar">1 · Calibrar</a><a href="#sola">2 · Prueba sola</a><a href="#real">3 · Prueba real</a><a href="#problemas">Problemas</a></nav>
+<p>Gracias por ayudar. <b>Cómo funciona:</b> el comprador marca con su teléfono dónde estacionó, y la app le asigna la <b>zona</b> del cartel más cercano. El vendedor ve esa zona y se la muestra al carretillero, que <b>no necesita teléfono</b>: lleva su <b>carnet</b> con número y una <b>ficha de papel</b> con la mercancía. El comprador escanea la ficha para confirmar que recibió.</p>
+<nav class="idx"><a href="#material">Material</a><a href="#zonas">1 · Zonas</a><a href="#sola">2 · Prueba sola</a><a href="#real">3 · Prueba real</a><a href="#problemas">Problemas</a></nav>
 
-<section id="antes">
-<h2>Antes de empezar</h2>
+<section id="material">
+<h2>Material que necesitas</h2>
+<table>
+<tr><th>Qué</th><th>Para qué</th><th>Cuánto</th></tr>
+<tr><td><b>Carteles de zona</b> (A1, A2, B1…)</td><td>Se cuelgan en el estacionamiento de compradores, bien altos y visibles</td><td>Los que hagan falta para cubrir el estacionamiento. Una zona cada 30 a 40 metros.</td></tr>
+<tr><td><b>Carnets de carretillero</b></td><td>Uno para cada carretillero. Recórtalos y, si puedes, plastifícalos.</td><td>Para el piloto alcanza con 2 o 3</td></tr>
+<tr><td><b>Talonario de fichas</b></td><td>Una ficha por cada carga. Va con la mercancía.</td><td>Para el piloto, 1 o 2 hojas (8 fichas por hoja)</td></tr>
+<tr><td>Cinta adhesiva y bridas (precintos)</td><td>Para colgar los carteles</td><td></td></tr>
+</table>
+<p>Miguel te manda los PDF listos para imprimir. Si necesitas más, en la app entra como <b>Administración → Imprimir</b>.</p>
 <ul>
-<li>Usa el celular con <b>Chrome</b> (Android) o <b>Safari</b> (iPhone).</li>
-<li>Lleva <b>la batería cargada</b> y datos móviles. El GPS gasta batería.</li>
-<li>Miguel te pasa por WhatsApp la <b>clave de administración</b>. No la compartas con nadie más.</li>
-<li>Cuando la app pida <b>permiso de ubicación</b>, toca <b>Permitir</b>. Sin ese permiso no funciona.</li>
+<li>Usa el celular con <b>Chrome</b> (Android) o <b>Safari</b> (iPhone), con batería cargada y datos móviles.</li>
+<li>Miguel te pasa la <b>clave de administración</b> por WhatsApp.</li>
+<li>Cuando la app pida <b>ubicación</b> o <b>cámara</b>, toca <b>Permitir</b>.</li>
 </ul>
 <a class="btn" href="./">Abrir la app CargaYa</a>
-<a class="btn o" href="qr.html">Ver los códigos QR de cada rol</a>
+<a class="btn o" href="qr.html">Ver los QR para vendedores y compradores</a>
 </section>
 
-<section id="calibrar">
-<h2><span class="n">1</span>Calibrar el plano <small>(20 minutos)</small></h2>
-<p>El plano del mercado que usa la app se dibujó con una foto de satélite. Para que los vehículos aparezcan en el lugar correcto, hay que medir con el GPS algunos puntos fáciles de reconocer.</p>
+<section id="zonas">
+<h2><span class="n">1</span>Colgar los carteles y registrar las zonas <small>(30 a 60 minutos)</small></h2>
 <ol>
-<li>Abre la app y elige <b>Administración</b>. Escribe la clave.</li>
-<li>Toca la pestaña <b>Calibrar plano</b>.</li>
-<li>Para cada punto (P1 a P7) mira el mapa: el <b style="color:#e0362c">círculo rojo</b> marca dónde tienes que pararte.</li>
-<li>Camina hasta ese lugar, párate <b>justo en la esquina</b> y toca <b>📍 Estoy aquí: guardar GPS</b>.</li>
-<li>Espera hasta 20 segundos sin moverte. Aparece la precisión, por ejemplo "±6 m".</li>
-<li>Si la precisión es peor que ±15 m, toca <b>Medir de nuevo</b> unos pasos más afuera, lejos de techos y camiones altos.</li>
-<li>Si no puedes llegar justo a la esquina, escribe en <b>Nota</b> dónde quedaste (ej: "a 5 m de la esquina, hacia Calle Zea").</li>
-<li>Si conoces otros lugares útiles (entrada y salida de vehículos, esquinas del estacionamiento de compradores), guárdalos en <b>Otro punto útil</b>.</li>
-<li>Al terminar, toca <b>💬 Enviar resultados por WhatsApp</b> y mándaselos a Miguel.</li>
+<li>Recorre el estacionamiento donde dejan los vehículos los compradores y decide dónde va cada cartel. Que se vean de lejos y que cada uno cubra unos 30 a 40 metros alrededor.</li>
+<li>Cuelga los carteles con un orden fácil, por ejemplo por filas: <b>A1, A2, A3</b> en una fila; <b>B1, B2, B3</b> en la siguiente.</li>
+<li>Abre la app, elige <b>Administración</b> y escribe la clave.</li>
+<li>Entra a la pestaña <b>Zonas</b>.</li>
+<li>Párate <b>justo debajo del primer cartel</b>, escribe su nombre (ej: A1) y toca <b>📍 Estoy junto al cartel: guardar GPS</b>. Espera sin moverte hasta 20 segundos.</li>
+<li>Repite con cada cartel. Si la precisión es peor que ±15 m, toca <b>Medir de nuevo</b>.</li>
+<li>Saca fotos del estacionamiento con los carteles puestos y mándaselas a Miguel.</li>
 </ol>
-<table>
-<tr><th>Punto</th><th>Dónde pararte</th></tr>
-<tr><td>P1</td><td>INMERCA: la punta más cercana a Barco Pesca</td></tr>
-<tr><td>P2</td><td>INMERCA: la otra punta</td></tr>
-<tr><td>P3</td><td>Galpón de Frutas Cate: la punta más cercana a Agua Viva</td></tr>
-<tr><td>P4</td><td>Galpón de Frutas Cate: la otra punta</td></tr>
-<tr><td>P5</td><td>Barco Pesca: la esquina que da a la calle interna, del lado de INMERCA</td></tr>
-<tr><td>P6</td><td>Galpón grande sobre Calle Zea: la esquina del lado del hospital</td></tr>
-<tr><td>P7</td><td>La boca de salida del Metro Mercado</td></tr>
-</table>
-<div class="nota">Si algún nombre o lugar del plano no coincide con lo que ves, anótalo y cuéntaselo a Miguel. También importa saber <b>dónde estacionan los compradores</b> y <b>dónde los camiones de los vendedores</b>: si puedes, saca fotos de esas zonas.</div>
+<div class="nota"><b>Opcional, si te queda tiempo:</b> en la pestaña <b>Calibrar plano</b> hay 7 puntos (esquinas de INMERCA, Nave Cate, Barco Pesca, Metro…). Medirlos ayuda a que el mapa de la app quede más exacto. Al final toca <b>Enviar resultados por WhatsApp</b>.</div>
 </section>
 
 <section id="sola">
-<h2><span class="n">2</span>Prueba sola <small>(30 minutos)</small></h2>
-<p>Antes de sumar gente, prueba los tres papeles tú solo o sola. Necesitas <b>tres teléfonos</b> (pide prestados dos). Si no consigues tres, usa en tu teléfono tres navegadores distintos: Chrome, Chrome en <b>pestaña de incógnito</b> y otro navegador (Firefox, Samsung Internet, etc.).</p>
+<h2><span class="n">2</span>Prueba sola <small>(20 minutos)</small></h2>
+<p>Necesitas <b>dos teléfonos</b> (uno de vendedor y otro de comprador), <b>un carnet</b> y <b>fichas</b>. Si solo tienes un teléfono, usa Chrome normal para uno y Chrome en <b>pestaña de incógnito</b> para el otro.</p>
 <ol>
-<li><b>Teléfono A, comprador:</b> escanea el QR de <b>Comprador</b>. Pon un nombre, un teléfono y una placa de prueba. Junto a un vehículo estacionado, toca <b>Estoy junto a mi vehículo: guardar GPS</b>, escribe tipo y color, saca la foto y guarda.</li>
-<li><b>Teléfono B, vendedor:</b> escanea el QR de <b>Vendedor</b>. Junto a un camión de vendedor, toca <b>Guardar ubicación de mi camión</b>.</li>
-<li><b>Teléfono C, carretillero:</b> escanea el QR de <b>Carretillero</b> y pon un nombre.</li>
-<li><b>En B:</b> escribe la placa del comprador. Debe aparecer dónde está el vehículo. Elige al carretillero y toca <b>Crear despacho</b>.</li>
-<li><b>En C:</b> debe sonar y aparecer el viaje. Toca <b>Salir</b> y camina siguiendo la flecha y los metros hacia el vehículo.</li>
-<li><b>En C, junto al vehículo:</b> escribe la placa, saca una foto y toca <b>Dejé la mercancía</b>.</li>
-<li><b>En A:</b> debe aparecer <b>Confirma la recepción</b>. Toca <b>Recibí</b>.</li>
+<li><b>Teléfono A, comprador:</b> escanea el QR de <b>Comprador</b>, pon un nombre, un teléfono y una placa. Junto a un vehículo estacionado, toca <b>Estoy junto a mi vehículo: guardar GPS</b>. Debe decir <b>"Zona …"</b>. Pon tipo y color, saca la foto y guarda.</li>
+<li><b>Teléfono B, vendedor:</b> escanea el QR de <b>Vendedor</b> y regístrate.</li>
+<li><b>En B:</b> escribe la placa del comprador. Debe aparecer la zona y la foto. Pon la mercancía y los bultos.</li>
+<li><b>En B:</b> toca <b>Escanear carnet</b> y apunta al carnet. Luego <b>Escanear ficha</b> y apunta a una ficha en blanco.</li>
+<li>Toca <b>Despachar</b>. Aparece la pantalla grande con la <b>ZONA</b>: esa es la que el vendedor le muestra al carretillero.</li>
+<li>Escribe la zona y la placa en la ficha, camina hasta el vehículo siguiendo los carteles y deja la ficha.</li>
+<li><b>En A:</b> toca <b>Escanear ficha</b>, apunta a la ficha y toca <b>Recibí</b>. También puedes escanearla con la cámara normal del teléfono: abre la app y muestra la ficha.</li>
 </ol>
 <h3>Qué observar</h3>
 <ul class="check">
-<li>¿La precisión del GPS (±m) al marcar el vehículo fue buena (menos de 15 m)?</li>
-<li>¿La flecha y los metros llevaron al vehículo correcto?</li>
-<li>¿A cuántos metros se habilitó el botón "Dejé la mercancía"?</li>
-<li>¿Los avisos llegaron rápido al otro teléfono (menos de 5 segundos)?</li>
-<li>¿Algo fue confuso o difícil de entender?</li>
+<li>¿La zona que dio la app es la del cartel más cercano al vehículo?</li>
+<li>¿Los escaneos de carnet y ficha fueron rápidos?</li>
+<li>¿La pantalla de la zona se entiende de un vistazo?</li>
+<li>¿Algo fue confuso?</li>
 </ul>
-<div class="nota">Para cambiar el papel en un mismo teléfono, toca <b>cambiar</b> arriba a la derecha.</div>
 </section>
 
 <section id="real">
 <h2><span class="n">3</span>Prueba real: 1 vendedor, 1 carretillero, 1 comprador</h2>
-<h3>Al empezar (con cada uno)</h3>
-<ol>
-<li>Muéstrale el QR de su papel y que lo escanee con la cámara.</li>
-<li>Ayúdalo a poner su nombre y teléfono (y la placa, si es el comprador).</li>
-<li>Que toque <b>Permitir</b> cuando pida la ubicación.</li>
-<li>Que la agregue a la pantalla de inicio: en Chrome, menú <b>⋮</b> → <b>Agregar a la pantalla principal</b>.</li>
-<li>Explícale: <b>la app tiene que estar abierta</b> para que suene el aviso.</li>
-</ol>
-<h3>Durante la prueba</h3>
+<h3>Al empezar</h3>
 <ul>
-<li>El <b>comprador</b> marca su vehículo con el GPS <b>antes de irse a comprar</b>, con foto y tipo y color.</li>
-<li>El <b>vendedor</b> crea el despacho con la placa que le dice el comprador.</li>
-<li>El <b>carretillero</b> sigue la flecha y entrega con placa y foto.</li>
-<li>El <b>comprador</b> confirma desde su teléfono, o da su PIN si está ahí.</li>
+<li><b>Vendedor y comprador:</b> que escaneen su QR, se registren y toquen <b>Permitir</b> para ubicación y cámara. Que agreguen la app a la pantalla de inicio (Chrome → menú <b>⋮</b> → <b>Agregar a la pantalla principal</b>).</li>
+<li><b>Carretillero:</b> dale su carnet y explícale tres cosas: <b>1)</b> antes de salir, el vendedor le muestra la zona en el teléfono; <b>2)</b> busca el cartel de esa zona y el vehículo por la descripción y la placa; <b>3)</b> deja la ficha con la mercancía, en manos del comprador o dentro del vehículo.</li>
+<li>Dale al vendedor algunas fichas en blanco.</li>
 </ul>
+<h3>Durante la prueba</h3>
+<ol>
+<li>El <b>comprador</b> marca su vehículo con el GPS antes de irse a comprar.</li>
+<li>Compra y le dice su <b>placa</b> al vendedor.</li>
+<li>El <b>vendedor</b> escanea el carnet y una ficha, despacha y le muestra la pantalla de la zona al carretillero.</li>
+<li>El <b>carretillero</b> lleva la mercancía y deja la ficha.</li>
+<li>El <b>comprador</b> escanea la ficha y confirma, o reporta si falta algo.</li>
+</ol>
 <h3>Anota para cada entrega</h3>
 <table>
 <tr><th>Dato</th><th>Ejemplo</th></tr>
-<tr><td>Minutos desde "Salir" hasta "Dejé la mercancía"</td><td>4 min</td></tr>
+<tr><td>Minutos desde que salió el carretillero hasta que llegó al vehículo</td><td>4 min</td></tr>
 <tr><td>¿Encontró el vehículo a la primera?</td><td>Sí / No, por qué</td></tr>
 <tr><td>Cuánto tarda normalmente sin la app</td><td>15 min buscando</td></tr>
-<tr><td>Qué dijo cada uno</td><td>"Me gustó la foto del carro"</td></tr>
+<tr><td>Qué dijo cada uno</td><td>"Lo de la zona me sirvió mucho"</td></tr>
 </table>
-<div class="ok">Al final, pregúntale a cada uno: <b>¿La usarías todos los días? ¿Cuánto pagarías al mes?</b> Esas respuestas valen mucho.</div>
+<div class="ok">Al final, pregúntale a cada uno: <b>¿Lo usarías todos los días? ¿Cuánto pagarías al mes?</b> Al carretillero: <b>¿Te ahorró tiempo? ¿Hiciste más viajes?</b></div>
 </section>
 
 <section id="problemas">
 <h2>Si algo falla</h2>
-<h3>"Le negaste el permiso de ubicación"</h3>
-<p><b>Android / Chrome:</b> toca el candado 🔒 al lado de la dirección → <b>Permisos</b> → <b>Ubicación</b> → <b>Permitir</b>. Recarga la página.<br>
-<b>iPhone:</b> Ajustes → Privacidad → Localización → Safari → <b>Al usar la app</b>.</p>
-<h3>La precisión es mala (más de ±20 m)</h3>
-<p>Sal de debajo de techos, aléjate de camiones altos, espera 10 segundos sin moverte y vuelve a tocar el botón. Si sigue mal, que el comprador <b>corrija el punto tocando el mapa</b>.</p>
-<h3>El carretillero está junto al vehículo pero el botón no se habilita</h3>
-<p>Que toque <b>"Estoy junto al vehículo pero el GPS no me deja"</b>. Así puede entregar con placa y foto obligatoria. Anota que pasó.</p>
+<h3>No pide permiso de cámara o de ubicación, o dice que se negó</h3>
+<p><b>Android / Chrome:</b> toca el candado 🔒 al lado de la dirección → <b>Permisos</b> → activa <b>Ubicación</b> y <b>Cámara</b>. Recarga la página.<br>
+<b>iPhone:</b> Ajustes → Safari → Cámara / Ubicación → <b>Permitir</b>.</p>
+<h3>El escáner no lee el código</h3>
+<p>Acerca o aleja el teléfono, busca buena luz y que el código no esté arrugado. Si igual no lo lee, escribe el <b>número</b> en la casilla que está al lado del botón. El de la ficha está arriba, en grande; el del carnet, al lado del QR.</p>
+<h3>El comprador queda "Fuera de zona" o con la zona equivocada</h3>
+<p>Revisa que esa zona esté registrada en <b>Zonas</b> y que se haya medido parado debajo del cartel. El comprador puede tocar <b>Estoy junto al vehículo: actualizar GPS</b>.</p>
+<h3>El comprador perdió la ficha</h3>
+<p>En <b>Recibir mercancía</b> puede tocar <b>Recibí (no tengo la ficha)</b>. Queda registrado que confirmó sin escanear.</p>
 <h3>Arriba dice "Sin conexión"</h3>
-<p>No pasa nada: la app guarda las acciones y las envía cuando vuelve la señal. Si dura mucho, prueba con datos de otra compañía o con WiFi.</p>
-<h3>El vendedor escribe la placa y dice "no está registrada"</h3>
-<p>El comprador todavía no marcó su vehículo. Que lo haga primero.</p>
+<p>La app guarda lo que hagas y lo envía cuando vuelve la señal.</p>
 <div class="ojo">Cualquier otro problema: saca una <b>captura de pantalla</b> y mándasela a Miguel con una línea de qué estabas haciendo.</div>
 </section>
 </main>

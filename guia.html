@@ -37,17 +37,15 @@ small{color:var(--ink2)}
 <body>
 <header><h1>CargaYa · Guía para la prueba</h1><p>Mercado Mayor de Coche · para la persona que hace las pruebas en el lugar</p></header>
 <main>
-<p>Gracias por ayudar. <b>Cómo funciona:</b> el comprador marca con su teléfono dónde estacionó, y la app le asigna la <b>zona</b> del cartel más cercano. El vendedor ve esa zona y se la muestra al carretillero, que <b>no necesita teléfono</b>: lleva su <b>carnet</b> con número y una <b>ficha de papel</b> con la mercancía. El comprador escanea la ficha para confirmar que recibió.</p>
+<p>Gracias por ayudar. <b>Cómo funciona:</b> el comprador marca con su teléfono dónde estacionó, y la app le asigna la <b>zona</b> con el nombre que todos usan en el mercado (ej: "Detrás del Barco"). El vendedor ve esa zona y se la muestra al carretillero, que <b>no necesita teléfono</b>: lleva su <b>carnet</b> con número y una <b>ficha de papel</b> con la mercancía. El comprador escanea la ficha para confirmar que recibió.</p>
 <nav class="idx"><a href="#material">Material</a><a href="#zonas">1 · Zonas</a><a href="#sola">2 · Prueba sola</a><a href="#real">3 · Prueba real</a><a href="#problemas">Problemas</a></nav>
 
 <section id="material">
 <h2>Material que necesitas</h2>
 <table>
 <tr><th>Qué</th><th>Para qué</th><th>Cuánto</th></tr>
-<tr><td><b>Carteles de zona</b> (A1, A2, B1…)</td><td>Se cuelgan en el estacionamiento de compradores, bien altos y visibles</td><td>Los que hagan falta para cubrir el estacionamiento. Una zona cada 30 a 40 metros.</td></tr>
 <tr><td><b>Carnets de carretillero</b></td><td>Uno para cada carretillero. Recórtalos y, si puedes, plastifícalos.</td><td>Para el piloto alcanza con 2 o 3</td></tr>
 <tr><td><b>Talonario de fichas</b></td><td>Una ficha por cada carga. Va con la mercancía.</td><td>Para el piloto, 1 o 2 hojas (8 fichas por hoja)</td></tr>
-<tr><td>Cinta adhesiva y bridas (precintos)</td><td>Para colgar los carteles</td><td></td></tr>
 </table>
 <p>Miguel te manda los PDF listos para imprimir. Si necesitas más, en la app entra como <b>Administración → Imprimir</b>.</p>
 <ul>
@@ -60,16 +58,18 @@ small{color:var(--ink2)}
 </section>
 
 <section id="zonas">
-<h2><span class="n">1</span>Colgar los carteles y registrar las zonas <small>(30 a 60 minutos)</small></h2>
+<h2><span class="n">1</span>Registrar las zonas <small>(30 a 60 minutos)</small></h2>
+<p>No hacen falta carteles: usamos los <b>nombres que ya usa la gente</b> para cada parte del estacionamiento.</p>
 <ol>
-<li>Recorre el estacionamiento donde dejan los vehículos los compradores y decide dónde va cada cartel. Que se vean de lejos y que cada uno cubra unos 30 a 40 metros alrededor.</li>
-<li>Cuelga los carteles con un orden fácil, por ejemplo por filas: <b>A1, A2, A3</b> en una fila; <b>B1, B2, B3</b> en la siguiente.</li>
+<li>Pregúntales a vendedores y carretilleros <b>cómo le dicen a cada parte</b> del estacionamiento de compradores (ej: "Detrás del Barco", "La bomba", "Frente a INMERCA"). Anota la lista.</li>
 <li>Abre la app, elige <b>Administración</b> y escribe la clave.</li>
 <li>Entra a la pestaña <b>Zonas</b>.</li>
-<li>Párate <b>justo debajo del primer cartel</b>, escribe su nombre (ej: A1) y toca <b>📍 Estoy junto al cartel: guardar GPS</b>. Espera sin moverte hasta 20 segundos.</li>
-<li>Repite con cada cartel. Si la precisión es peor que ±15 m, toca <b>Medir de nuevo</b>.</li>
-<li>Saca fotos del estacionamiento con los carteles puestos y mándaselas a Miguel.</li>
+<li>Párate <b>en el medio</b> de la primera zona, escribe su nombre tal como lo dicen y toca <b>📍 Estoy en esta zona: guardar punto</b>. Espera sin moverte hasta 20 segundos.</li>
+<li>Si la zona es grande o alargada, camina a otra parte de la misma zona y toca <b>📍 Agregar otro punto aquí</b>. Guarda un punto cada 30 a 40 metros, más o menos.</li>
+<li>Repite con todas las zonas. Si la precisión es peor que ±15 m, quita ese punto y vuelve a guardarlo.</li>
+<li>Mándale a Miguel la lista de nombres y algunas fotos de cada zona.</li>
 </ol>
+<div class="nota">Si el GPS asigna mal una zona, el comprador puede elegir la correcta de la lista. Como todos conocen los nombres, eso lo resuelve.</div>
 <div class="nota"><b>Opcional, si te queda tiempo:</b> en la pestaña <b>Calibrar plano</b> hay 7 puntos (esquinas de INMERCA, Nave Cate, Barco Pesca, Metro…). Medirlos ayuda a que el mapa de la app quede más exacto. Al final toca <b>Enviar resultados por WhatsApp</b>.</div>
 </section>
 
@@ -77,17 +77,17 @@ small{color:var(--ink2)}
 <h2><span class="n">2</span>Prueba sola <small>(20 minutos)</small></h2>
 <p>Necesitas <b>dos teléfonos</b> (uno de vendedor y otro de comprador), <b>un carnet</b> y <b>fichas</b>. Si solo tienes un teléfono, usa Chrome normal para uno y Chrome en <b>pestaña de incógnito</b> para el otro.</p>
 <ol>
-<li><b>Teléfono A, comprador:</b> escanea el QR de <b>Comprador</b>, pon un nombre, un teléfono y una placa. Junto a un vehículo estacionado, toca <b>Estoy junto a mi vehículo: guardar GPS</b>. Debe decir <b>"Zona …"</b>. Pon tipo y color, saca la foto y guarda.</li>
+<li><b>Teléfono A, comprador:</b> escanea el QR de <b>Comprador</b>, pon un nombre, un teléfono y una placa. Junto a un vehículo estacionado, toca <b>Estoy junto a mi vehículo: guardar GPS</b>. Debe mostrar el nombre de la zona; si no es la correcta, elígela de la lista. Pon tipo y color, saca la foto y guarda.</li>
 <li><b>Teléfono B, vendedor:</b> escanea el QR de <b>Vendedor</b> y regístrate.</li>
 <li><b>En B:</b> escribe la placa del comprador. Debe aparecer la zona y la foto. Pon la mercancía y los bultos.</li>
 <li><b>En B:</b> toca <b>Escanear carnet</b> y apunta al carnet. Luego <b>Escanear ficha</b> y apunta a una ficha en blanco.</li>
-<li>Toca <b>Despachar</b>. Aparece la pantalla grande con la <b>ZONA</b>: esa es la que el vendedor le muestra al carretillero.</li>
-<li>Escribe la zona y la placa en la ficha, camina hasta el vehículo siguiendo los carteles y deja la ficha.</li>
+<li>Toca <b>Despachar</b>. Aparece la pantalla grande con el <b>nombre de la zona</b>: esa es la que el vendedor le muestra al carretillero.</li>
+<li>Escribe la zona y la placa en la ficha, camina hasta el vehículo y deja la ficha.</li>
 <li><b>En A:</b> toca <b>Escanear ficha</b>, apunta a la ficha y toca <b>Recibí</b>. También puedes escanearla con la cámara normal del teléfono: abre la app y muestra la ficha.</li>
 </ol>
 <h3>Qué observar</h3>
 <ul class="check">
-<li>¿La zona que dio la app es la del cartel más cercano al vehículo?</li>
+<li>¿La zona que dio la app es la correcta para ese vehículo?</li>
 <li>¿Los escaneos de carnet y ficha fueron rápidos?</li>
 <li>¿La pantalla de la zona se entiende de un vistazo?</li>
 <li>¿Algo fue confuso?</li>
@@ -99,7 +99,7 @@ small{color:var(--ink2)}
 <h3>Al empezar</h3>
 <ul>
 <li><b>Vendedor y comprador:</b> que escaneen su QR, se registren y toquen <b>Permitir</b> para ubicación y cámara. Que agreguen la app a la pantalla de inicio (Chrome → menú <b>⋮</b> → <b>Agregar a la pantalla principal</b>).</li>
-<li><b>Carretillero:</b> dale su carnet y explícale tres cosas: <b>1)</b> antes de salir, el vendedor le muestra la zona en el teléfono; <b>2)</b> busca el cartel de esa zona y el vehículo por la descripción y la placa; <b>3)</b> deja la ficha con la mercancía, en manos del comprador o dentro del vehículo.</li>
+<li><b>Carretillero:</b> dale su carnet y explícale tres cosas: <b>1)</b> antes de salir, el vendedor le muestra la zona en el teléfono; <b>2)</b> va a esa zona y busca el vehículo por la descripción, la placa y la referencia; <b>3)</b> deja la ficha con la mercancía, en manos del comprador o dentro del vehículo.</li>
 <li>Dale al vendedor algunas fichas en blanco.</li>
 </ul>
 <h3>Durante la prueba</h3>
@@ -129,7 +129,7 @@ small{color:var(--ink2)}
 <h3>El escáner no lee el código</h3>
 <p>Acerca o aleja el teléfono, busca buena luz y que el código no esté arrugado. Si igual no lo lee, escribe el <b>número</b> en la casilla que está al lado del botón. El de la ficha está arriba, en grande; el del carnet, al lado del QR.</p>
 <h3>El comprador queda "Fuera de zona" o con la zona equivocada</h3>
-<p>Revisa que esa zona esté registrada en <b>Zonas</b> y que se haya medido parado debajo del cartel. El comprador puede tocar <b>Estoy junto al vehículo: actualizar GPS</b>.</p>
+<p>El comprador puede elegir su zona de la lista en <b>Mi vehículo</b>. Si pasa seguido en el mismo lugar, agrega más puntos a esa zona en <b>Zonas</b>.</p>
 <h3>El comprador perdió la ficha</h3>
 <p>En <b>Recibir mercancía</b> puede tocar <b>Recibí (no tengo la ficha)</b>. Queda registrado que confirmó sin escanear.</p>
 <h3>Arriba dice "Sin conexión"</h3>

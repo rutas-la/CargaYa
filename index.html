@@ -241,7 +241,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
   const t=setTimeout(fin,ms)})}
 
 /* ===================== Datos ===================== */
-const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},log:[]};
+const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 const LKEY='cargaya-piloto-local',QKEY='cargaya-piloto-cola',MEKEY='cargaya-piloto-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
@@ -281,7 +281,8 @@ function chip(e){return `<span class="chip st-${e==='reclamo'?'en_ruta':e==='en_
 function tl(d){return `<div class="timeline"><i class="on"></i><i class="${d.estado!=='en_ruta'?'on':''}" ${d.estado==='reclamo'?'style="background:#e0362c"':''}></i></div>`}
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),3000)}
 function sonar(){try{const c=sonar.c||(sonar.c=new (window.AudioContext||window.webkitAudioContext)());[0,.18].forEach(s=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(c.destination);o.start(c.currentTime+s);o.stop(c.currentTime+s+.12)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
-function avisar(tipo,antes,d){if(tipo!=='despacho'||!ME)return;if(antes&&antes.estado===d.estado)return;let m=null;
+function avisar(tipo,antes,d){if(tipo==='pago'&&ME&&ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&antes.estado!==d.estado){toast(d.estado==='aprobado'?'✓ Tu pago fue aprobado':'✗ Tu pago fue rechazado: '+(d.motivo||''));sonar();return}
+  if(tipo!=='despacho'||!ME)return;if(antes&&antes.estado===d.estado)return;let m=null;
   if(ME.rol==='comprador'&&d.placa===ME.id&&!antes)m=`${vend(d.vendedor)?.nombre||'Un vendedor'} despachó ${d.bultos} bultos a tu vehículo`;
   else if(ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&d.estado!=='en_ruta')m=`${nro(d)} para ${d.placa}: ${ETQ[d.estado]}`;
   if(m){toast(m);sonar()}}
@@ -408,12 +409,13 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
-function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','zonas','carretilleros','imprimir','vendedor','comprador'];return [ME.rol]}
-const NOMBRES={mercado:'Panel',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Imprimir',calibrar:'Calibrar plano',vendedor:'Vendedor',comprador:'Comprador'};
-function pedirRender(){const a=document.activeElement;if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir','vendedor','comprador'];return [ME.rol]}
+const NOMBRES={mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Imprimir',calibrar:'Calibrar plano',vendedor:'Vendedor',comprador:'Comprador'};
+function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;desp.desc=f.querySelector('#desc')?.value??desp.desc;desp.bultos=f.querySelector('#bultos')?.value??desp.bultos}
+function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
-const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]),#app textarea')].some(i=>i.value!==i.defaultValue);
-const ocupado=()=>!!(reg&&reg.ocupado)||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!desp.k||!!recibiendo||formSucio();
+const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
+const ocupado=()=>!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
   el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">cambiar</a>`:''}`;
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();setME(null);view=null;render()}}
@@ -426,7 +428,7 @@ function render(){
   if(fichaURL){app.innerHTML=vFichaURL();bindFichaURL();return}
   if(!ME){app.innerHTML=vInicio();bind.inicio();return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
-  app.innerHTML=({mercado:vMercado,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();
 }
 function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
@@ -555,6 +557,75 @@ const COD_ALF='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function codFicha(n){let x=(n*2654435761+0x9E3779B9)>>>0,s='';for(let i=0;i<3;i++){s+=COD_ALF[x%COD_ALF.length];x=(Math.floor(x/COD_ALF.length)^((x<<7)>>>0))>>>0}return s}
 async function imprimir(html){const pa=document.getElementById('print');pa.innerHTML=html;await new Promise(r=>setTimeout(r,300));window.print()}
 
+/* ---- Cobro mensual por Pago Móvil ---- */
+const DIA=86400000;
+const BANCOS=['Banco de Venezuela','Banesco','Mercantil','Provincial','BNC','Bancamiga','Banco del Tesoro','Bicentenario','Bancaribe','Banco Exterior','BFC (Fondo Común)','Banco Plaza','Banplus','Banco Activo','100% Banco','Sofitasa','Banco Caroní','Venezolano de Crédito','Del Sur','Banco Agrícola','Banfanb','Bancrecer','Mi Banco','R4'];
+function cfgCobro(){return Object.assign({precioUSD:10,tasa:0,tasaFecha:null,banco:'',telefono:'',cedula:'',titular:'',pruebaDias:30,graciaDias:3,adminTel:''},S.config.cobro||{})}
+const montoBs=c=>Math.round(c.precioUSD*c.tasa*100)/100;
+const fmtBs=n=>'Bs '+Number(n||0).toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtFecha=t=>t?new Date(t).toLocaleDateString('es-VE',{day:'numeric',month:'short',year:'numeric'}):'';
+function sumarMes(t){const d=new Date(t);const dia=d.getDate();d.setMonth(d.getMonth()+1);if(d.getDate()<dia)d.setDate(0);return d.getTime()}
+const pagosDe=id=>L('pago').filter(p=>p.vendedor===id).sort((a,b)=>b.t-a.t);
+function suscripcion(v){const c=cfgCobro(),now=Date.now();const prueba=(v.creado||now)+c.pruebaDias*DIA;const hasta=Math.max(v.pagadoHasta||0,v.pagadoHasta?0:prueba);
+  const pend=pagosDe(v.id).find(p=>p.estado==='pendiente');const enPrueba=!v.pagadoHasta;
+  let estado=now<=hasta?(enPrueba?'prueba':'activa'):now<=hasta+c.graciaDias*DIA?'gracia':'vencida';
+  const dias=Math.ceil((hasta-now)/DIA);return {estado,hasta,dias,pend,puedeDespachar:estado!=='vencida'||!!pend,enPrueba}}
+const ETQS={prueba:['Prueba gratis','st-asignado'],activa:['Al día','st-entregado'],gracia:['Vencida · días de gracia','st-en_vehiculo'],vencida:['Vencida','st-en_ruta']};
+function chipSus(s){const [t,c]=ETQS[s.estado];return `<span class="chip ${s.estado==='vencida'?'':c}" ${s.estado==='vencida'?'style="background:#fde3e1;color:#b3261e"':''}>${t}</span>`}
+function copiaBtn(txt){return `<button type="button" class="btn o" style="flex:0 0 auto;padding:6px 10px;font-size:13px" data-copiar="${esc(txt)}">Copiar</button>`}
+let pagando=false,pagoForm={};
+function cardSuscripcion(v){const s=suscripcion(v),c=cfgCobro();
+  const txt=s.estado==='prueba'?`Prueba gratis hasta el ${fmtFecha(s.hasta)} (${Math.max(0,s.dias)} días).`:s.estado==='activa'?`Pagado hasta el ${fmtFecha(s.hasta)} (${Math.max(0,s.dias)} días).`:s.estado==='gracia'?`Venció el ${fmtFecha(s.hasta)}. Paga pronto para no quedar bloqueado.`:`Venció el ${fmtFecha(s.hasta)}. Paga para volver a despachar.`;
+  if(!pagando)return `<div class="card" style="${s.estado==='vencida'||s.estado==='gracia'?'border:2px solid #e0362c':''}"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mi suscripción</h2>${chipSus(s)}</div>
+    <p class="sub">${txt}</p>${s.pend?`<div class="found">Pago de ${fmtBs(s.pend.monto)} (ref. ${esc(s.pend.referencia)}) en revisión. Puedes seguir despachando.</div>`:''}
+    <button class="btn ${s.estado==='vencida'||s.estado==='gracia'||(s.dias<=5)?'y':'o'}" id="sPagar" style="width:100%;margin-top:8px">💳 Pagar mes · US$ ${c.precioUSD}${c.tasa?` (${fmtBs(montoBs(c))})`:''}</button></div>`;
+  const ok=c.banco&&c.telefono&&c.cedula;
+  return `<div class="card" style="border:2px solid var(--yel)"><h2>Pagar con Pago Móvil</h2>
+   ${ok?`<p class="sub">1 · Haz un Pago Móvil desde tu banco con estos datos:</p>
+   <div class="list">${[['Banco',c.banco],['Teléfono',c.telefono],['Cédula / RIF',c.cedula],...(c.titular?[['Titular',c.titular]]:[]),['Monto',c.tasa?fmtBs(montoBs(c)):'US$ '+c.precioUSD]].map(([k,val])=>`<div class="row" style="align-items:center"><div><div class="hint">${k}</div><b style="font-size:19px">${esc(val)}</b></div>${copiaBtn(k==='Monto'&&c.tasa?montoBs(c).toFixed(2).replace('.',','):val)}</div>`).join('')}</div>
+   ${c.tasa?`<p class="hint">US$ ${c.precioUSD} a tasa ${c.tasa.toLocaleString('es-VE')} Bs/US$ (actualizada ${fmtFecha(c.tasaFecha)}).</p>`:''}
+   <p class="sub" style="margin-top:12px">2 · Cuando el banco te confirme, carga los datos del pago:</p>
+   <form id="fPago"><label>Número de referencia</label><input id="pRef" inputmode="numeric" placeholder="Ej: 004512345678" value="${esc(pagoForm.ref||'')}" required>
+    <div class="row"><div><label>Banco desde donde pagaste</label><input id="pBanco" list="bancosVE" value="${esc(pagoForm.banco||'')}" required><datalist id="bancosVE">${BANCOS.map(b=>`<option value="${b}">`).join('')}</datalist></div>
+    <div><label>Teléfono que pagó</label><input id="pTel" inputmode="tel" placeholder="0414-000-0000" value="${esc(pagoForm.tel||v.tel||'')}" required></div></div>
+    <div class="row"><div><label>Monto pagado (Bs)</label><input id="pMonto" inputmode="decimal" value="${esc(pagoForm.monto||(c.tasa?montoBs(c).toFixed(2).replace('.',','):''))}" required></div><div><label>Fecha</label><input id="pFecha" type="date" value="${esc(pagoForm.fecha||new Date().toISOString().slice(0,10))}" required></div></div>
+    <label>Captura del pago (recomendado)</label><div class="row"><label class="btn o" style="margin:0;text-align:center">${pagoForm.foto?'Cambiar captura':'📷 Adjuntar captura'}<input type="file" accept="image/*" id="pFoto" class="hidden"></label>${pagoForm.foto?`<img class="photo sm" style="flex:0 0 96px" src="${pagoForm.foto}" alt="">`:''}</div>
+    <div class="row" style="margin-top:14px"><button class="btn o" type="button" id="pCancel">Cancelar</button><button class="btn y" type="submit">Enviar pago</button></div></form>`
+   :`<div class="notfound">Todavía no están cargados los datos de Pago Móvil. Avísale a la administración.</div><button class="btn o" type="button" id="pCancel" style="margin-top:10px;width:100%">Volver</button>`}</div>`}
+
+let cobroTab='pend',rechazando=null;
+function vCobros(){const c=cfgCobro();const pagos=L('pago').sort((a,b)=>b.t-a.t);const pend=pagos.filter(p=>p.estado==='pendiente');
+  const mes=new Date();mes.setDate(1);mes.setHours(0,0,0,0);const cobradoMes=pagos.filter(p=>p.estado==='aprobado'&&p.tAprob>=mes.getTime());
+  const vs=L('vendedor').map(v=>({v,s:suscripcion(v)}));
+  const pagoItem=p=>{const v=vend(p.vendedor);return `<div class="item"><div class="top"><b>${esc(v?.nombre||p.vendedor)}</b><span class="chip ${p.estado==='aprobado'?'st-entregado':p.estado==='rechazado'?'':'st-en_vehiculo'}" ${p.estado==='rechazado'?'style="background:#fde3e1;color:#b3261e"':''}>${{pendiente:'Por revisar',aprobado:'Aprobado',rechazado:'Rechazado'}[p.estado]}</span></div>
+    <div style="font-size:18px"><b>${fmtBs(p.monto)}</b> · ref. <b>${esc(p.referencia)}</b></div>
+    <div class="meta">${esc(p.banco)} · ${esc(p.telefono)} · ${esc(p.fecha)} · cargado ${fmtFecha(p.t)} ${hhmm(p.t)}${p.motivo?` · motivo: ${esc(p.motivo)}`:''}</div>
+    ${p.foto?`<details><summary class="hint">Ver captura</summary><img class="photo" src="${p.foto}" alt="Captura del pago"></details>`:''}
+    ${p.estado==='pendiente'?(rechazando===p.id?`<label>Motivo del rechazo</label><input id="rMot" placeholder="Ej: no aparece en el banco"><div class="row" style="margin-top:8px"><button class="btn o" data-prechok="${esc(p.id)}">Rechazar</button><button class="btn o" id="rCancel">Cancelar</button></div>`
+      :`<div class="row"><button class="btn g" data-papr="${esc(p.id)}">✓ Aprobar (+1 mes)</button><button class="btn o" style="flex:0 0 auto" data-prech="${esc(p.id)}">Rechazar</button></div>`):''}</div>`};
+  return `<div class="grid"><div class="kpis">
+    <div class="kpi"><b>${pend.length}</b><span>Pagos por revisar</span></div>
+    <div class="kpi"><b>${fmtBs(cobradoMes.reduce((a,p)=>a+(+p.monto||0),0))}</b><span>Cobrado este mes</span></div>
+    <div class="kpi"><b>${vs.filter(x=>x.s.estado==='activa').length}</b><span>Vendedores al día</span></div>
+    <div class="kpi"><b>${vs.filter(x=>x.s.estado==='prueba').length}</b><span>En prueba gratis</span></div>
+    <div class="kpi"><b>${vs.filter(x=>x.s.estado==='vencida'||x.s.estado==='gracia').length}</b><span>Vencidos</span></div></div>
+   <div class="seg" id="cTabs" style="max-width:520px">${[['pend','Por revisar'],['vend','Vendedores'],['hist','Historial'],['conf','Ajustes']].map(([k,t])=>`<button class="${cobroTab===k?'on':''}" data-ct="${k}">${t}</button>`).join('')}</div>
+   ${cobroTab==='pend'?`<div class="card"><h2>Pagos por revisar</h2><p class="sub">Revisa en tu banco que el pago haya llegado (referencia y monto) y apruébalo.</p><div class="list">${pend.map(pagoItem).join('')||'<div class="empty">No hay pagos por revisar</div>'}</div></div>`:''}
+   ${cobroTab==='hist'?`<div class="card"><h2>Historial de pagos</h2><div class="list">${pagos.filter(p=>p.estado!=='pendiente').map(pagoItem).join('')||'<div class="empty">Sin pagos todavía</div>'}</div></div>`:''}
+   ${cobroTab==='vend'?`<div class="card"><h2>Vendedores</h2><div class="list">${vs.sort((a,b)=>a.s.hasta-b.s.hasta).map(({v,s})=>`<div class="item"><div class="top"><b>${esc(v.nombre)}</b>${chipSus(s)}</div>
+      <div class="meta">${s.estado==='prueba'?'Prueba':'Pagado'} hasta ${fmtFecha(s.hasta)}${s.dias>=0?` · faltan ${s.dias} días`:` · vencido hace ${-s.dias} días`} · ${pagosDe(v.id).filter(p=>p.estado==='aprobado').length} pagos${v.tel?' · '+esc(v.tel):''}</div>
+      <div class="row"><button class="btn o" data-pmes="${esc(v.id)}">+1 mes sin pago</button>${v.tel?waBtn(v.tel,'Escribir'):''}</div></div>`).join('')||'<div class="empty">Todavía no hay vendedores</div>'}</div></div>`:''}
+   ${cobroTab==='conf'?`<div class="card" style="max-width:640px"><h2>Ajustes de cobro</h2><form id="fCfg">
+     <div class="row"><div><label>Precio mensual (US$)</label><input id="cfPrecio" inputmode="decimal" value="${c.precioUSD}"></div><div><label>Tasa del día (Bs por US$)</label><input id="cfTasa" inputmode="decimal" value="${c.tasa||''}" placeholder="Ej: tasa BCV"></div></div>
+     <p class="hint">${c.tasa?`Monto actual: <b>${fmtBs(montoBs(c))}</b> · tasa actualizada ${fmtFecha(c.tasaFecha)}`:'Carga la tasa para que el vendedor vea el monto en bolívares.'}</p>
+     <h3 style="margin-top:14px">Tus datos de Pago Móvil (para recibir)</h3>
+     <div class="row"><div><label>Banco (con código)</label><input id="cfBanco" value="${esc(c.banco)}" placeholder="Ej: 0102 Banco de Venezuela"></div><div><label>Teléfono</label><input id="cfTel" value="${esc(c.telefono)}" placeholder="0414-000-0000"></div></div>
+     <div class="row"><div><label>Cédula o RIF</label><input id="cfCed" value="${esc(c.cedula)}" placeholder="V-12345678"></div><div><label>Titular (opcional)</label><input id="cfTit" value="${esc(c.titular)}"></div></div>
+     <div class="row"><div><label>Días de prueba gratis</label><input id="cfPrueba" type="number" min="0" value="${c.pruebaDias}"></div><div><label>Días de gracia al vencer</label><input id="cfGracia" type="number" min="0" value="${c.graciaDias}"></div></div>
+     <label>Tu WhatsApp (te avisan cuando cargan un pago)</label><input id="cfAdminTel" value="${esc(c.adminTel)}" placeholder="+54 9 11 0000-0000">
+     <button class="btn y" type="submit" style="width:100%;margin-top:14px">Guardar ajustes</button></form></div>`:''}
+  </div>`}
+
 /* ---- Vendedor ---- */
 let desp={},fichaVista=null,ubicandoCamion=false;
 function vVendedor(){
@@ -574,7 +645,9 @@ function vVendedor(){
   const mis=L('despacho').filter(d=>d.vendedor===v.id).sort((a,b)=>b.t.creado-a.t.creado);
   const k=desp.k?carr(desp.k):null;
   return `<div class="grid g2"><div class="grid" style="align-content:start">
-   <div class="card"><h2>Nuevo despacho</h2>
+   ${ME.rol==='vendedor'||ME.rol==='admin'?cardSuscripcion(v):''}
+   ${suscripcion(v).puedeDespachar?'':'<div class="notfound" style="font-size:16px"><b>Despachos bloqueados:</b> tu suscripción venció. Paga el mes con Pago Móvil para seguir usando CargaYa.</div>'}
+   <div class="card" style="${suscripcion(v).puedeDespachar?'':'opacity:.45;pointer-events:none'}"><h2>Nuevo despacho</h2>
    <form id="fDesp"><label>1 · Placa del comprador</label>
     <input id="placa" list="placas" placeholder="Ej: AB123CD" autocomplete="off" value="${esc(desp.placa||'')}" required>
     <datalist id="placas">${compradoresActivos().map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')}</datalist>
@@ -666,6 +739,21 @@ const bind={
     $('kAdd').onclick=async()=>{const n=$('kNum').value.replace(/\D/g,'');if(!n){toast('Falta el número');return}const num=pad(n,2);const nom=$('kNom').value.trim();
       const k=carrPorNum(num);if(k)await guardar('carretillero',{...k,nombre:nom||k.nombre});else await carretilleroPorNum(num,nom);$('kNum').value='';$('kNom').value='';toast(`Carretillero #${num} guardado`);render()};
   },
+  cobros(){
+    document.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{cobroTab=b.dataset.ct;rechazando=null;render()});
+    document.querySelectorAll('[data-papr]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para aprobar';return}
+      const p=S.pago[b.dataset.papr],v=vend(p.vendedor);const s=suscripcion(v);const base=Math.max(Date.now(),s.hasta);const hasta=sumarMes(base);
+      await guardar('vendedor',{...v,pagadoHasta:hasta});await guardar('pago',{...p,estado:'aprobado',tAprob:Date.now(),hasta});log(`✓ Pago aprobado: ${v.nombre}, ${fmtBs(p.monto)} (ref. ${p.referencia}). Al día hasta ${fmtFecha(hasta)}`);toast('Pago aprobado');render()});
+    document.querySelectorAll('[data-prech]').forEach(b=>b.onclick=()=>{rechazando=b.dataset.prech;render()});
+    if($('rCancel'))$('rCancel').onclick=()=>{rechazando=null;render()};
+    document.querySelectorAll('[data-prechok]').forEach(b=>b.onclick=async()=>{const p=S.pago[b.dataset.prechok];const m=$('rMot').value.trim()||'sin detalle';rechazando=null;
+      await guardar('pago',{...p,estado:'rechazado',motivo:m,tRech:Date.now()});log(`✗ Pago rechazado: ${vend(p.vendedor)?.nombre} (ref. ${p.referencia}): ${m}`);render()});
+    document.querySelectorAll('[data-pmes]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para dar +1 mes';return}
+      const v=vend(b.dataset.pmes);const s=suscripcion(v);const hasta=sumarMes(Math.max(Date.now(),s.hasta));await guardar('vendedor',{...v,pagadoHasta:hasta});log(`Mes sin pago a ${v.nombre}: al día hasta ${fmtFecha(hasta)}`);render()});
+    if($('fCfg'))$('fCfg').onsubmit=async e=>{e.preventDefault();const num=x=>parseFloat(String(x).replace(/\./g,'').replace(',','.'))||0;const prev=cfgCobro();const tasa=num($('cfTasa').value);
+      await guardar('config',{id:'cobro',precioUSD:num($('cfPrecio').value)||prev.precioUSD,tasa,tasaFecha:tasa!==prev.tasa?Date.now():prev.tasaFecha,banco:$('cfBanco').value.trim(),telefono:$('cfTel').value.trim(),cedula:$('cfCed').value.trim(),titular:$('cfTit').value.trim(),
+        pruebaDias:Math.max(0,parseInt($('cfPrueba').value)||0),graciaDias:Math.max(0,parseInt($('cfGracia').value)||0),adminTel:$('cfAdminTel').value.trim()});log('Ajustes de cobro actualizados');toast('Ajustes guardados');render()};
+  },
   imprimir(){
     $('pkGo').onclick=async()=>{await cargarQRlib();const desde=Math.max(1,+$('pkDesde').value||1),cant=Math.min(200,Math.max(1,+$('pkCant').value||1)),dorso=$('pkDorso').checked;
       const cred=n=>n==null?'<div class="cred vacia"></div>':`<div class="cred"><div class="in"><div class="top"><i class="hole l"></i><i class="hole r"></i><span>perforar</span></div><div class="band">CARRETILLERO</div>
@@ -681,6 +769,20 @@ const bind={
     if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};return}
     if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...v,px:q.x,py:q.y});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
     if($('vUbicar'))$('vUbicar').onclick=()=>{ubicandoCamion=true;render()};
+    if($('sPagar'))$('sPagar').onclick=()=>{pagando=true;render()};
+    document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Copiado: '+b.dataset.copiar)}catch(e){toast('No se pudo copiar')}});
+    if(pagando){const keepP=()=>{if(!$('fPago'))return;pagoForm={...pagoForm,ref:$('pRef').value,banco:$('pBanco').value,tel:$('pTel').value,monto:$('pMonto').value,fecha:$('pFecha').value}};
+      $('pCancel').onclick=()=>{pagando=false;render()};
+      fotoInput($('pFoto'),url=>{keepP();pagoForm.foto=url;render()});
+      if($('fPago'))$('fPago').onsubmit=async e=>{e.preventDefault();keepP();const ref=pagoForm.ref.replace(/\s/g,'');if(ref.length<4){toast('Revisa el número de referencia');return}
+        if(L('pago').some(p=>p.referencia===ref&&p.estado!=='rechazado')){toast('Esa referencia ya fue cargada');return}
+        const c=cfgCobro();const monto=parseFloat(String(pagoForm.monto).replace(/\./g,'').replace(',','.'))||0;
+        const pg={id:nuevoId('P'),vendedor:v.id,referencia:ref,banco:pagoForm.banco.trim(),telefono:pagoForm.tel.trim(),monto,montoUSD:c.precioUSD,tasa:c.tasa,fecha:pagoForm.fecha,foto:pagoForm.foto||null,estado:'pendiente',t:Date.now()};
+        await guardar('pago',pg);log(`💳 ${v.nombre} cargó un pago de ${fmtBs(monto)} (ref. ${ref}) para revisar`);pagando=false;pagoForm={};render();
+        toast('Pago enviado. Te avisamos cuando se apruebe.');
+        if(c.adminTel){const u=wa(c.adminTel);if(u){const msg=`Hola, soy ${v.nombre} (CargaYa). Pagué la suscripción por Pago Móvil: ${fmtBs(monto)}, referencia ${ref}, desde ${pg.banco}, el ${pg.fecha}.`;
+          const a=document.createElement('div');a.className='found';a.style.marginTop='10px';a.innerHTML=`Pago enviado ✓ <a class="btn o" style="display:block;text-align:center;text-decoration:none;margin-top:8px" target="_blank" rel="noopener" href="${u}?text=${encodeURIComponent(msg)}">💬 Avisar por WhatsApp a la administración</a>`;
+          const card=document.querySelector('#app .card');card&&card.after(a)}}}}
     const keep=()=>{desp.placa=$('placa').value;desp.desc=$('desc').value;desp.bultos=$('bultos').value};
     const pin=$('placa'),info=$('placaInfo');
     const mostrar=()=>{const p=normPlaca(pin.value);if(p.length<5){info.innerHTML='';return}const c=comp(p);
@@ -690,7 +792,7 @@ const bind={
       if(p&&p.tipo==='k'){const k=await carretilleroPorNum(p.num);desp.k=k.id;render()}else if(t)toast('Ese código no es un carnet')};
     if($('dNumK'))$('dNumK').onchange=async()=>{keep();const n=$('dNumK').value.replace(/\D/g,'');if(!n)return;const k=await carretilleroPorNum(pad(n,2));desp.k=k.id;setTimeout(render,0)};
     if($('kQuitar'))$('kQuitar').onclick=e=>{e.preventDefault();keep();desp.k=null;render()};
-    $('fDesp').onsubmit=async e=>{e.preventDefault();keep();const p=normPlaca(desp.placa),c=comp(p);if(!c||c.activo===false){toast('Placa no registrada');return}
+    $('fDesp').onsubmit=async e=>{e.preventDefault();keep();if(!suscripcion(v).puedeDespachar){toast('Tu suscripción venció. Paga para seguir despachando.');return}const p=normPlaca(desp.placa),c=comp(p);if(!c||c.activo===false){toast('Placa no registrada');return}
       if(!desp.k){toast('Falta el carretillero: escanea su carnet o escribe su número');return}
       const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,desc:desp.desc.trim(),bultos:+desp.bultos||1,carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
       desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero #${k?.num}`);render()};

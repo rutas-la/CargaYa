@@ -34,6 +34,16 @@ Abrí `config.js` y pegá esos dos datos en `SUPABASE_URL` y `SUPABASE_KEY`. Cam
 ### 4. Probar antes de ir al mercado
 Si vas a probar desde fuera del mercado, poné `GEOCERCA_ACTIVA: false` en `config.js`. Abrí el link en tres teléfonos (o en tres navegadores distintos) y hacé el recorrido completo. **Antes de la prueba real**, volvé a ponerlo en `true` y borrá los datos de prueba: en el SQL Editor ejecutá `delete from registros; delete from actividad;`.
 
+## Cobro mensual (Pago Móvil)
+- **Administración → Cobros → Ajustes:** precio mensual en US$, tasa del día (Bs por US$), tus datos de Pago Móvil (banco, teléfono, cédula o RIF), días de prueba gratis, días de gracia y tu WhatsApp para recibir avisos.
+- **Vendedor:** ve "Mi suscripción" (prueba, al día, vencida). Con **Pagar mes** ve tus datos con botones para copiarlos y el monto en Bs. Después de pagar carga la referencia, el banco, el teléfono, el monto y la captura, y te avisa por WhatsApp.
+- **Administración → Cobros → Por revisar:** compara con tu banco y toca **Aprobar** (+1 mes desde el vencimiento o desde hoy) o **Rechazar** con el motivo. En **Vendedores** se puede dar un mes sin pago.
+- Si la suscripción vence y pasan los días de gracia, el vendedor **no puede despachar**, salvo que tenga un pago en revisión.
+- Una referencia ya cargada no se puede volver a cargar.
+- La tasa no se actualiza sola: cárgala en Ajustes cuando cambie.
+
+> Limitación del piloto: la app no tiene usuarios con contraseña, así que alguien con conocimientos técnicos podría modificar su suscripción. Antes de cobrar a muchos vendedores hay que agregar inicio de sesión.
+
 ## Cómo funciona (versión sin teléfono para el carretillero)
 1. **Comprador:** al estacionar, elige de una lista la **zona** donde dejó el vehículo, con los nombres que usan en el mercado (ej: "Detrás del Barco"), y registra tipo, color, referencia y foto. Opcionalmente toca en el plano dónde quedó el vehículo. **No se usa GPS.**
 2. **Vendedor:** escribe la placa y el número del carretillero (o escanea su **carnet**), y toca *Despachar*. La pantalla muestra el nombre de la zona en grande para el carretillero.

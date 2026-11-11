@@ -485,7 +485,7 @@ function vLogin(){
     ${crear?`<label>${r==='vendedor'?'Nombre del puesto o negocio':'Nombre o negocio'}</label><input id="lNombre" required autocomplete="organization">`:''}
     <label>Teléfono</label><input id="lTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username">
     ${crear&&r==='comprador'?'<label>Placa de tu vehículo</label><input id="lPlaca" placeholder="Ej: AB123CD" required>':''}
-    <label>${crear?'Crea un PIN de 6 números':'PIN'}</label><input id="lPin" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="${crear?'new-password':'current-password'}">
+    <label>${crear?'Crea un PIN de 6 números':'PIN'}</label><input id="lPin" type="password" inputmode="numeric" ${crear?'maxlength="6" pattern="[0-9]{6}"':''} required autocomplete="${crear?'new-password':'current-password'}">
     ${crear?'<label>Repite el PIN</label><input id="lPin2" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password"><p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':'<p class="hint">¿Olvidaste tu PIN? Pídele a la administración que te lo cambie.</p>'}
     <div id="lErr"></div>
     <div class="row" style="margin-top:16px"><button class="btn o" type="button" id="atras">Atrás</button><button class="btn y" type="submit" id="lGo">${crear?'Crear cuenta':'Entrar'}</button></div></form></div>`}
@@ -495,7 +495,7 @@ function bindLogin(){
   if($('atras'))$('atras').onclick=()=>{rolElegido=null;render()};
   const f=$('fLogin');if(!f)return;
   f.onsubmit=async e=>{e.preventDefault();const r=rolElegido,crear=modoCuenta==='crear'&&r!=='admin';const err=m=>{$('lErr').innerHTML=`<div class="notfound" style="margin-top:10px">${m}</div>`};
-    const tel=$('lTel').value.trim(),pin=$('lPin').value.trim();if(telDigitos(tel).length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');if(!/^\d{6}$/.test(pin))return err('El PIN debe tener 6 números.');
+    const tel=$('lTel').value.trim(),pin=$('lPin').value.trim();if(telDigitos(tel).length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');if(crear&&!/^\d{6}$/.test(pin))return err('El PIN debe tener 6 números.');if(pin.length<6)return err('El PIN tiene al menos 6 caracteres.');
     const btn=$('lGo');btn.disabled=true;btn.textContent='Un momento…';
     try{let user;
       if(crear){if(pin!==$('lPin2').value.trim()){btn.disabled=false;btn.textContent='Crear cuenta';return err('Los PIN no coinciden.')}

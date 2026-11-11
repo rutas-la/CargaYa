@@ -34,6 +34,27 @@ Abrí `config.js` y pegá esos dos datos en `SUPABASE_URL` y `SUPABASE_KEY`. Cam
 ### 4. Probar antes de ir al mercado
 Si vas a probar desde fuera del mercado, poné `GEOCERCA_ACTIVA: false` en `config.js`. Abrí el link en tres teléfonos (o en tres navegadores distintos) y hacé el recorrido completo. **Antes de la prueba real**, volvé a ponerlo en `true` y borrá los datos de prueba: en el SQL Editor ejecutá `delete from registros; delete from actividad;`.
 
+## Inicio de sesión: activar una sola vez en Supabase
+Las cuentas se crean con **teléfono + PIN de 6 números**, sin emails ni SMS. La seguridad está en la base de datos: cada vendedor solo toca sus despachos y no puede cambiar su fecha de pago; el comprador solo confirma o reclama lo de su placa; los pagos, las zonas y los ajustes de cobro son de Administración.
+
+1. **Desactivar la confirmación por email:** Supabase → **Authentication** → **Sign In / Providers** → **Email** → apaga **Confirm email** → **Save**.
+2. **Reglas de seguridad:** SQL Editor → New query → pega `supabase-seguridad.sql` → **Run**. (Borra los datos de prueba anteriores.)
+3. **Tu cuenta de administración:** Authentication → **Users** → **Add user** → **Create new user**:
+   - Email: tu teléfono solo con números y código de país + `@cargaya.app` (ej: `584141234567@cargaya.app`)
+   - Password: tu PIN de 6 números
+   - Marca **Auto Confirm User** → **Create user**
+4. **Márcate como administrador:** en el SQL Editor (cambia el email por el tuyo):
+   ```sql
+   insert into admins (uid) select id from auth.users where email = '584141234567@cargaya.app';
+   ```
+5. Entra a la app → **Administración** → tu teléfono y PIN.
+
+**Cambiar el PIN de alguien que lo olvidó** (SQL Editor; cambia teléfono y PIN nuevo):
+```sql
+update auth.users set encrypted_password = extensions.crypt('654321', extensions.gen_salt('bf'))
+where email = '584121234567@cargaya.app';
+```
+
 ## Cobro mensual (Pago Móvil)
 - **Administración → Cobros → Ajustes:** precio mensual en US$, tasa del día (Bs por US$), tus datos de Pago Móvil (banco, teléfono, cédula o RIF), días de prueba gratis, días de gracia y tu WhatsApp para recibir avisos.
 - **Vendedor:** ve "Mi suscripción" (prueba, al día, vencida). Con **Pagar mes** ve tus datos con botones para copiarlos y el monto en Bs. Después de pagar carga la referencia, el banco, el teléfono, el monto y la captura, y te avisa por WhatsApp.
@@ -42,7 +63,6 @@ Si vas a probar desde fuera del mercado, poné `GEOCERCA_ACTIVA: false` en `conf
 - Una referencia ya cargada no se puede volver a cargar.
 - La tasa no se actualiza sola: cárgala en Ajustes cuando cambie.
 
-> Limitación del piloto: la app no tiene usuarios con contraseña, así que alguien con conocimientos técnicos podría modificar su suscripción. Antes de cobrar a muchos vendedores hay que agregar inicio de sesión.
 
 ## Cómo funciona (versión sin teléfono para el carretillero)
 1. **Comprador:** al estacionar, elige de una lista la **zona** donde dejó el vehículo, con los nombres que usan en el mercado (ej: "Detrás del Barco"), y registra tipo, color, referencia y foto. Opcionalmente toca en el plano dónde quedó el vehículo. **No se usa GPS.**

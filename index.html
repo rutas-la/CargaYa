@@ -186,7 +186,7 @@ footer{max-width:1180px;margin:0 auto;padding:0 18px 30px;color:var(--mute);font
    - Datos compartidos en tiempo real con Supabase (config.js)
    - Sin config.js completo funciona en "modo local" (solo este teléfono)
    ===================================================================== */
-const CFG=Object.assign({RADIO_ZONA_M:80,SUPABASE_URL:'',SUPABASE_KEY:'',CLAVE_ADMIN:'1234',GEOCERCA_ACTIVA:true,RADIO_GEOCERCA_M:800,DISTANCIA_ENTREGA_M:30},window.CARGAYA_CONFIG||{});
+const CFG=Object.assign({EMAIL_DOMINIO:'cargaya.app',RADIO_ZONA_M:80,SUPABASE_URL:'',SUPABASE_KEY:'',CLAVE_ADMIN:'1234',GEOCERCA_ACTIVA:true,RADIO_GEOCERCA_M:800,DISTANCIA_ENTREGA_M:30},window.CARGAYA_CONFIG||{});
 const ONLINE=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY&&window.supabase);
 const sb=ONLINE?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY):null;
 
@@ -257,12 +257,19 @@ async function cargar(){
   r.data.forEach(x=>{if(S[x.tipo])S[x.tipo][x.id]=x.data});
   const a=await sb.from('actividad').select('t,m').order('id',{ascending:false}).limit(80);
   if(!a.error)S.log=a.data.map(l=>({t:Date.parse(l.t),m:l.m}));
+  if(cargar.sub)return;cargar.sub=true;
   sb.channel('cargaya').on('postgres_changes',{event:'*',schema:'public',table:'registros'},p=>{const x=p.new;if(!x||!x.tipo||!S[x.tipo])return;const antes=S[x.tipo][x.id];S[x.tipo][x.id]=x.data;avisar(x.tipo,antes,x.data);pedirRender()})
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'actividad'},p=>{S.log.unshift({t:Date.parse(p.new.t),m:p.new.m});S.log=S.log.slice(0,80);pedirRender()})
     .subscribe(st=>{conexion=st==='SUBSCRIBED'?'en línea':st==='CLOSED'||st==='CHANNEL_ERROR'||st==='TIMED_OUT'?'sin conexión':conexion;pintarEstado()});
 }
 async function enviar(op){if(op.k==='r')return sb.from('registros').upsert({tipo:op.tipo,id:op.obj.id,data:op.obj,updated_at:new Date().toISOString()});return sb.from('actividad').insert({m:op.m})}
-async function vaciarCola(){if(!ONLINE||!cola.length)return;while(cola.length){let r;try{r=await enviar(cola[0])}catch(e){r={error:e}}if(r&&r.error){conexion='sin conexión';pintarEstado();return}cola.shift();saveCola()}pintarEstado()}
+const errRed=e=>!e||!e.code||/fetch|network|timeout|Failed/i.test(e.message||'');
+function msgErr(op,e){const m=(e&&e.message)||'';if(op.k==='r'&&op.tipo==='comprador')return 'Esa placa ya está registrada por otra cuenta. Avísale a la administración.';
+  if(/solo puede confirmar/i.test(m))return 'Solo puedes confirmar o reclamar la entrega.';if(/row-level security|permission|42501/i.test(m+(e.code||'')))return 'No tienes permiso para hacer eso.';return 'No se pudo guardar: '+m}
+async function recargarRegistro(tipo,id){const r=await sb.from('registros').select('data').eq('tipo',tipo).eq('id',id);if(!r.error){if(r.data&&r.data[0])S[tipo][id]=r.data[0].data;else delete S[tipo][id];pedirRender()}}
+async function vaciarCola(){if(!ONLINE||!cola.length)return;while(cola.length){const op=cola[0];let r;try{r=await enviar(op)}catch(e){r={error:e}}
+  if(r&&r.error){if(errRed(r.error)){conexion='sin conexión';pintarEstado();return}cola.shift();saveCola();toast(msgErr(op,r.error));if(op.k==='r')recargarRegistro(op.tipo,op.obj.id);continue}
+  cola.shift();saveCola()}pintarEstado()}
 async function guardar(tipo,obj){S[tipo][obj.id]=obj;saveLocal();pedirRender();if(!ONLINE)return;cola.push({k:'r',tipo,obj});saveCola();await vaciarCola()}
 async function log(m){if(!ONLINE){S.log.unshift({t:Date.now(),m});S.log=S.log.slice(0,80);saveLocal();return}cola.push({k:'a',m});saveCola();await vaciarCola()}
 setInterval(vaciarCola,10000);window.addEventListener('online',vaciarCola);
@@ -417,8 +424,8 @@ document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(documen
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
 const ocupado=()=>!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
-  el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">cambiar</a>`:''}`;
-  const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();setME(null);view=null;render()}}
+  el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">${ONLINE?'salir':'cambiar'}</a>`:''}`;
+  const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();if(ONLINE){salir();return}setME(null);view=null;render()}}
 function render(){
   const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
   const nav=document.getElementById('nav');nav.innerHTML=vs.length>1?vs.map(v=>`<button data-v="${v}" class="${v===view?'on':''}">${NOMBRES[v]}</button>`).join(''):'';
@@ -426,7 +433,7 @@ function render(){
   pintarEstado();
   const app=document.getElementById('app');
   if(fichaURL){app.innerHTML=vFichaURL();bindFichaURL();return}
-  if(!ME){app.innerHTML=vInicio();bind.inicio();return}
+  if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   app.innerHTML=({mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();
@@ -451,6 +458,65 @@ function vInicio(){
     <label>Teléfono (WhatsApp)</label><input id="yTel" inputmode="tel" placeholder="0414-000-0000" required>
     ${r==='comprador'?'<label>Placa de tu vehículo</label><input id="yPlaca" placeholder="Ej: AB123CD" required>':''}`}
     <div class="row" style="margin-top:16px"><button class="btn o" type="button" id="atras">Atrás</button><button class="btn y" type="submit">Entrar</button></div></form></div>`}
+
+/* ---- Cuentas: teléfono + PIN ---- */
+let modoCuenta='crear',USER=null;
+function telDigitos(t){let d=String(t||'').replace(/\D/g,'');if(d.startsWith('0'))d='58'+d.slice(1);else if(d.length===10)d='58'+d;return d}
+const emailDeTel=t=>telDigitos(t)+'@'+CFG.EMAIL_DOMINIO;
+async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=false;
+  try{const r=await sb.from('admins').select('uid').eq('uid',user.id);admin=!r.error&&!!(r.data&&r.data.length)}catch(e){}
+  if(admin)setME({rol:'admin',id:'admin',nombre:md.nombre||'Administración',uid:user.id});
+  else if(md.rol==='vendedor')setME({rol:'vendedor',id:user.id,nombre:md.nombre||'',tel:md.tel||'',uid:user.id});
+  else if(md.rol==='comprador'&&md.placa)setME({rol:'comprador',id:md.placa,nombre:md.nombre||'',tel:md.tel||'',uid:user.id});
+  else setME(null);
+  return admin}
+async function trasEntrar(){await cargar();cargado=true;
+  if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id])await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});
+  rolElegido=null;render()}
+async function salir(){try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
+function vLogin(){
+  if(!rolElegido)return `<div class="card" style="max-width:520px;margin:0 auto"><h2>¿Cómo vas a usar CargaYa?</h2>
+   <div class="grid" style="margin-top:12px">${[['vendedor','🚚 Soy vendedor','Despacho mercancía desde mi camión'],['comprador','🛒 Soy comprador','Compro y la mercancía llega a mi vehículo'],['admin','📊 Administración','Cobros, zonas, carretilleros y panel']].map(([r,t,d])=>`<button class="btn o" style="text-align:left;padding:14px" data-rol="${r}"><div style="font-size:18px">${t}</div><div class="hint" style="font-weight:500">${d}</div></button>`).join('')}</div>
+   <p class="hint" style="margin-top:12px">Los carretilleros no necesitan teléfono: solo su credencial.</p></div>`;
+  const r=rolElegido,crear=modoCuenta==='crear'&&r!=='admin';
+  return `<div class="card" style="max-width:520px;margin:0 auto"><h2>${{vendedor:'Vendedor',comprador:'Comprador',admin:'Administración'}[r]}</h2>
+   ${r!=='admin'?`<div class="seg" style="margin:8px 0 4px">${[['crear','Crear cuenta'],['entrar','Ya tengo cuenta']].map(([k,t])=>`<button type="button" class="${modoCuenta===k?'on':''}" data-modo="${k}">${t}</button>`).join('')}</div>`:''}
+   <form id="fLogin">
+    ${crear?`<label>${r==='vendedor'?'Nombre del puesto o negocio':'Nombre o negocio'}</label><input id="lNombre" required autocomplete="organization">`:''}
+    <label>Teléfono</label><input id="lTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username">
+    ${crear&&r==='comprador'?'<label>Placa de tu vehículo</label><input id="lPlaca" placeholder="Ej: AB123CD" required>':''}
+    <label>${crear?'Crea un PIN de 6 números':'PIN'}</label><input id="lPin" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="${crear?'new-password':'current-password'}">
+    ${crear?'<label>Repite el PIN</label><input id="lPin2" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password"><p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':'<p class="hint">¿Olvidaste tu PIN? Pídele a la administración que te lo cambie.</p>'}
+    <div id="lErr"></div>
+    <div class="row" style="margin-top:16px"><button class="btn o" type="button" id="atras">Atrás</button><button class="btn y" type="submit" id="lGo">${crear?'Crear cuenta':'Entrar'}</button></div></form></div>`}
+function bindLogin(){
+  document.querySelectorAll('[data-rol]').forEach(b=>b.onclick=()=>{rolElegido=b.dataset.rol;modoCuenta=rolElegido==='admin'?'entrar':'crear';render()});
+  document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});
+  if($('atras'))$('atras').onclick=()=>{rolElegido=null;render()};
+  const f=$('fLogin');if(!f)return;
+  f.onsubmit=async e=>{e.preventDefault();const r=rolElegido,crear=modoCuenta==='crear'&&r!=='admin';const err=m=>{$('lErr').innerHTML=`<div class="notfound" style="margin-top:10px">${m}</div>`};
+    const tel=$('lTel').value.trim(),pin=$('lPin').value.trim();if(telDigitos(tel).length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');if(!/^\d{6}$/.test(pin))return err('El PIN debe tener 6 números.');
+    const btn=$('lGo');btn.disabled=true;btn.textContent='Un momento…';
+    try{let user;
+      if(crear){if(pin!==$('lPin2').value.trim()){btn.disabled=false;btn.textContent='Crear cuenta';return err('Los PIN no coinciden.')}
+        const nombre=$('lNombre').value.trim();const md={rol:r,nombre,tel};
+        if(r==='comprador'){const p=normPlaca($('lPlaca').value);if(p.length<6){btn.disabled=false;btn.textContent='Crear cuenta';return err('Revisa la placa.')}md.placa=p}
+        const {data,error}=await sb.auth.signUp({email:emailDeTel(tel),password:pin,options:{data:md}});
+        if(error){const m=error.message||'';btn.disabled=false;btn.textContent='Crear cuenta';
+          if(/already|registered|exists/i.test(m))return err('Ese teléfono ya tiene cuenta. Toca "Ya tengo cuenta" y entra con tu PIN.');
+          if(/invalid/i.test(m)&&/email/i.test(m))return err('Supabase rechazó la cuenta (email inválido). Administración: cambia EMAIL_DOMINIO en config.js.');
+          return err('No se pudo crear la cuenta: '+esc(m))}
+        if(!data.session){btn.disabled=false;btn.textContent='Crear cuenta';return err('La cuenta se creó, pero Supabase pide confirmar el email. Administración: en Supabase desactiva "Confirm email" (Authentication).')}
+        user=data.user}
+      else{const {data,error}=await sb.auth.signInWithPassword({email:emailDeTel(tel),password:pin});
+        if(error){btn.disabled=false;btn.textContent='Entrar';return err('Teléfono o PIN incorrecto.')}user=data.user}
+      const admin=await entrar(user);
+      if(r==='admin'&&!admin){await sb.auth.signOut();setME(null);btn.disabled=false;btn.textContent='Entrar';return err('Esta cuenta no es de administración.')}
+      if(!ME){await sb.auth.signOut();btn.disabled=false;btn.textContent='Entrar';return err('Esta cuenta no tiene un rol válido.')}
+      if(r!=='admin'&&ME.rol!==r&&ME.rol!=='admin')toast(`Tu cuenta es de ${ME.rol}: entraste como ${ME.rol}.`);
+      if(crear)log(`Nueva cuenta de ${r}: ${ME.nombre}${r==='comprador'?' ('+ME.id+')':''}`);
+      await trasEntrar()}
+    catch(ex){btn.disabled=false;btn.textContent=crear?'Crear cuenta':'Entrar';err('No hay conexión. Prueba de nuevo.')}}}
 
 /* ---- Ficha abierta desde un QR (cámara normal del teléfono) ---- */
 let fichaURL=null,kURL=null;
@@ -809,12 +875,12 @@ const bind={
       if($('cancelReg'))$('cancelReg').onclick=()=>{reg=null;render()};
       $('fReg').onsubmit=async e=>{e.preventDefault();keep();if(!reg.zona){toast('Elige la zona donde estacionaste');return}
         const nuevo=!c||c.activo===false;
-        const obj={...(c||{}),id:ME.id,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.px??null,py:reg.py??null,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
+        const obj={...(c||{}),id:ME.id,owner:ME.uid||c?.owner,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.px??null,py:reg.py??null,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
         reg=null;await guardar('comprador',obj);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) ${nuevo?'llegó y estacionó en':'ahora está en'} "${obj.zona}"`);toast('Vehículo guardado');render()};
       return}
     if(!c)return;
     if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null};render()};
-    if($('meVoy'))$('meVoy').onclick=async()=>{if($('meVoy').dataset.ok!=='1'){$('meVoy').dataset.ok='1';$('meVoy').textContent='Toca otra vez para confirmar';return}await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);setME(null);render()};
+    if($('meVoy'))$('meVoy').onclick=async()=>{if($('meVoy').dataset.ok!=='1'){$('meVoy').dataset.ok='1';$('meVoy').textContent='Toca otra vez para confirmar';return}await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);if(!ONLINE)setME(null);render()};
     document.querySelectorAll('[data-rabrir]').forEach(b=>b.onclick=()=>{recibiendo=b.dataset.rabrir;render()});
     if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;render()};
     document.querySelectorAll('[data-rok]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rok];const k=carr(d.carretillero);
@@ -828,8 +894,12 @@ const bind={
 };
 
 /* ===================== Arranque ===================== */
-(async()=>{render();await cargar();cargado=true;
-  if(ONLINE&&conexion!=='error'&&ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){setME(null);toast('Tu registro no está en la base: elige tu rol de nuevo')}
+(async()=>{
+  if(ONLINE){setME(null);render();let ses=null;try{ses=(await sb.auth.getSession()).data.session}catch(e){}
+    if(!ses){conexion='en línea';render();return}
+    await entrar(ses.user);if(!ME){await sb.auth.signOut();render();return}
+    await cargar();cargado=true;if(ME.rol==='vendedor'&&!S.vendedor[ME.id])await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()})}
+  else{render();await cargar();cargado=true}
   if(kURL&&!fichaURL){const k=carrPorNum(kURL.num);
     const d=ME&&ME.rol==='comprador'&&k?L('despacho').filter(x=>x.placa===ME.id&&x.estado==='en_ruta'&&x.carretillero===k.id).sort((a,b)=>a.t.creado-b.t.creado)[0]:null;
     if(d){recibiendo=d.id;carnetOk[d.id]=k.num;view='comprador'}

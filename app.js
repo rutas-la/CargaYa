@@ -95,7 +95,7 @@ const L=t=>Object.values(S[t]);
 const vend=id=>S.vendedor[id],comp=p=>S.comprador[p],carr=id=>S.carretillero[id];
 const compradoresActivos=()=>L('comprador').filter(c=>c.activo!==false);
 const normPlaca=s=>(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-const hhmm=t=>t?new Date(t).toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'}):'';
+const hhmm=t=>{if(!t)return '';const d=new Date(t);if(isNaN(d))return '';let hr=d.getHours();const ap=hr<12?'a. m.':'p. m.';hr=hr%12||12;return `${hr}:${String(d.getMinutes()).padStart(2,'0')} ${ap}`};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const nuevoId=p=>p+'-'+Date.now().toString(36).slice(-4).toUpperCase()+Math.random().toString(36).slice(2,4).toUpperCase();
 function wa(tel){let d=(tel||'').replace(/\D/g,'');if(!d)return null;if(d.startsWith('0'))d='58'+d.slice(1);else if(!d.startsWith('58')&&d.length===10)d='58'+d;return 'https://wa.me/'+d}

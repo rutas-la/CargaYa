@@ -239,8 +239,8 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
-function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','misCarr'];return ['comprador']}
-const NOMBRES={misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Imprimir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Comprador'};
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','histVend','misCarr'];return ['comprador']}
+const NOMBRES={histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Imprimir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Comprador'};
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;desp.desc=f.querySelector('#desc')?.value??desp.desc;desp.bultos=f.querySelector('#bultos')?.value??desp.bultos}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
@@ -259,7 +259,7 @@ function render(){
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();
 }
 let otroModulo=null;
@@ -411,7 +411,7 @@ function vMercado(){
     ${zs.length?'':'<div class="empty">Todavía no hay zonas. Cárgalas en la pestaña Zonas.</div>'}</div>
    <div class="card"><h2>Actividad</h2><p class="sub">Cada paso queda registrado con la hora.</p>
     <div class="log">${S.log.map(l=>`<div><time>${hhmm(l.t)}</time>${esc(l.m)}</div>`).join('')||'<div class="empty">Sin actividad todavía</div>'}</div></div></div>
-  <div class="card"><h2>Despachos</h2><div class="list">${ds.sort((a,b)=>b.t.creado-a.t.creado).map(d=>itemDesp(d)).join('')||'<div class="empty">Todavía no hay despachos</div>'}</div></div></div>`}
+  <div class="card"><h2>Despachos</h2><div class="list">${ds.sort((a,b)=>b.t.creado-a.t.creado).slice(0,150).map(d=>itemDesp(d)+(d.archivado?'<div class="hint" style="margin-top:-6px">Archivado por el vendedor</div>':'')).join('')||'<div class="empty">Todavía no hay despachos</div>'}</div></div></div>`}
 
 /* ---- Zonas ---- */
 let zonaUbicando=null;
@@ -529,6 +529,26 @@ function vCobros(){const c=cfgCobro();const pagos=L('pago').sort((a,b)=>b.t-a.t)
      <button class="btn y" type="submit" style="width:100%;margin-top:14px">Guardar ajustes</button></form></div>`:''}
   </div>`}
 
+/* ---- Historial del vendedor ---- */
+let hPer='7',hEst='todos';
+function filtroHist(vid){const desde=hPer==='todo'?0:hPer==='hoy'?new Date().setHours(0,0,0,0):Date.now()-(+hPer)*DIA;
+  return L('despacho').filter(d=>d.vendedor===vid&&d.t.creado>=desde&&(hEst==='todos'||d.estado===hEst)).sort((a,b)=>b.t.creado-a.t.creado)}
+function vHistVend(){const v=vendActual();if(!v)return '<div class="card empty">Cargando…</div>';const ds=filtroHist(v.id);
+  const n=e=>ds.filter(d=>d.estado===e).length,bultos=ds.reduce((a,d)=>a+(+d.bultos||0),0);
+  return `<div class="grid"><div class="card"><h2>Historial de despachos</h2><p class="sub">Todos tus envíos quedan guardados aquí, también los que quitaste de la lista.</p>
+   <div class="row"><div><label>Período</label><select id="hPer">${[['hoy','Hoy'],['7','Últimos 7 días'],['30','Últimos 30 días'],['todo','Todo']].map(([k,t])=>`<option value="${k}" ${hPer===k?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div><label>Estado</label><select id="hEst">${[['todos','Todos'],['entregado','Recibidos'],['en_ruta','En camino'],['reclamo','Reclamos']].map(([k,t])=>`<option value="${k}" ${hEst===k?'selected':''}>${t}</option>`).join('')}</select></div></div>
+   <button class="btn y" id="hCsv" style="width:100%;margin-top:12px" ${ds.length?'':'disabled'}>⬇ Descargar en Excel (${ds.length})</button></div>
+  <div class="kpis"><div class="kpi"><b>${ds.length}</b><span>Despachos</span></div><div class="kpi"><b>${bultos}</b><span>Bultos</span></div><div class="kpi"><b>${n('entregado')}</b><span>Recibidos</span></div><div class="kpi"><b>${n('en_ruta')}</b><span>En camino</span></div><div class="kpi"><b>${n('reclamo')}</b><span>Reclamos</span></div></div>
+  <div class="card"><div class="list">${ds.map(d=>`${itemDesp(d,'vendedor')}${d.archivado?`<div class="row"><span class="hint">Quitado de la lista</span><button class="btn o" style="flex:0 0 auto" data-desarch="${esc(d.id)}">Volver a la lista</button></div>`:''}`).join('')||'<div class="empty">No hay despachos en este período</div>'}</div></div></div>`}
+function csvHist(v,ds){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';const f=t=>t?new Date(t):null;
+  const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo'];
+  const filas=ds.map(d=>{const c=comp(d.placa),k=carr(d.carretillero),s=f(d.t.creado),r=f(d.t.entregado);
+    return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',d.desc,d.bultos,k?`#${k.num} ${k.nombre||''}`:'',ETQ[d.estado]||d.estado,
+      ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||''].map(q).join(';')});
+  const blob=new Blob(['﻿'+[cab.map(q).join(';'),...filas].join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-${(v.nombre||'despachos').replace(/[^\w]+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+
 /* ---- Vendedor ---- */
 let desp={},fichaVista=null,ubicandoCamion=false;
 function vVendedor(){
@@ -545,7 +565,8 @@ function vVendedor(){
      <button class="btn y big" id="fvListo" style="margin-top:12px">Listo, salió</button></div>`}
   if(ubicandoCamion)return `<div class="card"><h2>Ubica tu camión en el plano</h2><p class="sub">Toca dónde está tu camión. Se hace una sola vez; cámbialo si te mueves.</p>
     ${planoSVG({id:'vPick',pick:true,zoom:[[VZ.cx,VZ.cy]],minW:420,camion:posVend(v),camionTxt:'MI CAMIÓN'})}<div class="row" style="margin-top:10px"><button class="btn y" id="vListo">Listo</button></div></div>`;
-  const mis=L('despacho').filter(d=>d.vendedor===v.id).sort((a,b)=>b.t.creado-a.t.creado);
+  const mis=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado).sort((a,b)=>b.t.creado-a.t.creado);
+  const cerrados=mis.filter(d=>d.estado==='entregado').length;
   const k=desp.k?carr(desp.k):null;
   return `<div class="grid g2"><div class="grid" style="align-content:start">
    ${ME.rol==='vendedor'||ME.rol==='admin'?cardSuscripcion(v):''}
@@ -563,7 +584,9 @@ function vVendedor(){
       :`<div class="notfound">Todavía no tienes carretilleros. Créalos en <a href="#" id="irCarr">Mis carretilleros</a>.</div>`}
     <div style="margin-top:14px"><button class="btn y big" type="submit">Despachar</button></div></form></div>
    <div class="card"><h2>Mi camión</h2><p class="sub">${posVend(v)?'Tu camión está ubicado en el plano.':'Ubica tu camión en el plano para que el carretillero vea el camino.'}</p><button class="btn ${posVend(v)?'o':'y'}" id="vUbicar" style="width:100%">📍 ${posVend(v)?'Cambiar ubicación':'Ubicar mi camión'}</button></div>
-  <div class="card"><h2>Mis despachos</h2><div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}${d.estado==='en_ruta'?`<div class="row"><button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button></div>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}`).join('')||'<div class="empty">Todavía no despachaste</div>'}</div></div></div>`}
+  <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
+   <p class="hint">Lo que quitas de la lista queda guardado en <a href="#" id="irHist">Historial</a>.</p>
+   <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
 
 /* ---- Comprador ---- */
 let reg=null,corrigiendo=null,recibiendo=null,carnetOk={};
@@ -648,6 +671,11 @@ const bind={
       await guardar('carretillero',{...k,baja:true});log(`${v.nombre} dio de baja al carretillero #${k.num}`);render()});
   },
   imprimir(){document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Copiado')}catch(e){toast('No se pudo copiar')}})},
+  histVend(){const v=vendActual();if(!v)return;
+    $('hPer').onchange=()=>{hPer=$('hPer').value;render()};$('hEst').onchange=()=>{hEst=$('hEst').value;render()};
+    $('hCsv').onclick=()=>{csvHist(v,filtroHist(v.id));toast('Archivo descargado')};
+    document.querySelectorAll('[data-desarch]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.desarch];await guardar('despacho',{...d,archivado:false});render()});
+  },
   vendedor(){
     const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
     if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};return}
@@ -682,6 +710,11 @@ const bind={
       const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,desc:desp.desc.trim(),bultos:+desp.bultos||1,carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
       desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero #${k?.num}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});
+    if($('irHist'))$('irHist').onclick=e=>{e.preventDefault();view='histVend';render()};
+    document.querySelectorAll('[data-arch]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.arch];
+      if(d.estado==='en_ruta'&&b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Aún no se recibió. ¿Quitar?';return}
+      await guardar('despacho',{...d,archivado:true});render()});
+    if($('archTodos'))$('archTodos').onclick=async()=>{const ds=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado&&d.estado==='entregado');for(const d of ds)await guardar('despacho',{...d,archivado:true});toast(`${ds.length} despachos quitados de la lista`);render()};
     document.querySelectorAll('[data-vok]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await confirmar(S.despacho[b.dataset.vok],'vendedor')});
   },
   comprador(){

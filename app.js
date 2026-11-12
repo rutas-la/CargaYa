@@ -240,7 +240,7 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
 function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','histVend','misCarr'];return ['comprador']}
-const NOMBRES={histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Imprimir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Comprador'};
+const NOMBRES={histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Comprador'};
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;desp.desc=f.querySelector('#desc')?.value??desp.desc;desp.bultos=f.querySelector('#bultos')?.value??desp.bultos}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
@@ -451,9 +451,18 @@ async function imprimirCredenciales(ks,dorso,vNombre){await cargarQRlib();
   await imprimir(html)}
 
 /* ---- Imprimir ---- */
-function vImprimir(){return `<div class="grid g2">
-  <div class="card"><h2>QR para entrar a la app</h2><p class="sub">Un QR para el módulo de compradores y otro para el de vendedores. Las credenciales de carretillero las imprime cada vendedor desde su módulo.</p><a class="btn y" style="display:block;text-align:center;text-decoration:none" href="qr.html" target="_blank" rel="noopener">Abrir QR de vendedor y comprador</a></div>
-  <div class="card"><h2>Links de los módulos</h2>${['comprador','vendedor','admin'].map(m=>`<div class="row" style="align-items:center"><div><div class="hint">${NOMBRE_MOD[m]}</div><b style="font-size:14px;word-break:break-all">${LINKS[m]}</b></div>${copiaBtn(LINKS[m])}</div>`).join('')}</div></div>`}
+const MSJ_QR={vendedor:'Hola 👋 Te invito a usar *CargaYa* en el Mercado Mayor de Coche: despacha a la placa del comprador y controla cada entrega con tus carretilleros. Crea tu cuenta aquí (1 minuto): ',
+  comprador:'Hola 👋 Con *CargaYa* tus compras del Mercado Mayor de Coche llegan directo a tu vehículo y confirmas cada entrega. Crea tu cuenta aquí (1 minuto): '};
+function vImprimir(){
+  const card=(m,tit,sub)=>`<div class="card"><h2>${tit}</h2><p class="sub">${sub}</p>
+    <img src="qr/cargaya-qr-${m}.png" alt="QR ${tit}" style="width:100%;max-width:300px;display:block;margin:6px auto 10px;border:1px solid var(--line);border-radius:12px">
+    <button class="btn y big" data-qshare="${m}">📲 Compartir imagen (WhatsApp)</button>
+    <a class="btn g" style="display:block;text-align:center;text-decoration:none;margin-top:8px;color:#fff" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(MSJ_QR[m]+LINKS[m])}">💬 Enviar link por WhatsApp</a>
+    <div class="row" style="margin-top:8px"><a class="btn o" style="text-align:center;text-decoration:none" href="qr/cargaya-qr-${m}.png" download="CargaYa-QR-${m}.png">⬇ Descargar imagen</a>${copiaBtn(LINKS[m]).replace('>Copiar<','>Copiar link<')}</div>
+    <p class="hint" style="margin-top:6px;word-break:break-all">${LINKS[m]}</p></div>`;
+  return `<div class="grid g2">${card('vendedor','QR para vendedores','Para que los vendedores creen su cuenta.')}${card('comprador','QR para compradores','Para que los compradores creen su cuenta.')}</div>
+  <div class="card" style="margin-top:16px"><h2>Imprimir</h2><p class="sub">Los dos QR en hojas A4 para pegar en el mercado.</p><a class="btn o" style="display:block;text-align:center;text-decoration:none" href="qr.html" target="_blank" rel="noopener">🖨 Abrir para imprimir</a>
+   <p class="hint" style="margin-top:10px">Las credenciales de los carretilleros las imprime cada vendedor desde su módulo.</p></div>`}
 function cargarQRlib(){return window.qrcode?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='lib/qrcode.js';s.onload=res;s.onerror=()=>{toast('No se pudo cargar el generador de QR. Revisa la conexión.');rej()};document.head.appendChild(s)})}
 function qrImg(txt,px){const q=qrcode(0,'M');q.addData(txt);q.make();const n=q.getModuleCount();return q.createDataURL(Math.max(2,Math.floor(px/(n+4))),2)}
 const COD_ALF='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -670,7 +679,12 @@ const bind={
     document.querySelectorAll('[data-kbaja]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez';return}const k=S.carretillero[b.dataset.kbaja];
       await guardar('carretillero',{...k,baja:true});log(`${v.nombre} dio de baja al carretillero #${k.num}`);render()});
   },
-  imprimir(){document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Copiado')}catch(e){toast('No se pudo copiar')}})},
+  imprimir(){document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Link copiado')}catch(e){toast('No se pudo copiar')}});
+    document.querySelectorAll('[data-qshare]').forEach(b=>b.onclick=async()=>{const m=b.dataset.qshare;const txt=MSJ_QR[m]+LINKS[m];
+      try{const blob=await (await fetch(`qr/cargaya-qr-${m}.png`)).blob();const file=new File([blob],`CargaYa-QR-${m}.png`,{type:'image/png'});
+        if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:txt});return}
+        if(navigator.share){await navigator.share({title:'CargaYa',text:txt,url:LINKS[m]});return}}catch(e){if(e&&e.name==='AbortError')return}
+      window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');toast('Este navegador no comparte imágenes: se abrió WhatsApp con el link')})},
   histVend(){const v=vendActual();if(!v)return;
     $('hPer').onchange=()=>{hPer=$('hPer').value;render()};$('hEst').onchange=()=>{hEst=$('hEst').value;render()};
     $('hCsv').onclick=()=>{csvHist(v,filtroHist(v.id));toast('Archivo descargado')};

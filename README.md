@@ -71,6 +71,6 @@ where email = '584121234567@cargaya.app';
 2. **Vendedor:** crea y administra sus carretilleros (pestaña *Mis carretilleros*: agregar, imprimir credencial, dar de baja). Al despachar escribe la placa, toca el carretillero y *Despachar*. También puede usar un carretillero de otro vendedor escaneando su credencial. Cuando el carretillero vuelve, el vendedor registra el pago del viaje (efectivo o Pago Móvil) y en *Pagos* ve lo pendiente por carretillero, con tarifa sugerida y pago de varios viajes juntos. Puede quitar despachos de su lista (quedan archivados) y ver todo en *Historial*, con filtros y descarga a Excel. Nada se borra de la base de datos. La pantalla muestra el nombre de la zona en grande para el carretillero.
 3. **Carretillero (sin teléfono):** va a la zona y busca el vehículo por la descripción, la placa y la referencia, y deja la mercancía.
 4. **Comprador:** en la app toca *Ya me llegó* y **escanea el carnet del carretillero**. Si es el asignado, la entrega queda verificada. Si no está presente, puede confirmar sin escanear, y queda registrado así.
-5. **Administración:** cobros, zonas (nombre y ubicación en el plano), vista general de carretilleros por vendedor y panel.
+5. **Administración:** cobros, zonas (nombre y ubicación en el plano), carretilleros de todos los vendedores (agregar e imprimir credenciales) y panel.
 
 La guía para la persona en el mercado está en `guia.html`.

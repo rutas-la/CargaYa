@@ -431,10 +431,16 @@ function vZonas(){const ns=nombresZona();
 /* ---- Carretilleros ---- */
 function statsK(k){const hoy=new Date().toDateString();const ds=L('despacho').filter(d=>d.carretillero===k.id&&new Date(d.t.creado).toDateString()===hoy);
   return {hoy:ds.length,ok:ds.filter(d=>d.estado==='entregado').length,recl:ds.filter(d=>d.estado==='reclamo').length,porCobrar:L('despacho').filter(d=>d.carretillero===k.id&&!d.pagoK&&d.estado!=='en_ruta').length}}
-function vCarretilleros(){const vs=L('vendedor').sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
-  return `<div class="card"><h2>Carretilleros por vendedor</h2><p class="sub">Cada vendedor crea y administra sus carretilleros desde su módulo.</p>
-   <div class="list">${vs.map(v=>{const ks=misCarr(v.id);if(!ks.length)return '';return `<div class="item"><div class="top"><b style="font-size:18px">${esc(v.nombre)}</b><span class="hint">${ks.length} carretillero${ks.length>1?'s':''}</span></div>
-     ${ks.map(k=>{const s=statsK(k);return `<div class="meta">#${esc(k.num)} · ${esc(k.nombre||'sin nombre')} · ${s.hoy} viajes hoy · ${s.ok} confirmados${s.recl?` · ⚠ ${s.recl} reclamos`:''}${s.porCobrar?` · 💵 ${s.porCobrar} viajes por cobrar`:''}</div>`}).join('')}</div>`}).join('')||'<div class="empty">Todavía no hay carretilleros</div>'}</div></div>`}
+function vCarretilleros(){const vs=L('vendedor').sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));const total=L('carretillero').filter(k=>!k.baja).length;
+  return `<div class="grid"><div class="card"><h2>Carretilleros de todos los vendedores</h2><p class="sub">Puedes agregar carretilleros a cualquier vendedor e imprimir sus credenciales. Cada vendedor también puede hacerlo desde su módulo.</p>
+   <label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="akDorso" checked style="width:auto"> Imprimir también el dorso (doble faz)</label>
+   <button class="btn y" id="akTodos" style="width:100%;margin-top:8px" ${total?'':'disabled'}>🖨 Imprimir credenciales de todos (${total})</button></div>
+   ${vs.map(v=>{const ks=misCarr(v.id);return `<div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="font-size:20px">${esc(v.nombre)}</h2><span class="hint">${ks.length} carretillero${ks.length===1?'':'s'}</span></div>
+     <div class="list">${ks.map(k=>{const s=statsK(k);return `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:6px 0"><div><b>#${esc(k.num)} · ${esc(k.nombre||'sin nombre')}</b><div class="meta">${s.hoy} viajes hoy · ${s.ok} confirmados${s.recl?` · ⚠ ${s.recl} reclamos`:''}${s.porCobrar?` · 💵 ${s.porCobrar} por cobrar`:''}</div></div><button class="btn o" style="flex:0 0 auto;padding:6px 10px" data-akp="${esc(k.id)}">🖨</button></div>`}).join('')||'<div class="hint">Todavía no tiene carretilleros.</div>'}</div>
+     <div class="row" style="margin-top:10px"><input placeholder="Nombre del nuevo carretillero" data-akn="${esc(v.id)}"><button class="btn o" style="flex:0 0 auto" data-aka="${esc(v.id)}">Agregar</button></div>
+     ${ks.length?`<button class="btn o" style="width:100%;margin-top:8px" data-akv="${esc(v.id)}">🖨 Imprimir las ${ks.length} credenciales de ${esc(v.nombre)}</button>`:''}</div>`}).join('')||'<div class="card empty">Todavía no hay vendedores registrados</div>'}</div>`}
+async function agregarCarretillero(v,nombre){const ks=L('carretillero').filter(k=>k.vendedor===v.id);const num=pad(ks.reduce((m,k)=>Math.max(m,parseInt(k.num)||0),0)+1,2);
+  const k={id:nuevoIdK(),vendedor:v.id,num,nombre,creado:Date.now()};await guardar('carretillero',k);log(`${ME.rol==='admin'?'Administración':v.nombre} agregó al carretillero #${num}${nombre?' '+nombre:''} (${v.nombre})`);toast(`Carretillero #${num} agregado a ${v.nombre}`);return k}
 function vendActual(){return ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0]}
 function vMisCarr(){const v=vendActual();if(!v)return '<div class="card empty">Cargando…</div>';const ks=misCarr(v.id);
   return `<div class="grid g2"><div class="grid" style="align-content:start"><div class="card"><h2>Nuevo carretillero</h2><p class="sub">Solo su nombre o apodo. El número se asigna solo.</p>
@@ -448,7 +454,7 @@ function vMisCarr(){const v=vendActual();if(!v)return '<div class="card empty">C
 async function imprimirCredenciales(ks,dorso,vNombre){await cargarQRlib();
   const cred=k=>!k?'<div class="cred vacia"></div>':`<div class="cred"><div class="in"><div class="top"><i class="hole l"></i><i class="hole r"></i><span>perforar</span></div><div class="band">CARRETILLERO</div>
     <div class="num"><small>N°</small>${esc(k.num)}</div><img src="${qrImg(urlCarnet(k.id),400)}" alt=""><div class="esc">Comprador: escanea este código<br>al recibir tu mercancía</div>
-    <div class="nom">Nombre: ${esc(k.nombre||'')}</div><div class="foot"><b>CargaYa</b> · ${esc(vNombre||'Mercado Mayor de Coche')}</div></div></div>`;
+    <div class="nom">Nombre: ${esc(k.nombre||'')}</div><div class="foot"><b>CargaYa</b> · ${esc(vNombre||vend(k.vendedor)?.nombre||'Mercado Mayor de Coche')}</div></div></div>`;
   let html='';for(let i=0;i<ks.length;i+=4){const g=[0,1,2,3].map(j=>ks[i+j]||null);html+=`<div class="hoja-cred">${g.map(cred).join('')}</div>`;if(dorso)html+=`<div class="hoja-cred">${[g[1],g[0],g[3],g[2]].map(cred).join('')}</div>`}
   await imprimir(html)}
 
@@ -721,10 +727,15 @@ const bind={
     document.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=async()=>{const z=S.zona[b.dataset.zdel];if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para quitar';return}
       await guardar('zona',{...z,baja:true});log(`Zona quitada: "${z.nombre}"`);render()});
   },
-  carretilleros(){},
+  carretilleros(){const dorso=()=>$('akDorso').checked;
+    $('akTodos').onclick=()=>{const ks=L('vendedor').sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).flatMap(v=>misCarr(v.id));imprimirCredenciales(ks,dorso(),null)};
+    document.querySelectorAll('[data-akv]').forEach(b=>b.onclick=()=>{const v=vend(b.dataset.akv);imprimirCredenciales(misCarr(v.id),dorso(),v.nombre)});
+    document.querySelectorAll('[data-akp]').forEach(b=>b.onclick=()=>{const k=S.carretillero[b.dataset.akp];imprimirCredenciales([k],dorso(),vend(k.vendedor)?.nombre)});
+    document.querySelectorAll('[data-aka]').forEach(b=>b.onclick=async()=>{const v=vend(b.dataset.aka);const inp=document.querySelector(`[data-akn="${b.dataset.aka}"]`);const n=inp.value.trim();inp.value='';await agregarCarretillero(v,n);render()});
+    document.querySelectorAll('[data-akn]').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector(`[data-aka="${i.dataset.akn}"]`).click()}});
+  },
   misCarr(){const v=vendActual();if(!v)return;
-    const add=async()=>{const n=$('kNom').value.trim();const ks=L('carretillero').filter(k=>k.vendedor===v.id);const num=pad(ks.reduce((m,k)=>Math.max(m,parseInt(k.num)||0),0)+1,2);
-      const k={id:nuevoIdK(),vendedor:v.id,num,nombre:n,creado:Date.now()};$('kNom').value='';await guardar('carretillero',k);log(`${v.nombre} agregó al carretillero #${num}${n?' '+n:''}`);toast(`Carretillero #${num} agregado`);render()};
+    const add=async()=>{const n=$('kNom').value.trim();$('kNom').value='';await agregarCarretillero(v,n);render()};
     $('kAdd').onclick=add;$('kNom').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add()}};
     document.querySelectorAll('[data-kprint]').forEach(b=>b.onclick=()=>imprimirCredenciales([S.carretillero[b.dataset.kprint]],$('kDorso').checked,v.nombre));
     $('kPrintAll').onclick=()=>imprimirCredenciales(misCarr(v.id),$('kDorso').checked,v.nombre);

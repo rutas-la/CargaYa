@@ -217,6 +217,10 @@ const nuevoIdK=()=>'K'+[...Array(6)].map(()=>COD_ALF[Math.floor(Math.random()*CO
 const ajeno=(k,vid)=>k&&k.vendedor&&k.vendedor!==vid;
 const etqCarr=(k,vid)=>k?`#${k.num} ${k.nombre||''}${ajeno(k,vid)?' (de '+(vend(k.vendedor)?.nombre||'otro vendedor')+')':''}`.replace(/\s+\(/,' ('):'';
 const misCarr=vid=>L('carretillero').filter(k=>k.vendedor===vid&&!k.baja).sort((a,b)=>a.num.localeCompare(b.num));
+const itemsDe=d=>Array.isArray(d.items)&&d.items.length?d.items:[{desc:d.desc||'',bultos:+d.bultos||1}];
+const resumenItems=d=>itemsDe(d).map(i=>`${i.desc} (${i.bultos})`).join(', ');
+const htmlItems=d=>itemsDe(d).length>1?`<ul style="margin:4px 0 0;padding-left:20px">${itemsDe(d).map(i=>`<li>${esc(i.desc)} · <b>${i.bultos}</b> bulto${i.bultos==1?'':'s'}</li>`).join('')}</ul>`:'';
+const tituloItems=d=>itemsDe(d).length>1?`${itemsDe(d).length} productos · ${d.bultos} bultos`:`${esc(itemsDe(d)[0].desc)} · ${d.bultos} bulto${d.bultos==1?'':'s'}`;
 const nro=d=>d.ficha?'Ficha '+d.ficha.num:'Despacho '+d.id.slice(-4);
 
 /* ===================== Escáner con la cámara ===================== */
@@ -243,7 +247,8 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 let view=null,pendiente=false,cargado=false;
 function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr'];return ['comprador','vendC']}
 const NOMBRES={vendC:'Vendedores',pagosK:'Pagos',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
-function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;desp.desc=f.querySelector('#desc')?.value??desp.desc;desp.bultos=f.querySelector('#bultos')?.value??desp.bultos}
+function leerItems(){const f=document.getElementById('fDesp');if(!f)return null;return [...f.querySelectorAll('.it-row')].map(r=>({desc:r.querySelector('.it-desc').value,bultos:r.querySelector('.it-bul').value}))}
+function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;const it=leerItems();if(it)desp.items=it}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
@@ -268,7 +273,7 @@ let otroModulo=null;
 function vOtroModulo(){const r=otroModulo;return `<div class="card" style="max-width:520px;margin:0 auto"><h2>Este es el módulo de ${NOMBRE_MOD[MODULO]}</h2><p class="sub">Tu cuenta es de <b>${NOMBRE_MOD[r]}</b>. Ábrela en su módulo:</p>
   <a class="btn y big" style="display:block;text-align:center;text-decoration:none" href="${LINKS[r]}">Ir al módulo de ${NOMBRE_MOD[r]}</a><button class="btn o" id="omSalir" style="width:100%;margin-top:10px">Salir y usar otra cuenta</button></div>`}
 function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
-  return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${esc(d.desc)} · ${d.bultos} bultos</div>${chip(d.estado)}</div>
+  return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${tituloItems(d)}</div>${chip(d.estado)}</div>${htmlItems(d)}
    <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(lugar(c).zona)}</span> · `:''}${k?`Carretillero <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}${ajeno(k,d.vendedor)?` <span class="hint">(de ${esc(vend(k.vendedor)?.nombre||'otro vendedor')})</span>`:''}`:'Sin carretillero'}</div>
    ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${({carnet:'el comprador escaneó el carnet del carretillero',ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||'')+(d.verif?.carrOk===true&&d.verif?.metodo!=='carnet'?' · N° de carretillero verificado':d.verif?.carrOk===false?' · ⚠ dijo otro N° de carretillero ('+esc(d.verif.carrDicho)+')':'')}`:''}${d.estado==='reclamo'?` · ⚠ ${esc(d.reclamo||'falta mercancía')}`:''}</div></div>`}
 
@@ -356,7 +361,7 @@ function vFichaURL(){const p=fichaURL;const d=despDeFicha(p);
   const v=vend(d.vendedor),k=carr(d.carretillero);
   const esMio=ME&&ME.rol==='comprador'&&ME.id===d.placa;
   return `<div class="card" style="max-width:520px;margin:0 auto"><h2>Ficha ${esc(p.num)}</h2>
-   <div class="item" style="margin-top:8px"><div class="top"><b>${esc(d.desc)} · ${d.bultos} bultos</b>${chip(d.estado)}</div>
+   <div class="item" style="margin-top:8px"><div class="top"><b>${tituloItems(d)}</b>${chip(d.estado)}</div>${htmlItems(d)}
     <div class="meta">De <b>${esc(v?.nombre||'')}</b> · Para <span class="plate">${esc(d.placa)}</span>${k?` · Carretillero #${esc(k.num)} ${esc(k.nombre||'')}`:''}</div></div>
    ${d.estado==='en_ruta'?(esMio?`<p class="sub" style="margin-top:12px">Revisa la mercancía y confirma.</p>
       <button class="btn g big" id="fuOk">Recibí ${d.bultos} bultos completos</button>
@@ -573,7 +578,7 @@ function vPagosK(){const v=vendActual();if(!v)return '<div class="card empty">Ca
    <div class="card"><h2>Por pagar a carretilleros</h2><p class="sub">Viajes ya entregados que todavía no pagaste.</p>
     <div class="list">${Object.entries(grupos).map(([kid,ds])=>{const k=carr(kid);const sum=ds.reduce((a,x)=>a+sugeridoK(x,v),0);
       return `<div class="item"><div class="top"><b style="font-size:19px">${esc(etqCarr(k,v.id))}</b><span class="chip st-en_vehiculo">${ds.length} por pagar</span></div>
-       ${ds.sort((a,b)=>a.t.creado-b.t.creado).map(d=>`<div class="meta">${hhmm(d.t.creado)} · ${esc(d.desc)} · ${d.bultos} bultos → ${esc(d.placa)}${d.estado==='reclamo'?' · <span class="bad">reclamo</span>':''}${sugeridoK(d,v)?' · '+fmtMon(sugeridoK(d,v),t.moneda):''}</div>`).join('')}
+       ${ds.sort((a,b)=>a.t.creado-b.t.creado).map(d=>`<div class="meta">${hhmm(d.t.creado)} · ${esc(resumenItems(d))} → ${esc(d.placa)}${d.estado==='reclamo'?' · <span class="bad">reclamo</span>':''}${sugeridoK(d,v)?' · '+fmtMon(sugeridoK(d,v),t.moneda):''}</div>`).join('')}
        ${pagandoLote===kid?formPagoK(null,v,ds):`<button class="btn y" data-plote="${esc(kid)}">💵 Pagar ${ds.length} viaje${ds.length>1?'s':''}${sum?' · '+fmtMon(sum,t.moneda):''}</button>`}</div>`}).join('')||'<div class="empty">No tienes viajes por pagar 👍</div>'}</div></div>
    <div class="card"><h2>Pagado hoy</h2>${Object.keys(tot).length?Object.entries(tot).map(([key,m])=>{const [met,mon]=key.split('|');return `<div class="row" style="align-items:center"><div>${met==='pago_movil'?'📱 Pago Móvil':'💵 Efectivo'}</div><b style="flex:0 0 auto;font-size:19px">${fmtMon(m,mon)}</b></div>`}).join(''):'<div class="empty">Todavía no pagaste hoy</div>'}
     <p class="hint">${pagHoy.length} viajes pagados hoy.</p></div></div>
@@ -609,7 +614,7 @@ function vHistVend(){const v=vendActual();if(!v)return '<div class="card empty">
 function csvHist(v,ds){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';const f=t=>t?new Date(t):null;
   const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago','Referencia','Hora de pago'];
   const filas=ds.map(d=>{const c=comp(d.placa),k=carr(d.carretillero),s=f(d.t.creado),r=f(d.t.entregado);
-    return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',d.desc,d.bultos,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
+    return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',resumenItems(d),d.bultos,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||'',
       d.pagoK?String(d.pagoK.monto).replace('.',','):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':''),d.pagoK?.ref||'',d.pagoK?hhmm(d.pagoK.t):''].map(q).join(';')});
   const blob=new Blob(['﻿'+[cab.map(q).join(';'),...filas].join('\r\n')],{type:'text/csv;charset=utf-8'});
@@ -625,6 +630,7 @@ function vVendedor(){
      <div class="hint" style="margin-top:8px;text-transform:uppercase;letter-spacing:1px">Zona</div><div style="font-family:'Barlow Condensed';font-weight:800;font-size:${l.zona.length<=10?72:l.zona.length<=18?54:40}px;line-height:1.02">${esc(l.zona)}</div>
      <div class="carbox" style="margin-top:12px">${c.foto?`<img class="photo" style="width:140px;height:105px" src="${c.foto}" alt="Foto del vehículo">`:''}
       <div><div style="font-size:22px;font-weight:700">${esc(c.vehiculo)}</div><span class="plate" style="font-size:24px">${esc(c.id)}</span>${c.ref?`<div style="font-size:17px;margin-top:4px">📌 ${esc(c.ref)}</div>`:''}</div></div>
+     <div class="stepbox" style="margin-top:12px;border-style:solid"><div class="hint">Lleva</div>${itemsDe(d).map(i=>`<div style="font-size:20px"><b>${i.bultos}</b> × ${esc(i.desc)}</div>`).join('')}<div class="hint">Total: ${d.bultos} bultos</div></div>
      ${c.foto?`<img class="photo" style="margin-top:10px;max-height:320px" src="${c.foto}" alt="">`:''}
      ${posComp(c)?`<div style="margin-top:12px">${planoSVG({zoom:[posComp(c),...(posVend(vend(d.vendedor))?[posVend(vend(d.vendedor))]:[])],minW:420,zonaHL:c.zona,dest:posComp(c),destTxt:c.id,camion:posVend(vend(d.vendedor)),camionTxt:'TÚ ESTÁS AQUÍ',ruta:posVend(vend(d.vendedor))})}</div>
        <p class="hint" style="margin-top:4px">${c.px!=null?'El punto rojo es donde el comprador marcó su vehículo.':'El punto rojo es la zona; el comprador no marcó el lugar exacto.'}${posVend(vend(d.vendedor))?'':' Ubica tu camión en el plano para ver el camino.'}</p>`:''}
@@ -642,8 +648,12 @@ function vVendedor(){
     <input id="placa" list="placas" placeholder="Ej: AB123CD" autocomplete="off" value="${esc(desp.placa||'')}" required>
     <datalist id="placas">${compradoresActivos().map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')}</datalist>
     <div id="placaInfo"></div>
-    <div class="row"><div><label>2 · Mercancía</label><input id="desc" placeholder="Ej: Papa blanca" value="${esc(desp.desc||'')}" required></div>
-    <div style="flex:0 0 100px"><label>Bultos</label><input id="bultos" type="number" min="1" value="${esc(desp.bultos||1)}" required></div></div>
+    <label>2 · Mercancía</label>
+    <datalist id="misProductos">${String(v.productos||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+    ${(desp.items&&desp.items.length?desp.items:[{desc:'',bultos:1}]).map((it,i,arr)=>`<div class="row it-row" style="margin-top:6px;align-items:center"><input class="it-desc" list="misProductos" placeholder="Ej: Papa" value="${esc(it.desc||'')}" autocomplete="off">
+      <input class="it-bul" type="number" min="1" inputmode="numeric" style="flex:0 0 76px" value="${esc(it.bultos||1)}" aria-label="Bultos">
+      ${arr.length>1?`<button type="button" class="btn o" style="flex:0 0 auto;padding:8px 12px" data-itdel="${i}" aria-label="Quitar">✕</button>`:''}</div>`).join('')}
+    <div class="row" style="margin-top:8px;align-items:center"><button type="button" class="btn o" id="itAdd">➕ Agregar ítem</button><div class="hint" style="text-align:right" id="itTot">Total: <b>${(desp.items||[{bultos:1}]).reduce((a,x)=>a+(parseInt(x.bultos)||0),0)}</b> bultos</div></div>
     <label>3 · Carretillero</label>
     ${misCarr(v.id).length?`<div style="display:flex;flex-wrap:wrap;gap:8px">${misCarr(v.id).map(x=>`<button type="button" class="btn ${desp.k===x.id?'y':'o'}" style="padding:10px 12px" data-ksel="${esc(x.id)}">#${esc(x.num)} ${esc(x.nombre||'')}</button>`).join('')}</div>`
       :`<p class="hint">Todavía no tienes carretilleros propios (créalos en <a href="#" id="irCarr">Mis carretilleros</a>). Puedes usar el de otro vendedor escaneando su credencial.</p>`}
@@ -710,7 +720,7 @@ function vComprador(){
     ${ME.rol==='comprador'?`<div class="row" style="margin-top:12px"><button class="btn o" id="cEditar">Moví el vehículo / editar</button><button class="btn o" id="meVoy">Ya me fui del mercado</button></div>`:''}</div>
    <div class="card" style="${enCamino.length?'border:2px solid var(--yel)':''}"><h2>Por recibir</h2>
     <p class="sub">Cuando te llegue la mercancía, revísala y escanea el carnet del carretillero para confirmar.</p>
-    ${enCamino.map(d=>{const abierto=recibiendo===d.id;return `<div class="item" style="margin-top:10px"><div class="top"><b>${esc(d.desc)} · ${d.bultos} bultos</b>${chip(d.estado)}</div>
+    ${enCamino.map(d=>{const abierto=recibiendo===d.id;return `<div class="item" style="margin-top:10px"><div class="top"><b>${tituloItems(d)}</b>${chip(d.estado)}</div>${htmlItems(d)}
       <div class="meta">De ${esc(vend(d.vendedor)?.nombre||'')} · salió ${hhmm(d.t.creado)}</div>
       ${abierto?`${carnetOk[d.id]?`<div class="found" style="margin-top:8px;font-size:17px">✓ Carnet <b>#${esc(carnetOk[d.id])}</b> verificado: es el carretillero de este despacho</div>`
         :`<button class="btn y big" data-rscan="${esc(d.id)}" style="margin-top:8px">📷 Escanear el carnet del carretillero</button>
@@ -817,7 +827,11 @@ const bind={
         if(c.adminTel){const u=wa(c.adminTel);if(u){const msg=`Hola, soy ${v.nombre} (CargaYa). Pagué la suscripción por Pago Móvil: ${fmtBs(monto)}, referencia ${ref}, desde ${pg.banco}, el ${pg.fecha}.`;
           const a=document.createElement('div');a.className='found';a.style.marginTop='10px';a.innerHTML=`Pago enviado ✓ <a class="btn o" style="display:block;text-align:center;text-decoration:none;margin-top:8px" target="_blank" rel="noopener" href="${u}?text=${encodeURIComponent(msg)}">💬 Avisar por WhatsApp a la administración</a>`;
           const card=document.querySelector('#app .card');card&&card.after(a)}}}}
-    const keep=()=>{desp.placa=$('placa').value;desp.desc=$('desc').value;desp.bultos=$('bultos').value};
+    const keep=()=>{desp.placa=$('placa').value;desp.items=leerItems()};
+    const tot=()=>{const it=leerItems()||[];if($('itTot'))$('itTot').innerHTML=`Total: <b>${it.reduce((a,x)=>a+(parseInt(x.bultos)||0),0)}</b> bultos`};
+    document.querySelectorAll('.it-bul').forEach(x=>x.oninput=tot);
+    if($('itAdd'))$('itAdd').onclick=()=>{keep();desp.items=[...desp.items,{desc:'',bultos:1}];render();const ds=document.querySelectorAll('.it-desc');ds[ds.length-1].focus()};
+    document.querySelectorAll('[data-itdel]').forEach(b=>b.onclick=()=>{keep();desp.items.splice(+b.dataset.itdel,1);render()});
     const pin=$('placa'),info=$('placaInfo');
     const mostrar=()=>{const p=normPlaca(pin.value);if(p.length<5){info.innerHTML='';return}const c=comp(p);
       info.innerHTML=c&&c.activo!==false&&c.vehiculo?`<div class="found carbox">${c.foto?`<img class="photo sm" src="${c.foto}" alt="">`:''}<div><span class="plate">${esc(c.id)}</span> ${esc(c.nombre)}<br>${esc(c.vehiculo)}<br><b class="loc" style="font-size:22px">${esc(lugar(c).zona)}</b>${c.ref?`<div class="hint">📌 ${esc(c.ref)}</div>`:''}</div></div>`:`<div class="notfound">Esa placa no está registrada. Pídele al comprador que registre su vehículo en la app.</div>`};
@@ -830,8 +844,10 @@ const bind={
     if($('kQuitar'))$('kQuitar').onclick=e=>{e.preventDefault();keep();desp.k=null;desp.kScan=null;render()};
     $('fDesp').onsubmit=async e=>{e.preventDefault();keep();if(!suscripcion(v).puedeDespachar){toast('Tu suscripción venció. Paga para seguir despachando.');return}const p=normPlaca(desp.placa),c=comp(p);if(!c||c.activo===false){toast('Placa no registrada');return}
       const kk=carr(desp.k);if(!kk||kk.baja||(ajeno(kk,v.id)&&desp.kScan!==kk.id)){toast('Elige el carretillero que lleva la mercancía (si es de otro vendedor, escanea su credencial)');return}
-      const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,desc:desp.desc.trim(),bultos:+desp.bultos||1,carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
-      desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
+      const items=(desp.items||[]).map(x=>({desc:String(x.desc||'').trim(),bultos:Math.max(1,parseInt(x.bultos)||1)})).filter(x=>x.desc);
+      if(!items.length){toast('Escribe al menos una mercancía');return}
+      const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,items,desc:items.map(x=>x.desc).join(', '),bultos:items.reduce((a,x)=>a+x.bultos,0),carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
+      {const f0=$('fDesp');if(f0)f0.remove()}desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${resumenItems(d)}; ${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});
     document.querySelectorAll('[data-pagk]').forEach(b=>b.onclick=()=>{pagandoK=b.dataset.pagk;pagandoLote=null;pkMetodo='efectivo';render()});
     if(pagandoK)bindPagoForm(()=>[S.despacho[pagandoK]],v,false);

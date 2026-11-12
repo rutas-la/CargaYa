@@ -241,13 +241,13 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
-function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','histVend','misCarr'];return ['comprador']}
-const NOMBRES={histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Comprador'};
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr'];return ['comprador']}
+const NOMBRES={pagosK:'Pagos',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Comprador'};
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;desp.desc=f.querySelector('#desc')?.value??desp.desc;desp.bultos=f.querySelector('#bultos')?.value??desp.bultos}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
-const ocupado=()=>!!otroModulo||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
+const ocupado=()=>!!otroModulo||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
   el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">${ONLINE?'salir':'cambiar'}</a>`:''}`;
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();if(ONLINE){salir();return}setME(null);view=null;render()}}
@@ -261,7 +261,7 @@ function render(){
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();
 }
 let otroModulo=null;
@@ -430,11 +430,11 @@ function vZonas(){const ns=nombresZona();
 
 /* ---- Carretilleros ---- */
 function statsK(k){const hoy=new Date().toDateString();const ds=L('despacho').filter(d=>d.carretillero===k.id&&new Date(d.t.creado).toDateString()===hoy);
-  return {hoy:ds.length,ok:ds.filter(d=>d.estado==='entregado').length,recl:ds.filter(d=>d.estado==='reclamo').length}}
+  return {hoy:ds.length,ok:ds.filter(d=>d.estado==='entregado').length,recl:ds.filter(d=>d.estado==='reclamo').length,porCobrar:L('despacho').filter(d=>d.carretillero===k.id&&!d.pagoK&&d.estado!=='en_ruta').length}}
 function vCarretilleros(){const vs=L('vendedor').sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
   return `<div class="card"><h2>Carretilleros por vendedor</h2><p class="sub">Cada vendedor crea y administra sus carretilleros desde su módulo.</p>
    <div class="list">${vs.map(v=>{const ks=misCarr(v.id);if(!ks.length)return '';return `<div class="item"><div class="top"><b style="font-size:18px">${esc(v.nombre)}</b><span class="hint">${ks.length} carretillero${ks.length>1?'s':''}</span></div>
-     ${ks.map(k=>{const s=statsK(k);return `<div class="meta">#${esc(k.num)} · ${esc(k.nombre||'sin nombre')} · ${s.hoy} viajes hoy · ${s.ok} confirmados${s.recl?` · ⚠ ${s.recl} reclamos`:''}</div>`}).join('')}</div>`}).join('')||'<div class="empty">Todavía no hay carretilleros</div>'}</div></div>`}
+     ${ks.map(k=>{const s=statsK(k);return `<div class="meta">#${esc(k.num)} · ${esc(k.nombre||'sin nombre')} · ${s.hoy} viajes hoy · ${s.ok} confirmados${s.recl?` · ⚠ ${s.recl} reclamos`:''}${s.porCobrar?` · 💵 ${s.porCobrar} viajes por cobrar`:''}</div>`}).join('')}</div>`}).join('')||'<div class="empty">Todavía no hay carretilleros</div>'}</div></div>`}
 function vendActual(){return ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0]}
 function vMisCarr(){const v=vendActual();if(!v)return '<div class="card empty">Cargando…</div>';const ks=misCarr(v.id);
   return `<div class="grid g2"><div class="grid" style="align-content:start"><div class="card"><h2>Nuevo carretillero</h2><p class="sub">Solo su nombre o apodo. El número se asigna solo.</p>
@@ -540,6 +540,53 @@ function vCobros(){const c=cfgCobro();const pagos=L('pago').sort((a,b)=>b.t-a.t)
      <button class="btn y" type="submit" style="width:100%;margin-top:14px">Guardar ajustes</button></form></div>`:''}
   </div>`}
 
+/* ---- Pago al carretillero por viaje ---- */
+let pagandoK=null,pagandoLote=null,pkMetodo='efectivo';
+const MON={Bs:'Bs',USD:'US$'};
+const fmtMon=(m,mon)=>mon==='USD'?'US$ '+Number(m||0).toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}):fmtBs(m);
+function tarifaDe(v){return Object.assign({tipo:'viaje',monto:0,moneda:'Bs'},v&&v.tarifaK||{})}
+function sugeridoK(d,v){const t=tarifaDe(v);if(!t.monto)return 0;return Math.round((t.tipo==='bulto'?t.monto*(+d.bultos||1):t.monto)*100)/100}
+const numES=x=>parseFloat(String(x||'').replace(/\s/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'))||0;
+function txtPagoK(d){const pk=d.pagoK;return pk?`✓ Pagado al carretillero: <b>${fmtMon(pk.monto,pk.moneda)}</b> · ${pk.metodo==='pago_movil'?'Pago Móvil'+(pk.ref?' ref. '+esc(pk.ref):''):'efectivo'} · ${hhmm(pk.t)}`:''}
+function formPagoK(d,v,lote){const t=tarifaDe(v);const monto=lote?lote.reduce((a,x)=>a+sugeridoK(x,v),0):sugeridoK(d,v);const k=carr(lote?lote[0].carretillero:d.carretillero);
+  return `<div class="stepbox" style="margin-top:8px;border-style:solid;border-color:var(--yel)"><h3 style="font-size:17px">💵 Pagar a ${esc(etqCarr(k,v.id))}${lote?` · ${lote.length} viajes`:''}</h3>
+   ${!lote&&d.estado==='en_ruta'?'<p class="bad" style="font-size:14px">Ojo: el comprador todavía no confirmó la entrega.</p>':''}
+   <div class="row"><div><label>Monto${lote?' total':''}</label><input id="pkMonto" inputmode="decimal" value="${monto?String(monto).replace('.',','):''}" ${lote?'readonly':''}></div>
+    <div style="flex:0 0 100px"><label>Moneda</label><select id="pkMon">${['Bs','USD'].map(m=>`<option value="${m}" ${t.moneda===m?'selected':''}>${MON[m]}</option>`).join('')}</select></div></div>
+   ${lote?`<p class="hint">Suma de la tarifa de cada viaje. Para otro monto, paga los viajes uno por uno.</p>`:''}
+   <div class="seg" style="margin-top:10px">${[['efectivo','💵 Efectivo'],['pago_movil','📱 Pago Móvil']].map(([k2,tx])=>`<button type="button" class="${pkMetodo===k2?'on':''}" data-pkm="${k2}">${tx}</button>`).join('')}</div>
+   ${pkMetodo==='pago_movil'?'<label>Referencia del Pago Móvil</label><input id="pkRef" inputmode="numeric" placeholder="Ej: 004512345678">':''}
+   <div class="row" style="margin-top:10px"><button class="btn o" type="button" id="pkCancel">Cancelar</button><button class="btn g" type="button" id="pkOk">Registrar pago</button></div></div>`}
+function porPagar(vid){return L('despacho').filter(d=>d.vendedor===vid&&!d.pagoK&&d.estado!=='en_ruta'&&d.carretillero)}
+function vPagosK(){const v=vendActual();if(!v)return '<div class="card empty">Cargando…</div>';const t=tarifaDe(v);const pend=porPagar(v.id);
+  const grupos={};pend.forEach(d=>{(grupos[d.carretillero]=grupos[d.carretillero]||[]).push(d)});
+  const hoy=new Date().setHours(0,0,0,0);const pagHoy=L('despacho').filter(d=>d.vendedor===v.id&&d.pagoK&&d.pagoK.t>=hoy);
+  const tot={};pagHoy.forEach(d=>{const key=d.pagoK.metodo+'|'+d.pagoK.moneda;tot[key]=(tot[key]||0)+(+d.pagoK.monto||0)});
+  return `<div class="grid g2"><div class="grid" style="align-content:start">
+   <div class="card"><h2>Por pagar a carretilleros</h2><p class="sub">Viajes ya entregados que todavía no pagaste.</p>
+    <div class="list">${Object.entries(grupos).map(([kid,ds])=>{const k=carr(kid);const sum=ds.reduce((a,x)=>a+sugeridoK(x,v),0);
+      return `<div class="item"><div class="top"><b style="font-size:19px">${esc(etqCarr(k,v.id))}</b><span class="chip st-en_vehiculo">${ds.length} por pagar</span></div>
+       ${ds.sort((a,b)=>a.t.creado-b.t.creado).map(d=>`<div class="meta">${hhmm(d.t.creado)} · ${esc(d.desc)} · ${d.bultos} bultos → ${esc(d.placa)}${d.estado==='reclamo'?' · <span class="bad">reclamo</span>':''}${sugeridoK(d,v)?' · '+fmtMon(sugeridoK(d,v),t.moneda):''}</div>`).join('')}
+       ${pagandoLote===kid?formPagoK(null,v,ds):`<button class="btn y" data-plote="${esc(kid)}">💵 Pagar ${ds.length} viaje${ds.length>1?'s':''}${sum?' · '+fmtMon(sum,t.moneda):''}</button>`}</div>`}).join('')||'<div class="empty">No tienes viajes por pagar 👍</div>'}</div></div>
+   <div class="card"><h2>Pagado hoy</h2>${Object.keys(tot).length?Object.entries(tot).map(([key,m])=>{const [met,mon]=key.split('|');return `<div class="row" style="align-items:center"><div>${met==='pago_movil'?'📱 Pago Móvil':'💵 Efectivo'}</div><b style="flex:0 0 auto;font-size:19px">${fmtMon(m,mon)}</b></div>`}).join(''):'<div class="empty">Todavía no pagaste hoy</div>'}
+    <p class="hint">${pagHoy.length} viajes pagados hoy.</p></div></div>
+  <div class="card"><h2>Tarifa sugerida</h2><p class="sub">Se usa para completar el monto automáticamente. Siempre puedes cambiarlo al pagar.</p>
+   <div class="seg" id="tTipo">${[['viaje','Por viaje'],['bulto','Por bulto']].map(([k,tx])=>`<button type="button" class="${t.tipo===k?'on':''}" data-tt="${k}">${tx}</button>`).join('')}</div>
+   <div class="row"><div><label>Monto ${t.tipo==='bulto'?'por bulto':'por viaje'}</label><input id="tMonto" inputmode="decimal" value="${t.monto?String(t.monto).replace('.',','):''}" placeholder="Ej: 50"></div>
+    <div style="flex:0 0 100px"><label>Moneda</label><select id="tMon">${['Bs','USD'].map(m=>`<option value="${m}" ${t.moneda===m?'selected':''}>${MON[m]}</option>`).join('')}</select></div></div>
+   <button class="btn o" id="tGuardar" style="width:100%;margin-top:10px">Guardar tarifa</button></div></div>`}
+async function registrarPagoK(ds,v,montoTotal){const mon=$('pkMon').value,ref=$('pkRef')?$('pkRef').value.trim():'';if(pkMetodo==='pago_movil'&&ref.length<4){toast('Escribe la referencia del Pago Móvil');return false}
+  if(!montoTotal){toast('Escribe el monto');return false}const tt=Date.now();
+  for(const d of ds){const m=ds.length===1?montoTotal:sugeridoK(d,v);await guardar('despacho',{...S.despacho[d.id],pagoK:{monto:m,moneda:mon,metodo:pkMetodo,ref,t:tt}})}
+  const k=carr(ds[0].carretillero);log(`💵 ${v.nombre} pagó ${fmtMon(montoTotal,mon)} a ${etqCarr(k,v.id)} por ${ds.length} viaje${ds.length>1?'s':''} (${pkMetodo==='pago_movil'?'Pago Móvil'+(ref?' ref. '+ref:''):'efectivo'})`);
+  toast('Pago registrado');return true}
+function bindPagoForm(getDs,v,lote,fin){
+  document.querySelectorAll('[data-pkm]').forEach(b=>b.onclick=()=>{const m=$('pkMonto').value,mo=$('pkMon').value;pkMetodo=b.dataset.pkm;render();if($('pkMonto')){$('pkMonto').value=m;$('pkMon').value=mo}});
+  if($('pkCancel'))$('pkCancel').onclick=()=>{pagandoK=null;pagandoLote=null;render()};
+  if($('pkOk'))$('pkOk').onclick=async()=>{const ds=getDs();const total=lote?ds.reduce((a,x)=>a+sugeridoK(x,v),0):numES($('pkMonto').value);
+    if(lote&&!total){toast('Primero guarda una tarifa sugerida, o paga los viajes uno por uno');return}
+    if(await registrarPagoK(ds,v,total)){pagandoK=null;pagandoLote=null;fin&&fin();render()}}}
+
 /* ---- Historial del vendedor ---- */
 let hPer='7',hEst='todos';
 function filtroHist(vid){const desde=hPer==='todo'?0:hPer==='hoy'?new Date().setHours(0,0,0,0):Date.now()-(+hPer)*DIA;
@@ -550,13 +597,14 @@ function vHistVend(){const v=vendActual();if(!v)return '<div class="card empty">
    <div class="row"><div><label>Período</label><select id="hPer">${[['hoy','Hoy'],['7','Últimos 7 días'],['30','Últimos 30 días'],['todo','Todo']].map(([k,t])=>`<option value="${k}" ${hPer===k?'selected':''}>${t}</option>`).join('')}</select></div>
     <div><label>Estado</label><select id="hEst">${[['todos','Todos'],['entregado','Recibidos'],['en_ruta','En camino'],['reclamo','Reclamos']].map(([k,t])=>`<option value="${k}" ${hEst===k?'selected':''}>${t}</option>`).join('')}</select></div></div>
    <button class="btn y" id="hCsv" style="width:100%;margin-top:12px" ${ds.length?'':'disabled'}>⬇ Descargar en Excel (${ds.length})</button></div>
-  <div class="kpis"><div class="kpi"><b>${ds.length}</b><span>Despachos</span></div><div class="kpi"><b>${bultos}</b><span>Bultos</span></div><div class="kpi"><b>${n('entregado')}</b><span>Recibidos</span></div><div class="kpi"><b>${n('en_ruta')}</b><span>En camino</span></div><div class="kpi"><b>${n('reclamo')}</b><span>Reclamos</span></div></div>
-  <div class="card"><div class="list">${ds.map(d=>`${itemDesp(d,'vendedor')}${d.archivado?`<div class="row"><span class="hint">Quitado de la lista</span><button class="btn o" style="flex:0 0 auto" data-desarch="${esc(d.id)}">Volver a la lista</button></div>`:''}`).join('')||'<div class="empty">No hay despachos en este período</div>'}</div></div></div>`}
+  <div class="kpis"><div class="kpi"><b>${ds.length}</b><span>Despachos</span></div><div class="kpi"><b>${bultos}</b><span>Bultos</span></div><div class="kpi"><b>${n('entregado')}</b><span>Recibidos</span></div><div class="kpi"><b>${n('en_ruta')}</b><span>En camino</span></div><div class="kpi"><b>${n('reclamo')}</b><span>Reclamos</span></div>${(()=>{const t={};ds.filter(d=>d.pagoK).forEach(d=>{t[d.pagoK.moneda]=(t[d.pagoK.moneda]||0)+(+d.pagoK.monto||0)});return `<div class="kpi"><b style="font-size:24px">${Object.entries(t).map(([m,x])=>fmtMon(x,m)).join(' + ')||'—'}</b><span>Pagado a carretilleros</span></div>`})()}</div>
+  <div class="card"><div class="list">${ds.map(d=>`${itemDesp(d,'vendedor')}${d.pagoK?`<div class="hint" style="margin-top:-4px">${txtPagoK(d)}</div>`:d.estado!=='en_ruta'&&d.carretillero?'<div class="hint bad" style="margin-top:-4px">Carretillero sin pagar</div>':''}${d.archivado?`<div class="row"><span class="hint">Quitado de la lista</span><button class="btn o" style="flex:0 0 auto" data-desarch="${esc(d.id)}">Volver a la lista</button></div>`:''}`).join('')||'<div class="empty">No hay despachos en este período</div>'}</div></div></div>`}
 function csvHist(v,ds){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';const f=t=>t?new Date(t):null;
-  const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo'];
+  const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago','Referencia','Hora de pago'];
   const filas=ds.map(d=>{const c=comp(d.placa),k=carr(d.carretillero),s=f(d.t.creado),r=f(d.t.entregado);
     return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',d.desc,d.bultos,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
-      ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||''].map(q).join(';')});
+      ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||'',
+      d.pagoK?String(d.pagoK.monto).replace('.',','):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':''),d.pagoK?.ref||'',d.pagoK?hhmm(d.pagoK.t):''].map(q).join(';')});
   const blob=new Blob(['﻿'+[cab.map(q).join(';'),...filas].join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-${(v.nombre||'despachos').replace(/[^\w]+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 
@@ -598,7 +646,8 @@ function vVendedor(){
    <div class="card"><h2>Mi camión</h2><p class="sub">${posVend(v)?'Tu camión está ubicado en el plano.':'Ubica tu camión en el plano para que el carretillero vea el camino.'}</p><button class="btn ${posVend(v)?'o':'y'}" id="vUbicar" style="width:100%">📍 ${posVend(v)?'Cambiar ubicación':'Ubicar mi camión'}</button></div>
   <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
    <p class="hint">Lo que quitas de la lista queda guardado en <a href="#" id="irHist">Historial</a>.</p>
-   <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
+   <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>
+     ${d.pagoK?`<div class="found" style="font-size:14px">${txtPagoK(d)}</div>`:pagandoK===d.id?formPagoK(d,v):d.carretillero?`<button class="btn ${d.estado==='en_ruta'?'o':'y'}" data-pagk="${esc(d.id)}">💵 Pagar al carretillero${sugeridoK(d,v)?' · '+fmtMon(sugeridoK(d,v),tarifaDe(v).moneda):''}</button>`:''}`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
 
 /* ---- Comprador ---- */
 let reg=null,corrigiendo=null,recibiendo=null,carnetOk={};
@@ -688,6 +737,12 @@ const bind={
         if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:txt});return}
         if(navigator.share){await navigator.share({title:'CargaYa',text:txt,url:LINKS[m]});return}}catch(e){if(e&&e.name==='AbortError')return}
       window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');toast('Este navegador no comparte imágenes: se abrió WhatsApp con el link')})},
+  pagosK(){const v=vendActual();if(!v)return;
+    let tTipo=tarifaDe(v).tipo;document.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{tTipo=b.dataset.tt;document.querySelectorAll('[data-tt]').forEach(x=>x.classList.toggle('on',x===b))});
+    $('tGuardar').onclick=async()=>{const t={tipo:tTipo,monto:numES($('tMonto').value),moneda:$('tMon').value};await guardar('vendedor',{...S.vendedor[v.id],tarifaK:t});toast('Tarifa guardada');render()};
+    document.querySelectorAll('[data-plote]').forEach(b=>b.onclick=()=>{pagandoLote=b.dataset.plote;pagandoK=null;pkMetodo='efectivo';render()});
+    if(pagandoLote){const kid=pagandoLote;bindPagoForm(()=>porPagar(v.id).filter(d=>d.carretillero===kid),v,true)}
+  },
   histVend(){const v=vendActual();if(!v)return;
     $('hPer').onchange=()=>{hPer=$('hPer').value;render()};$('hEst').onchange=()=>{hEst=$('hEst').value;render()};
     $('hCsv').onclick=()=>{csvHist(v,filtroHist(v.id));toast('Archivo descargado')};
@@ -728,6 +783,8 @@ const bind={
       const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,desc:desp.desc.trim(),bultos:+desp.bultos||1,carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
       desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});
+    document.querySelectorAll('[data-pagk]').forEach(b=>b.onclick=()=>{pagandoK=b.dataset.pagk;pagandoLote=null;pkMetodo='efectivo';render()});
+    if(pagandoK)bindPagoForm(()=>[S.despacho[pagandoK]],v,false);
     if($('irHist'))$('irHist').onclick=e=>{e.preventDefault();view='histVend';render()};
     document.querySelectorAll('[data-arch]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.arch];
       if(d.estado==='en_ruta'&&b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Aún no se recibió. ¿Quitar?';return}

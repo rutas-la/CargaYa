@@ -105,11 +105,23 @@ begin
     new.data := jsonb_set(new.data, '{owner}', old.data->'owner');
   end if;
 
-  if new.tipo = 'despacho' and tg_op = 'UPDATE' and old.data->>'vendedor' <> auth.uid()::text then
-    -- el comprador solo puede confirmar o reclamar
-    if (new.data - array['estado','t','verif','reclamo']) is distinct from (old.data - array['estado','t','verif','reclamo'])
-       or new.data->>'estado' not in ('entregado','reclamo') then
-      raise exception 'El comprador solo puede confirmar o reclamar';
+  if new.tipo = 'despacho' and tg_op = 'UPDATE' then
+    if old.data->>'vendedor' <> auth.uid()::text then
+      -- el comprador solo confirma o reclama; todo lo demás se conserva (pago al carretillero, etc.)
+      if new.data->>'estado' not in ('entregado','reclamo') then
+        raise exception 'El comprador solo puede confirmar o reclamar';
+      end if;
+      new.data := (old.data - 'estado' - 't' - 'verif' - 'reclamo')
+        || jsonb_strip_nulls(jsonb_build_object('estado', new.data->'estado', 't', new.data->'t',
+                                                'verif', new.data->'verif', 'reclamo', new.data->'reclamo'));
+    elsif old.data->>'estado' in ('entregado','reclamo') and new.data->>'estado' = 'en_ruta' then
+      -- el vendedor no deshace lo que ya confirmó o reclamó el comprador
+      new.data := new.data || jsonb_strip_nulls(jsonb_build_object('estado', old.data->'estado', 't', old.data->'t',
+                                                'verif', old.data->'verif', 'reclamo', old.data->'reclamo'));
+    end if;
+    if old.data ? 'pagoK' and not (new.data ? 'pagoK') then
+      -- un pago registrado al carretillero no se pierde
+      new.data := new.data || jsonb_build_object('pagoK', old.data->'pagoK');
     end if;
   end if;
 

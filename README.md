@@ -1,5 +1,7 @@
 # CargaYa · prueba piloto
 
+Tres módulos, cada uno con su link: **comprador.html**, **vendedor.html** y **admin.html** (la portada `index.html` lleva a los tres).
+
 App para el Mercado Mayor de Coche (Caracas). Conecta a vendedores, compradores y carretilleros para que cada entrega llegue al vehículo correcto y quede verificada. Funciona desde el celular, en el navegador, sin instalar nada.
 
 ## Archivos
@@ -47,7 +49,7 @@ Las cuentas se crean con **teléfono + PIN de 6 números**, sin emails ni SMS. L
    ```sql
    insert into admins (uid) select id from auth.users where email = '584141234567@cargaya.app';
    ```
-5. Entra a la app → **Administración** → tu teléfono y PIN.
+5. Entra a **admin.html** → tu teléfono y PIN.
 
 **Cambiar el PIN de alguien que lo olvidó** (SQL Editor; cambia teléfono y PIN nuevo):
 ```sql
@@ -66,9 +68,9 @@ where email = '584121234567@cargaya.app';
 
 ## Cómo funciona (versión sin teléfono para el carretillero)
 1. **Comprador:** al estacionar, elige de una lista la **zona** donde dejó el vehículo, con los nombres que usan en el mercado (ej: "Detrás del Barco"), y registra tipo, color, referencia y foto. Opcionalmente toca en el plano dónde quedó el vehículo. **No se usa GPS.**
-2. **Vendedor:** escribe la placa y el número del carretillero (o escanea su **carnet**), y toca *Despachar*. La pantalla muestra el nombre de la zona en grande para el carretillero.
+2. **Vendedor:** crea y administra sus carretilleros (pestaña *Mis carretilleros*: agregar, imprimir credencial, dar de baja). Al despachar escribe la placa, toca el carretillero y *Despachar*. La pantalla muestra el nombre de la zona en grande para el carretillero.
 3. **Carretillero (sin teléfono):** va a la zona y busca el vehículo por la descripción, la placa y la referencia, y deja la mercancía.
 4. **Comprador:** en la app toca *Ya me llegó* y **escanea el carnet del carretillero**. Si es el asignado, la entrega queda verificada. Si no está presente, puede confirmar sin escanear, y queda registrado así.
-5. **Administración:** carga la lista de zonas y ubica cada una en el plano tocando el mapa, administra los carretilleros, imprime las credenciales y sigue todo en el panel.
+5. **Administración:** cobros, zonas (nombre y ubicación en el plano), vista general de carretilleros por vendedor y panel.
 
 La guía para la persona en el mercado está en `guia.html`.

@@ -1,11 +1,8 @@
 -- CargaYa · seguridad con inicio de sesión
--- Ejecutar UNA VEZ en Supabase > SQL Editor > New query > Run,
--- después de haber ejecutado supabase.sql.
--- Borra los datos de prueba anteriores (registros y actividad).
-
--- 0) Datos de prueba anteriores: empezamos limpio
-delete from registros;
-delete from actividad;
+-- Ejecutar en Supabase > SQL Editor > New query > Run, después de supabase.sql.
+-- Se puede volver a ejecutar sin perder datos (actualiza las reglas).
+-- Para borrar todos los datos de prueba, ejecuta aparte:
+--   delete from registros; delete from actividad;
 
 -- 1) Administradores
 create table if not exists admins (uid uuid primary key);
@@ -58,7 +55,7 @@ create policy crear on registros for insert to authenticated with check (
   or (tipo = 'vendedor'     and id = auth.uid()::text)
   or (tipo = 'comprador'    and data->>'owner' = auth.uid()::text)
   or (tipo = 'despacho'     and data->>'vendedor' = auth.uid()::text and es_vendedor())
-  or (tipo = 'carretillero' and es_vendedor())
+  or (tipo = 'carretillero' and data->>'vendedor' = auth.uid()::text and es_vendedor())
   or (tipo = 'pago'         and data->>'vendedor' = auth.uid()::text and data->>'estado' = 'pendiente' and es_vendedor())
 );
 
@@ -70,14 +67,14 @@ using (
   or (tipo = 'vendedor'     and id = auth.uid()::text)
   or (tipo = 'comprador'    and data->>'owner' = auth.uid()::text)
   or (tipo = 'despacho'     and (data->>'vendedor' = auth.uid()::text or es_duenio_placa(data->>'placa')))
-  or (tipo = 'carretillero' and es_vendedor())
+  or (tipo = 'carretillero' and data->>'vendedor' = auth.uid()::text)
 )
 with check (
   es_admin()
   or (tipo = 'vendedor'     and id = auth.uid()::text)
   or (tipo = 'comprador'    and data->>'owner' = auth.uid()::text)
   or (tipo = 'despacho'     and (data->>'vendedor' = auth.uid()::text or es_duenio_placa(data->>'placa')))
-  or (tipo = 'carretillero' and es_vendedor())
+  or (tipo = 'carretillero' and data->>'vendedor' = auth.uid()::text)
 );
 
 -- 6) Protecciones de campos (las reglas no ven el valor anterior; un trigger sí)
@@ -96,6 +93,11 @@ begin
         || jsonb_build_object('creado', coalesce(old.data->'creado', to_jsonb(ahora)))
         || case when old.data ? 'pagadoHasta' then jsonb_build_object('pagadoHasta', old.data->'pagadoHasta') else '{}'::jsonb end;
     end if;
+  end if;
+
+  if new.tipo = 'carretillero' and tg_op = 'UPDATE' then
+    -- un carretillero no se pasa a otro vendedor
+    new.data := jsonb_set(new.data, '{vendedor}', old.data->'vendedor');
   end if;
 
   if new.tipo = 'comprador' and tg_op = 'UPDATE' then

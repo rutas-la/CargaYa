@@ -1,0 +1,11 @@
+{
+  "name": "CargaYa Vendedor",
+  "short_name": "CargaYa Vendedor",
+  "start_url": "./vendedor.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ee",
+  "theme_color": "#16181c",
+  "lang": "es",
+  "icons": [{ "src": "icon-vendedor.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

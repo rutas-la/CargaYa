@@ -214,6 +214,8 @@ function parseCodigo(txt){if(!txt)return null;txt=String(txt).trim();
   m=txt.match(/^K:?\s*([A-Z0-9]{2,12})$/i);if(m)return {tipo:'k',id:(/^K/i.test(m[1])?'':'K')+m[1].toUpperCase()};return null}
 const carrPorId=id=>id?S.carretillero[String(id).toUpperCase()]:null;
 const nuevoIdK=()=>'K'+[...Array(6)].map(()=>COD_ALF[Math.floor(Math.random()*COD_ALF.length)]).join('');
+const ajeno=(k,vid)=>k&&k.vendedor&&k.vendedor!==vid;
+const etqCarr=(k,vid)=>k?`#${k.num} ${k.nombre||''}${ajeno(k,vid)?' (de '+(vend(k.vendedor)?.nombre||'otro vendedor')+')':''}`.replace(/\s+\(/,' ('):'';
 const misCarr=vid=>L('carretillero').filter(k=>k.vendedor===vid&&!k.baja).sort((a,b)=>a.num.localeCompare(b.num));
 const nro=d=>d.ficha?'Ficha '+d.ficha.num:'Despacho '+d.id.slice(-4);
 
@@ -267,7 +269,7 @@ function vOtroModulo(){const r=otroModulo;return `<div class="card" style="max-w
   <a class="btn y big" style="display:block;text-align:center;text-decoration:none" href="${LINKS[r]}">Ir al módulo de ${NOMBRE_MOD[r]}</a><button class="btn o" id="omSalir" style="width:100%;margin-top:10px">Salir y usar otra cuenta</button></div>`}
 function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
   return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${esc(d.desc)} · ${d.bultos} bultos</div>${chip(d.estado)}</div>
-   <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(lugar(c).zona)}</span> · `:''}${k?`Carretillero <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}`:'Sin carretillero'}</div>
+   <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(lugar(c).zona)}</span> · `:''}${k?`Carretillero <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}${ajeno(k,d.vendedor)?` <span class="hint">(de ${esc(vend(k.vendedor)?.nombre||'otro vendedor')})</span>`:''}`:'Sin carretillero'}</div>
    ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${({carnet:'el comprador escaneó el carnet del carretillero',ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||'')+(d.verif?.carrOk===true&&d.verif?.metodo!=='carnet'?' · N° de carretillero verificado':d.verif?.carrOk===false?' · ⚠ dijo otro N° de carretillero ('+esc(d.verif.carrDicho)+')':'')}`:''}${d.estado==='reclamo'?` · ⚠ ${esc(d.reclamo||'falta mercancía')}`:''}</div></div>`}
 
 /* ---- Inicio ---- */
@@ -553,7 +555,7 @@ function vHistVend(){const v=vendActual();if(!v)return '<div class="card empty">
 function csvHist(v,ds){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';const f=t=>t?new Date(t):null;
   const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo'];
   const filas=ds.map(d=>{const c=comp(d.placa),k=carr(d.carretillero),s=f(d.t.creado),r=f(d.t.entregado);
-    return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',d.desc,d.bultos,k?`#${k.num} ${k.nombre||''}`:'',ETQ[d.estado]||d.estado,
+    return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',d.desc,d.bultos,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||''].map(q).join(';')});
   const blob=new Blob(['﻿'+[cab.map(q).join(';'),...filas].join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-${(v.nombre||'despachos').replace(/[^\w]+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
@@ -564,7 +566,7 @@ function vVendedor(){
   const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];
   if(!v)return '<div class="card empty">Todavía no hay vendedores registrados.</div>';
   if(fichaVista){const d=S.despacho[fichaVista];const c=comp(d.placa),l=lugar(c),k=carr(d.carretillero);
-    return `<div class="trip" style="max-width:640px;margin:0 auto"><div class="hint">Muéstrale esta pantalla al carretillero${k?` <b>#${esc(k.num)}</b>`:''}</div>
+    return `<div class="trip" style="max-width:640px;margin:0 auto"><div class="hint">Muéstrale esta pantalla al carretillero${k?` <b>${esc(etqCarr(k,d.vendedor))}</b>`:''}</div>
      <div class="hint" style="margin-top:8px;text-transform:uppercase;letter-spacing:1px">Zona</div><div style="font-family:'Barlow Condensed';font-weight:800;font-size:${l.zona.length<=10?72:l.zona.length<=18?54:40}px;line-height:1.02">${esc(l.zona)}</div>
      <div class="carbox" style="margin-top:12px">${c.foto?`<img class="photo" style="width:140px;height:105px" src="${c.foto}" alt="Foto del vehículo">`:''}
       <div><div style="font-size:22px;font-weight:700">${esc(c.vehiculo)}</div><span class="plate" style="font-size:24px">${esc(c.id)}</span>${c.ref?`<div style="font-size:17px;margin-top:4px">📌 ${esc(c.ref)}</div>`:''}</div></div>
@@ -588,9 +590,10 @@ function vVendedor(){
     <div class="row"><div><label>2 · Mercancía</label><input id="desc" placeholder="Ej: Papa blanca" value="${esc(desp.desc||'')}" required></div>
     <div style="flex:0 0 100px"><label>Bultos</label><input id="bultos" type="number" min="1" value="${esc(desp.bultos||1)}" required></div></div>
     <label>3 · Carretillero</label>
-    ${misCarr(v.id).length?`<div style="display:flex;flex-wrap:wrap;gap:8px">${misCarr(v.id).map(x=>`<button type="button" class="btn ${desp.k===x.id?'y':'o'}" style="padding:10px 12px" data-ksel="${esc(x.id)}">#${esc(x.num)} ${esc(x.nombre||'')}</button>`).join('')}</div>
-      <button type="button" class="btn o" id="dScanK" style="width:100%;margin-top:8px">📷 Escanear credencial</button>`
-      :`<div class="notfound">Todavía no tienes carretilleros. Créalos en <a href="#" id="irCarr">Mis carretilleros</a>.</div>`}
+    ${misCarr(v.id).length?`<div style="display:flex;flex-wrap:wrap;gap:8px">${misCarr(v.id).map(x=>`<button type="button" class="btn ${desp.k===x.id?'y':'o'}" style="padding:10px 12px" data-ksel="${esc(x.id)}">#${esc(x.num)} ${esc(x.nombre||'')}</button>`).join('')}</div>`
+      :`<p class="hint">Todavía no tienes carretilleros propios (créalos en <a href="#" id="irCarr">Mis carretilleros</a>). Puedes usar el de otro vendedor escaneando su credencial.</p>`}
+    ${desp.k&&ajeno(carr(desp.k),v.id)?`<div class="found" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px"><span>✓ <b>${esc(etqCarr(carr(desp.k),v.id))}</b> · credencial escaneada</span><a href="#" id="kQuitar">quitar</a></div>`:''}
+    <button type="button" class="btn o" id="dScanK" style="width:100%;margin-top:8px">📷 Escanear credencial${misCarr(v.id).length?' (también de otro vendedor)':''}</button>
     <div style="margin-top:14px"><button class="btn y big" type="submit">Despachar</button></div></form></div>
    <div class="card"><h2>Mi camión</h2><p class="sub">${posVend(v)?'Tu camión está ubicado en el plano.':'Ubica tu camión en el plano para que el carretillero vea el camino.'}</p><button class="btn ${posVend(v)?'o':'y'}" id="vUbicar" style="width:100%">📍 ${posVend(v)?'Cambiar ubicación':'Ubicar mi camión'}</button></div>
   <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
@@ -714,15 +717,16 @@ const bind={
     const mostrar=()=>{const p=normPlaca(pin.value);if(p.length<5){info.innerHTML='';return}const c=comp(p);
       info.innerHTML=c&&c.activo!==false&&c.vehiculo?`<div class="found carbox">${c.foto?`<img class="photo sm" src="${c.foto}" alt="">`:''}<div><span class="plate">${esc(c.id)}</span> ${esc(c.nombre)}<br>${esc(c.vehiculo)}<br><b class="loc" style="font-size:22px">${esc(lugar(c).zona)}</b>${c.ref?`<div class="hint">📌 ${esc(c.ref)}</div>`:''}</div></div>`:`<div class="notfound">Esa placa no está registrada. Pídele al comprador que registre su vehículo en la app.</div>`};
     pin.oninput=mostrar;if(pin.value)mostrar();
-    document.querySelectorAll('[data-ksel]').forEach(b=>b.onclick=()=>{keep();desp.k=desp.k===b.dataset.ksel?null:b.dataset.ksel;render()});
+    document.querySelectorAll('[data-ksel]').forEach(b=>b.onclick=()=>{keep();desp.k=desp.k===b.dataset.ksel?null:b.dataset.ksel;desp.kScan=null;render()});
     if($('irCarr'))$('irCarr').onclick=e=>{e.preventDefault();view='misCarr';render()};
     if($('dScanK'))$('dScanK').onclick=async()=>{keep();const t=await escanear('Escanea la credencial','El QR de la credencial del carretillero');if(!t)return;const p=parseCodigo(t);
       if(!p||p.tipo!=='k'){toast('Ese código no es una credencial de CargaYa');return}const k=carrPorId(p.id);
-      if(!k||k.vendedor!==v.id||k.baja){toast('Esa credencial no es de uno de tus carretilleros');return}desp.k=k.id;render()};
+      if(!k||k.baja){toast('Esa credencial no está registrada o fue dada de baja');return}desp.k=k.id;desp.kScan=k.id;if(ajeno(k,v.id))toast(`Carretillero ${etqCarr(k,v.id)}`);render()};
+    if($('kQuitar'))$('kQuitar').onclick=e=>{e.preventDefault();keep();desp.k=null;desp.kScan=null;render()};
     $('fDesp').onsubmit=async e=>{e.preventDefault();keep();if(!suscripcion(v).puedeDespachar){toast('Tu suscripción venció. Paga para seguir despachando.');return}const p=normPlaca(desp.placa),c=comp(p);if(!c||c.activo===false){toast('Placa no registrada');return}
-      if(!desp.k||!carr(desp.k)||carr(desp.k).vendedor!==v.id){toast('Elige el carretillero que lleva la mercancía');return}
+      const kk=carr(desp.k);if(!kk||kk.baja||(ajeno(kk,v.id)&&desp.kScan!==kk.id)){toast('Elige el carretillero que lleva la mercancía (si es de otro vendedor, escanea su credencial)');return}
       const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,desc:desp.desc.trim(),bultos:+desp.bultos||1,carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
-      desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero #${k?.num}`);render()};
+      desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});
     if($('irHist'))$('irHist').onclick=e=>{e.preventDefault();view='histVend';render()};
     document.querySelectorAll('[data-arch]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.arch];

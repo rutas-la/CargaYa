@@ -241,13 +241,13 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
-function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr'];return ['comprador']}
-const NOMBRES={pagosK:'Pagos',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Comprador'};
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr'];return ['comprador','vendC']}
+const NOMBRES={vendC:'Vendedores',pagosK:'Pagos',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;desp.desc=f.querySelector('#desc')?.value??desp.desc;desp.bultos=f.querySelector('#bultos')?.value??desp.bultos}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
-const ocupado=()=>!!otroModulo||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
+const ocupado=()=>!!otroModulo||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
   el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">${ONLINE?'salir':'cambiar'}</a>`:''}`;
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();if(ONLINE){salir();return}setME(null);view=null;render()}}
@@ -261,7 +261,7 @@ function render(){
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();
 }
 let otroModulo=null;
@@ -615,7 +615,7 @@ function csvHist(v,ds){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-${(v.nombre||'despachos').replace(/[^\w]+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 
 /* ---- Vendedor ---- */
-let desp={},fichaVista=null,ubicandoCamion=false;
+let desp={},fichaVista=null,ubicandoCamion=false,editPuesto=false;
 function vVendedor(){
   const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];
   if(!v)return '<div class="card empty">Todavía no hay vendedores registrados.</div>';
@@ -649,11 +649,37 @@ function vVendedor(){
     ${desp.k&&ajeno(carr(desp.k),v.id)?`<div class="found" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px"><span>✓ <b>${esc(etqCarr(carr(desp.k),v.id))}</b> · credencial escaneada</span><a href="#" id="kQuitar">quitar</a></div>`:''}
     <button type="button" class="btn o" id="dScanK" style="width:100%;margin-top:8px">📷 Escanear credencial${misCarr(v.id).length?' (también de otro vendedor)':''}</button>
     <div style="margin-top:14px"><button class="btn y big" type="submit">Despachar</button></div></form></div>
-   <div class="card"><h2>Mi camión</h2><p class="sub">${posVend(v)?'Tu camión está ubicado en el plano.':'Ubica tu camión en el plano para que el carretillero vea el camino.'}</p><button class="btn ${posVend(v)?'o':'y'}" id="vUbicar" style="width:100%">📍 ${posVend(v)?'Cambiar ubicación':'Ubicar mi camión'}</button></div>
+   <div class="card"><h2>Mi puesto</h2><p class="sub">Los compradores te encuentran en su lista de vendedores.</p>
+    ${editPuesto?`<label>¿Qué vendes?</label><input id="mpProd" placeholder="Ej: Papa, cebolla, zanahoria" value="${esc(v.productos||'')}">
+      <label>Referencia del puesto</label><input id="mpRef" placeholder="Ej: Nave A, camión rojo" value="${esc(v.refPuesto||'')}">
+      <div class="row" style="margin-top:10px"><button class="btn o" id="mpCancel">Cancelar</button><button class="btn y" id="mpOk">Guardar</button></div>`
+     :`<div style="font-size:17px"><b>${esc(v.productos||'¿Qué vendes? Sin indicar')}</b></div>${v.refPuesto?`<div class="meta">📌 ${esc(v.refPuesto)}</div>`:''}
+      <div class="meta">${posVend(v)?`📍 Ubicado en el plano${v.gpsT?' con GPS':''} · ${v.ubicT?'actualizado '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:'<span class="bad">Sin ubicar en el plano</span>'}</div>
+      <button class="btn o" id="mpEditar" style="width:100%;margin-top:8px">✏️ Qué vendo y referencia</button>
+      <div class="row" style="margin-top:8px"><button class="btn ${posVend(v)?'o':'y'}" id="vUbicar">🗺 ${posVend(v)?'Cambiar en el plano':'Ubicar en el plano'}</button><button class="btn o" id="mpGPS">📍 Usar mi GPS</button></div><div id="mpRes"></div>`}</div>
   <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
    <p class="hint">Lo que quitas de la lista queda guardado en <a href="#" id="irHist">Historial</a>.</p>
    <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>
      ${d.pagoK?`<div class="found" style="font-size:14px">${txtPagoK(d)}</div>`:pagandoK===d.id?formPagoK(d,v):d.carretillero?`<button class="btn ${d.estado==='en_ruta'?'o':'y'}" data-pagk="${esc(d.id)}">💵 Pagar al carretillero${sugeridoK(d,v)?' · '+fmtMon(sugeridoK(d,v),tarifaDe(v).moneda):''}</button>`:''}`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
+
+/* ---- Directorio de vendedores para el comprador ---- */
+let vcBusca='',vcMapa=null;
+const normTxt=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function vVendC(){const c=ME.rol==='comprador'?comp(ME.id):null;const favs=(c&&c.favoritos)||[];
+  const activos=L('vendedor').filter(v=>suscripcion(v).estado!=='vencida');
+  const q=normTxt(vcBusca);const lista=activos.filter(v=>!q||normTxt(v.nombre+' '+(v.productos||'')+' '+(v.refPuesto||'')).includes(q))
+    .sort((a,b)=>(favs.includes(b.id)-favs.includes(a.id))||(a.nombre||'').localeCompare(b.nombre||''));
+  const miPos=c?posComp(c):null;
+  const tarjeta=v=>{const fav=favs.includes(v.id),pv=posVend(v);return `<div class="item"><div class="top"><b style="font-size:19px">${fav?'⭐ ':''}${esc(v.nombre)}</b><button class="btn ${fav?'y':'o'}" style="flex:0 0 auto;padding:6px 10px" data-fav="${esc(v.id)}">${fav?'★ Favorito':'☆ Favorito'}</button></div>
+    <div style="font-size:16px">${v.productos?'🛒 '+esc(v.productos):'<span class="hint">No indicó qué vende</span>'}</div>${v.refPuesto?`<div class="meta">📌 ${esc(v.refPuesto)}</div>`:''}
+    <div class="meta">${pv?`📍 Ubicado${v.ubicT?' · actualizado '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:'Sin ubicación en el plano'}</div>
+    ${vcMapa===v.id&&pv?`<div style="margin-top:6px">${planoSVG({zoom:[pv,...(miPos?[miPos]:[])],minW:420,camion:pv,camionTxt:v.nombre.slice(0,18).toUpperCase(),dest:miPos,destTxt:miPos?'TU VEHÍCULO':''})}</div>`:''}
+    <div class="row" style="flex-wrap:wrap">${pv?`<button class="btn o" data-vcmap="${esc(v.id)}">🗺 ${vcMapa===v.id?'Ocultar mapa':'Ver en el mapa'}</button>`:''}${v.lat!=null&&v.lng!=null?`<a class="btn o" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${v.lat},${v.lng}">🧭 Cómo llegar</a>`:''}${v.tel&&wa(v.tel)?`<a class="btn g" style="text-align:center;text-decoration:none;color:#fff" target="_blank" rel="noopener" href="${wa(v.tel)}">💬 WhatsApp</a>`:''}</div></div>`};
+  const lf=lista.filter(v=>favs.includes(v.id)),lo=lista.filter(v=>!favs.includes(v.id));
+  return `<div class="grid"><div class="card"><h2>Vendedores</h2><p class="sub">Busca por nombre o por producto y marca tus favoritos para tenerlos arriba.</p>
+    <input id="vcBusca" placeholder="🔍 Ej: tomate, papa, cebolla…" value="${esc(vcBusca)}" autocomplete="off"></div>
+   ${lf.length?`<div class="card"><h2>⭐ Mis favoritos</h2><div class="list">${lf.map(tarjeta).join('')}</div></div>`:''}
+   <div class="card"><h2>${q?`Resultados (${lo.length})`:'Todos los vendedores'}</h2><div class="list">${lo.map(tarjeta).join('')||`<div class="empty">${q?'Ningún vendedor coincide con la búsqueda':'Todavía no hay vendedores'}</div>`}</div></div></div>`}
 
 /* ---- Comprador ---- */
 let reg=null,corrigiendo=null,recibiendo=null,carnetOk={};
@@ -762,8 +788,14 @@ const bind={
   vendedor(){
     const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
     if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};return}
-    if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...v,px:q.x,py:q.y});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
+    if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,ubicT:Date.now(),gpsT:null,lat:null,lng:null});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
     if($('vUbicar'))$('vUbicar').onclick=()=>{ubicandoCamion=true;render()};
+    if($('mpEditar'))$('mpEditar').onclick=()=>{editPuesto=true;render()};
+    if($('mpCancel'))$('mpCancel').onclick=()=>{editPuesto=false;render()};
+    if($('mpOk'))$('mpOk').onclick=async()=>{const prod=$('mpProd').value.trim(),ref=$('mpRef').value.trim();editPuesto=false;await guardar('vendedor',{...S.vendedor[v.id],productos:prod,refPuesto:ref});toast('Guardado');render()};
+    if($('mpGPS'))$('mpGPS').onclick=async()=>{$('mpRes').innerHTML='<p class="hint">Leyendo GPS… (hasta 12 segundos)</p>';try{const f=await mejorFix();const q=fromLatLng(f.lat,f.lng);
+      const enP=enPlano(f);await guardar('vendedor',{...S.vendedor[v.id],lat:f.lat,lng:f.lng,acc:f.acc,gpsT:Date.now(),ubicT:Date.now(),...(enP?{px:Math.round(q.x),py:Math.round(q.y)}:{})});
+      toast(enP?`Ubicación guardada (±${f.acc} m)`:'GPS guardado, pero estás fuera del plano del mercado');render()}catch(e){$('mpRes').innerHTML=`<div class="notfound">${esc(errGPS(e))}</div>`}};
     if($('sPagar'))$('sPagar').onclick=()=>{pagando=true;render()};
     document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Copiado: '+b.dataset.copiar)}catch(e){toast('No se pudo copiar')}});
     if(pagando){const keepP=()=>{if(!$('fPago'))return;pagoForm={...pagoForm,ref:$('pRef').value,banco:$('pBanco').value,tel:$('pTel').value,monto:$('pMonto').value,fecha:$('pFecha').value}};
@@ -802,6 +834,12 @@ const bind={
       await guardar('despacho',{...d,archivado:true});render()});
     if($('archTodos'))$('archTodos').onclick=async()=>{const ds=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado&&d.estado==='entregado');for(const d of ds)await guardar('despacho',{...d,archivado:true});toast(`${ds.length} despachos quitados de la lista`);render()};
     document.querySelectorAll('[data-vok]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await confirmar(S.despacho[b.dataset.vok],'vendedor')});
+  },
+  vendC(){const c=ME.rol==='comprador'?comp(ME.id):null;
+    const b=$('vcBusca');b.oninput=()=>{vcBusca=b.value;const pos=b.selectionStart;render();const nb=$('vcBusca');nb.focus();nb.setSelectionRange(pos,pos)};
+    document.querySelectorAll('[data-fav]').forEach(x=>x.onclick=async()=>{if(!c){toast('Primero registra tu vehículo');return}const id=x.dataset.fav;const f=new Set(c.favoritos||[]);f.has(id)?f.delete(id):f.add(id);
+      await guardar('comprador',{...S.comprador[c.id],favoritos:[...f]});render()});
+    document.querySelectorAll('[data-vcmap]').forEach(x=>x.onclick=()=>{vcMapa=vcMapa===x.dataset.vcmap?null:x.dataset.vcmap;render()});
   },
   comprador(){
     const c=ME.rol==='comprador'?comp(ME.id):compradoresActivos()[0];

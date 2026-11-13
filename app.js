@@ -79,7 +79,13 @@ async function cargar(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'actividad'},p=>{S.log.unshift({t:Date.parse(p.new.t),m:p.new.m});S.log=S.log.slice(0,80);pedirRender()})
     .subscribe(st=>{conexion=st==='SUBSCRIBED'?'en línea':st==='CLOSED'||st==='CHANNEL_ERROR'||st==='TIMED_OUT'?'sin conexión':conexion;pintarEstado()});
 }
-async function enviar(op){if(op.k==='r')return sb.from('registros').upsert({tipo:op.tipo,id:op.obj.id,data:op.obj,updated_at:new Date().toISOString()});return sb.from('actividad').insert({m:op.m})}
+async function enviar(op){if(op.k!=='r')return sb.from('actividad').insert({m:op.m});
+ // Actualizar primero (lo permite la regla de edición: el comprador confirma despachos ajenos); si no existe, crear.
+ const upd=()=>sb.from('registros').update({data:op.obj,updated_at:new Date().toISOString()}).eq('tipo',op.tipo).eq('id',op.obj.id).select('id');
+ let r=await upd();if(r.error||(r.data&&r.data.length))return r;
+ r=await sb.from('registros').insert({tipo:op.tipo,id:op.obj.id,data:op.obj,updated_at:new Date().toISOString()});
+ if(r.error&&(r.error.code==='23505'||/duplicate key/i.test(r.error.message||''))){r=await upd();if(!r.error&&!(r.data&&r.data.length))r={error:{code:'42501',message:'row-level security: sin permiso'}}}
+ return r}
 const errRed=e=>!e||!e.code||/fetch|network|timeout|Failed/i.test(e.message||'');
 function msgErr(op,e){const m=(e&&e.message)||'';if(op.k==='r'&&op.tipo==='comprador')return 'Esa placa ya está registrada por otra cuenta. Avísale a la administración.';
   if(/solo puede confirmar/i.test(m))return 'Solo puedes confirmar o reclamar la entrega.';if(/row-level security|permission|42501/i.test(m+(e.code||'')))return 'No tienes permiso para hacer eso.';return 'No se pudo guardar: '+m}

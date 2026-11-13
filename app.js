@@ -563,48 +563,52 @@ function vCobros(){const c=cfgCobro();const pagos=L('pago').sort((a,b)=>b.t-a.t)
 let pagandoK=null,pagandoLote=null,pkMetodo='efectivo';
 const MON={Bs:'Bs',USD:'US$'};
 const fmtMon=(m,mon)=>mon==='USD'?'US$ '+Number(m||0).toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}):fmtBs(m);
-function tarifaDe(v){return Object.assign({tipo:'viaje',monto:0,moneda:'Bs'},v&&v.tarifaK||{})}
-function sugeridoK(d,v){const t=tarifaDe(v);if(!t.monto)return 0;return Math.round((t.tipo==='bulto'?t.monto*(+d.bultos||1):t.monto)*100)/100}
+const monPref=()=>{try{return localStorage.getItem('cy-pkmon')||'Bs'}catch(e){return 'Bs'}};
 const numES=x=>parseFloat(String(x||'').replace(/\s/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'))||0;
 function txtPagoK(d){const pk=d.pagoK;return pk?`✓ Pagado al carretillero: <b>${fmtMon(pk.monto,pk.moneda)}</b> · ${pk.metodo==='pago_movil'?'Pago Móvil'+(pk.ref?' ref. '+esc(pk.ref):''):'efectivo'} · ${hhmm(pk.t)}`:''}
-function formPagoK(d,v,lote){const t=tarifaDe(v);const monto=lote?lote.reduce((a,x)=>a+sugeridoK(x,v),0):sugeridoK(d,v);const k=carr(lote?lote[0].carretillero:d.carretillero);
-  return `<div class="stepbox" style="margin-top:8px;border-style:solid;border-color:var(--yel)"><h3 style="font-size:17px">💵 Pagar a ${esc(etqCarr(k,v.id))}${lote?` · ${lote.length} viajes`:''}</h3>
+function formPagoK(d,v,lote){const k=carr(lote?lote[0].carretillero:d.carretillero);const mon=monPref();
+  return `<div class="stepbox" style="margin-top:8px;border-style:solid;border-color:var(--yel)"><h3 style="font-size:17px">💵 Pagar a ${esc(etqCarr(k,v.id))}${lote&&lote.length>1?` · ${lote.length} viajes`:''}</h3>
    ${!lote&&d.estado==='en_ruta'?'<p class="bad" style="font-size:14px">Ojo: el comprador todavía no confirmó la entrega.</p>':''}
-   <div class="row"><div><label>Monto${lote?' total':''}</label><input id="pkMonto" inputmode="decimal" value="${monto?String(monto).replace('.',','):''}" ${lote?'readonly':''}></div>
-    <div style="flex:0 0 100px"><label>Moneda</label><select id="pkMon">${['Bs','USD'].map(m=>`<option value="${m}" ${t.moneda===m?'selected':''}>${MON[m]}</option>`).join('')}</select></div></div>
-   ${lote?`<p class="hint">Suma de la tarifa de cada viaje. Para otro monto, paga los viajes uno por uno.</p>`:''}
+   <p class="hint" style="margin:2px 0 6px">Escribe lo que acordaste con el carretillero${lote&&lote.length>1?' por cada viaje':''}.</p>
+   ${(lote||[d]).map(x=>`<div class="row" style="align-items:center;margin-top:6px"><div style="font-size:14px">${lote?`${hhmm(x.t.creado)} · ${esc(resumenItems(x))} → ${esc(x.placa)}`:'Monto acordado'}</div>
+     <input class="pk-m" data-id="${esc(x.id)}" inputmode="decimal" placeholder="0" style="flex:0 0 110px;font-size:18px;text-align:right" autocomplete="off"></div>`).join('')}
+   <div class="row" style="margin-top:8px;align-items:center"><div><label style="margin:0">Moneda</label><select id="pkMon">${['Bs','USD'].map(m=>`<option value="${m}" ${mon===m?'selected':''}>${MON[m]}</option>`).join('')}</select></div>
+    ${lote&&lote.length>1?`<div style="text-align:right"><div class="hint">Total</div><b id="pkTot" style="font-size:20px">${fmtMon(0,mon)}</b></div>`:''}</div>
    <div class="seg" style="margin-top:10px">${[['efectivo','💵 Efectivo'],['pago_movil','📱 Pago Móvil']].map(([k2,tx])=>`<button type="button" class="${pkMetodo===k2?'on':''}" data-pkm="${k2}">${tx}</button>`).join('')}</div>
-   ${pkMetodo==='pago_movil'?'<label>Referencia del Pago Móvil</label><input id="pkRef" inputmode="numeric" placeholder="Ej: 004512345678">':''}
+   <div id="pkRefBox" style="${pkMetodo==='pago_movil'?'':'display:none'}"><label>Referencia del Pago Móvil</label><input id="pkRef" inputmode="numeric" placeholder="Ej: 004512345678"></div>
    <div class="row" style="margin-top:10px"><button class="btn o" type="button" id="pkCancel">Cancelar</button><button class="btn g" type="button" id="pkOk">Registrar pago</button></div></div>`}
 function porPagar(vid){return L('despacho').filter(d=>d.vendedor===vid&&!d.pagoK&&d.estado!=='en_ruta'&&d.carretillero)}
-function vPagosK(){const v=vendActual();if(!v)return '<div class="card empty">Cargando…</div>';const t=tarifaDe(v);const pend=porPagar(v.id);
+function vPagosK(){const v=vendActual();if(!v)return '<div class="card empty">Cargando…</div>';const pend=porPagar(v.id);
   const grupos={};pend.forEach(d=>{(grupos[d.carretillero]=grupos[d.carretillero]||[]).push(d)});
   const hoy=new Date().setHours(0,0,0,0);const pagHoy=L('despacho').filter(d=>d.vendedor===v.id&&d.pagoK&&d.pagoK.t>=hoy);
   const tot={};pagHoy.forEach(d=>{const key=d.pagoK.metodo+'|'+d.pagoK.moneda;tot[key]=(tot[key]||0)+(+d.pagoK.monto||0)});
-  return `<div class="grid g2"><div class="grid" style="align-content:start">
-   <div class="card"><h2>Por pagar a carretilleros</h2><p class="sub">Viajes ya entregados que todavía no pagaste.</p>
-    <div class="list">${Object.entries(grupos).map(([kid,ds])=>{const k=carr(kid);const sum=ds.reduce((a,x)=>a+sugeridoK(x,v),0);
+  return `<div class="grid g2">
+   <div class="card"><h2>Por pagar a carretilleros</h2><p class="sub">Viajes ya entregados que todavía no pagaste. El monto es el que acuerdes con cada carretillero.</p>
+    <div class="list">${Object.entries(grupos).map(([kid,ds])=>{const k=carr(kid);ds.sort((a,b)=>a.t.creado-b.t.creado);
       return `<div class="item"><div class="top"><b style="font-size:19px">${esc(etqCarr(k,v.id))}</b><span class="chip st-en_vehiculo">${ds.length} por pagar</span></div>
-       ${ds.sort((a,b)=>a.t.creado-b.t.creado).map(d=>`<div class="meta">${hhmm(d.t.creado)} · ${esc(resumenItems(d))} → ${esc(d.placa)}${d.estado==='reclamo'?' · <span class="bad">reclamo</span>':''}${sugeridoK(d,v)?' · '+fmtMon(sugeridoK(d,v),t.moneda):''}</div>`).join('')}
-       ${pagandoLote===kid?formPagoK(null,v,ds):`<button class="btn y" data-plote="${esc(kid)}">💵 Pagar ${ds.length} viaje${ds.length>1?'s':''}${sum?' · '+fmtMon(sum,t.moneda):''}</button>`}</div>`}).join('')||'<div class="empty">No tienes viajes por pagar 👍</div>'}</div></div>
-   <div class="card"><h2>Pagado hoy</h2>${Object.keys(tot).length?Object.entries(tot).map(([key,m])=>{const [met,mon]=key.split('|');return `<div class="row" style="align-items:center"><div>${met==='pago_movil'?'📱 Pago Móvil':'💵 Efectivo'}</div><b style="flex:0 0 auto;font-size:19px">${fmtMon(m,mon)}</b></div>`}).join(''):'<div class="empty">Todavía no pagaste hoy</div>'}
-    <p class="hint">${pagHoy.length} viajes pagados hoy.</p></div></div>
-  <div class="card"><h2>Tarifa sugerida</h2><p class="sub">Se usa para completar el monto automáticamente. Siempre puedes cambiarlo al pagar.</p>
-   <div class="seg" id="tTipo">${[['viaje','Por viaje'],['bulto','Por bulto']].map(([k,tx])=>`<button type="button" class="${t.tipo===k?'on':''}" data-tt="${k}">${tx}</button>`).join('')}</div>
-   <div class="row"><div><label>Monto ${t.tipo==='bulto'?'por bulto':'por viaje'}</label><input id="tMonto" inputmode="decimal" value="${t.monto?String(t.monto).replace('.',','):''}" placeholder="Ej: 50"></div>
-    <div style="flex:0 0 100px"><label>Moneda</label><select id="tMon">${['Bs','USD'].map(m=>`<option value="${m}" ${t.moneda===m?'selected':''}>${MON[m]}</option>`).join('')}</select></div></div>
-   <button class="btn o" id="tGuardar" style="width:100%;margin-top:10px">Guardar tarifa</button></div></div>`}
-async function registrarPagoK(ds,v,montoTotal){const mon=$('pkMon').value,ref=$('pkRef')?$('pkRef').value.trim():'';if(pkMetodo==='pago_movil'&&ref.length<4){toast('Escribe la referencia del Pago Móvil');return false}
-  if(!montoTotal){toast('Escribe el monto');return false}const tt=Date.now();
-  for(const d of ds){const m=ds.length===1?montoTotal:sugeridoK(d,v);await guardar('despacho',{...S.despacho[d.id],pagoK:{monto:m,moneda:mon,metodo:pkMetodo,ref,t:tt}})}
-  const k=carr(ds[0].carretillero);log(`💵 ${v.nombre} pagó ${fmtMon(montoTotal,mon)} a ${etqCarr(k,v.id)} por ${ds.length} viaje${ds.length>1?'s':''} (${pkMetodo==='pago_movil'?'Pago Móvil'+(ref?' ref. '+ref:''):'efectivo'})`);
+       ${pagandoLote===kid?formPagoK(null,v,ds):`${ds.map(d=>`<div class="meta">${hhmm(d.t.creado)} · ${esc(resumenItems(d))} → ${esc(d.placa)}${d.estado==='reclamo'?' · <span class="bad">reclamo</span>':''}</div>`).join('')}
+       <button class="btn y" data-plote="${esc(kid)}">💵 Pagar ${ds.length} viaje${ds.length>1?'s':''}</button>`}</div>`}).join('')||'<div class="empty">No tienes viajes por pagar 👍</div>'}</div></div>
+   <div class="card" style="align-self:start"><h2>Pagado hoy</h2>${Object.keys(tot).length?Object.entries(tot).map(([key,m])=>{const [met,mon]=key.split('|');return `<div class="row" style="align-items:center"><div>${met==='pago_movil'?'📱 Pago Móvil':'💵 Efectivo'}</div><b style="flex:0 0 auto;font-size:19px">${fmtMon(m,mon)}</b></div>`}).join(''):'<div class="empty">Todavía no pagaste hoy</div>'}
+    <p class="hint">${pagHoy.length} viaje${pagHoy.length==1?'':'s'} pagado${pagHoy.length==1?'':'s'} hoy.</p></div></div>`}
+async function registrarPagoK(ds,v,montos){const mon=$('pkMon').value,ref=$('pkRef')?$('pkRef').value.trim():'';
+  if(ds.some(d=>!(montos[d.id]>0))){toast(ds.length>1?'Escribe el monto de cada viaje':'Escribe el monto acordado');const f=[...document.querySelectorAll('.pk-m')].find(x=>!(numES(x.value)>0));f&&f.focus();return false}
+  if(pkMetodo==='pago_movil'&&ref.length<4){toast('Escribe la referencia del Pago Móvil');$('pkRef').focus();return false}
+  try{localStorage.setItem('cy-pkmon',mon)}catch(e){}
+  const tt=Date.now();const total=ds.reduce((a,d)=>a+montos[d.id],0);
+  for(const d of ds){await guardar('despacho',{...S.despacho[d.id],pagoK:{monto:Math.round(montos[d.id]*100)/100,moneda:mon,metodo:pkMetodo,ref,t:tt}})}
+  const k=carr(ds[0].carretillero);log(`💵 ${v.nombre} pagó ${fmtMon(total,mon)} a ${etqCarr(k,v.id)} por ${ds.length} viaje${ds.length>1?'s':''} (${pkMetodo==='pago_movil'?'Pago Móvil'+(ref?' ref. '+ref:''):'efectivo'})`);
   toast('Pago registrado');return true}
 function bindPagoForm(getDs,v,lote,fin){
-  document.querySelectorAll('[data-pkm]').forEach(b=>b.onclick=()=>{const m=$('pkMonto').value,mo=$('pkMon').value;pkMetodo=b.dataset.pkm;render();if($('pkMonto')){$('pkMonto').value=m;$('pkMon').value=mo}});
+  const leer=()=>{const o={};document.querySelectorAll('.pk-m').forEach(x=>o[x.dataset.id]=numES(x.value));return o};
+  const sumar=()=>{if($('pkTot')){const s=Object.values(leer()).reduce((a,x)=>a+x,0);$('pkTot').textContent=fmtMon(s,$('pkMon').value)}};
+  document.querySelectorAll('.pk-m').forEach(x=>x.oninput=sumar);if($('pkMon'))$('pkMon').onchange=sumar;
+  const first=document.querySelector('.pk-m');if(first&&!first.dataset.f){first.dataset.f=1;setTimeout(()=>first.focus(),50)}
+  // cambiar método sin re-dibujar (así no se borran los montos escritos)
+  document.querySelectorAll('[data-pkm]').forEach(b=>b.onclick=()=>{pkMetodo=b.dataset.pkm;document.querySelectorAll('[data-pkm]').forEach(x=>x.classList.toggle('on',x===b));$('pkRefBox').style.display=pkMetodo==='pago_movil'?'':'none';if(pkMetodo==='pago_movil')$('pkRef').focus()});
   if($('pkCancel'))$('pkCancel').onclick=()=>{pagandoK=null;pagandoLote=null;render()};
-  if($('pkOk'))$('pkOk').onclick=async()=>{const ds=getDs();const total=lote?ds.reduce((a,x)=>a+sugeridoK(x,v),0):numES($('pkMonto').value);
-    if(lote&&!total){toast('Primero guarda una tarifa sugerida, o paga los viajes uno por uno');return}
-    if(await registrarPagoK(ds,v,total)){pagandoK=null;pagandoLote=null;fin&&fin();render()}}}
+  if($('pkOk'))$('pkOk').onclick=async()=>{const ds=getDs();if(!ds.length){pagandoK=null;pagandoLote=null;render();return}
+    $('pkOk').disabled=true;const ok=await registrarPagoK(ds,v,leer());if($('pkOk'))$('pkOk').disabled=false;
+    if(ok){pagandoK=null;pagandoLote=null;fin&&fin();render()}}}
 
 /* ---- Historial del vendedor ---- */
 let hPer='7',hEst='todos';
@@ -680,7 +684,7 @@ function vVendedor(){
   <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
    <p class="hint">Lo que quitas de la lista queda guardado en <a href="#" id="irHist">Historial</a>.</p>
    <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>
-     ${d.pagoK?`<div class="found" style="font-size:14px">${txtPagoK(d)}</div>`:pagandoK===d.id?formPagoK(d,v):d.carretillero?`<button class="btn ${d.estado==='en_ruta'?'o':'y'}" data-pagk="${esc(d.id)}">💵 Pagar al carretillero${sugeridoK(d,v)?' · '+fmtMon(sugeridoK(d,v),tarifaDe(v).moneda):''}</button>`:''}`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
+     ${d.pagoK?`<div class="found" style="font-size:14px">${txtPagoK(d)}</div>`:pagandoK===d.id?formPagoK(d,v):d.carretillero?`<button class="btn ${d.estado==='en_ruta'?'o':'y'}" data-pagk="${esc(d.id)}">💵 Pagar al carretillero</button>`:''}`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
 
 /* ---- Directorio de vendedores para el comprador ---- */
 let vcBusca='',vcMapa=null,yoGPS=null,yoErr=null,yoBuscando=false;
@@ -815,8 +819,6 @@ const bind={
         if(navigator.share){await navigator.share({title:'CargaYa',text:txt,url:LINKS[m]});return}}catch(e){if(e&&e.name==='AbortError')return}
       window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');toast('Este navegador no comparte imágenes: se abrió WhatsApp con el link')})},
   pagosK(){const v=vendActual();if(!v)return;
-    let tTipo=tarifaDe(v).tipo;document.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{tTipo=b.dataset.tt;document.querySelectorAll('[data-tt]').forEach(x=>x.classList.toggle('on',x===b))});
-    $('tGuardar').onclick=async()=>{const t={tipo:tTipo,monto:numES($('tMonto').value),moneda:$('tMon').value};await guardar('vendedor',{...S.vendedor[v.id],tarifaK:t});toast('Tarifa guardada');render()};
     document.querySelectorAll('[data-plote]').forEach(b=>b.onclick=()=>{pagandoLote=b.dataset.plote;pagandoK=null;pkMetodo='efectivo';render()});
     if(pagandoLote){const kid=pagandoLote;bindPagoForm(()=>porPagar(v.id).filter(d=>d.carretillero===kid),v,true)}
   },

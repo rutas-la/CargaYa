@@ -485,6 +485,7 @@ async function imprimir(html){const pa=document.getElementById('print');pa.inner
 
 /* ---- Cobro mensual por Pago Móvil ---- */
 const DIA=86400000;
+const hoyLocal=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const BANCOS=['Banco de Venezuela','Banesco','Mercantil','Provincial','BNC','Bancamiga','Banco del Tesoro','Bicentenario','Bancaribe','Banco Exterior','BFC (Fondo Común)','Banco Plaza','Banplus','Banco Activo','100% Banco','Sofitasa','Banco Caroní','Venezolano de Crédito','Del Sur','Banco Agrícola','Banfanb','Bancrecer','Mi Banco','R4'];
 function cfgCobro(){return Object.assign({precioUSD:10,tasa:0,tasaFecha:null,banco:'',telefono:'',cedula:'',titular:'',pruebaDias:30,graciaDias:3,adminTel:''},S.config.cobro||{})}
 const montoBs=c=>Math.round(c.precioUSD*c.tasa*100)/100;
@@ -514,7 +515,7 @@ function cardSuscripcion(v){const s=suscripcion(v),c=cfgCobro();
    <form id="fPago"><label>Número de referencia</label><input id="pRef" inputmode="numeric" placeholder="Ej: 004512345678" value="${esc(pagoForm.ref||'')}" required>
     <div class="row"><div><label>Banco desde donde pagaste</label><input id="pBanco" list="bancosVE" value="${esc(pagoForm.banco||'')}" required><datalist id="bancosVE">${BANCOS.map(b=>`<option value="${b}">`).join('')}</datalist></div>
     <div><label>Teléfono que pagó</label><input id="pTel" inputmode="tel" placeholder="0414-000-0000" value="${esc(pagoForm.tel||v.tel||'')}" required></div></div>
-    <div class="row"><div><label>Monto pagado (Bs)</label><input id="pMonto" inputmode="decimal" value="${esc(pagoForm.monto||(c.tasa?montoBs(c).toFixed(2).replace('.',','):''))}" required></div><div><label>Fecha</label><input id="pFecha" type="date" value="${esc(pagoForm.fecha||new Date().toISOString().slice(0,10))}" required></div></div>
+    <div class="row"><div><label>Monto pagado (Bs)</label><input id="pMonto" inputmode="decimal" value="${esc(pagoForm.monto||(c.tasa?montoBs(c).toFixed(2).replace('.',','):''))}" required></div><div><label>Fecha</label><input id="pFecha" type="date" value="${esc(pagoForm.fecha||hoyLocal())}" required></div></div>
     <label>Captura del pago (recomendado)</label><div class="row"><label class="btn o" style="margin:0;text-align:center">${pagoForm.foto?'Cambiar captura':'📷 Adjuntar captura'}<input type="file" accept="image/*" id="pFoto" class="hidden"></label>${pagoForm.foto?`<img class="photo sm" style="flex:0 0 96px" src="${pagoForm.foto}" alt="">`:''}</div>
     <div class="row" style="margin-top:14px"><button class="btn o" type="button" id="pCancel">Cancelar</button><button class="btn y" type="submit">Enviar pago</button></div></form>`
    :`<div class="notfound">Todavía no están cargados los datos de Pago Móvil. Avísale a la administración.</div><button class="btn o" type="button" id="pCancel" style="margin-top:10px;width:100%">Volver</button>`}</div>`}
@@ -618,7 +619,7 @@ function csvHist(v,ds){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"
       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||'',
       d.pagoK?String(d.pagoK.monto).replace('.',','):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':''),d.pagoK?.ref||'',d.pagoK?hhmm(d.pagoK.t):''].map(q).join(';')});
   const blob=new Blob(['﻿'+[cab.map(q).join(';'),...filas].join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-${(v.nombre||'despachos').replace(/[^\w]+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-${(v.nombre||'despachos').replace(/[^\w]+/g,'-')}-${hoyLocal()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 
 /* ---- Vendedor ---- */
 let desp={},fichaVista=null,ubicandoCamion=false,editPuesto=false;
@@ -760,6 +761,21 @@ const bind={
       const id=nuevoId('V');await guardar('vendedor',{id,nombre,tel,creado:Date.now()});setME({rol:'vendedor',id,nombre});log(`Se registró el vendedor ${nombre}`);rolElegido=null;render()};
   },
   mercado(){},
+  cobros(){
+    document.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{cobroTab=b.dataset.ct;rechazando=null;render()});
+    document.querySelectorAll('[data-papr]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para aprobar';return}
+      const p=S.pago[b.dataset.papr],v=vend(p.vendedor);const s=suscripcion(v);const base=Math.max(Date.now(),s.hasta);const hasta=sumarMes(base);
+      await guardar('vendedor',{...v,pagadoHasta:hasta});await guardar('pago',{...p,estado:'aprobado',tAprob:Date.now(),hasta});log(`✓ Pago aprobado: ${v.nombre}, ${fmtBs(p.monto)} (ref. ${p.referencia}). Al día hasta ${fmtFecha(hasta)}`);toast('Pago aprobado');render()});
+    document.querySelectorAll('[data-prech]').forEach(b=>b.onclick=()=>{rechazando=b.dataset.prech;render()});
+    if($('rCancel'))$('rCancel').onclick=()=>{rechazando=null;render()};
+    document.querySelectorAll('[data-prechok]').forEach(b=>b.onclick=async()=>{const p=S.pago[b.dataset.prechok];const m=$('rMot').value.trim()||'sin detalle';rechazando=null;
+      await guardar('pago',{...p,estado:'rechazado',motivo:m,tRech:Date.now()});log(`✗ Pago rechazado: ${vend(p.vendedor)?.nombre} (ref. ${p.referencia}): ${m}`);render()});
+    document.querySelectorAll('[data-pmes]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para dar +1 mes';return}
+      const v=vend(b.dataset.pmes);const s=suscripcion(v);const hasta=sumarMes(Math.max(Date.now(),s.hasta));await guardar('vendedor',{...v,pagadoHasta:hasta});log(`Mes sin pago a ${v.nombre}: al día hasta ${fmtFecha(hasta)}`);render()});
+    if($('fCfg'))$('fCfg').onsubmit=async e=>{e.preventDefault();const num=x=>parseFloat(String(x).replace(/\./g,'').replace(',','.'))||0;const prev=cfgCobro();const tasa=num($('cfTasa').value);
+      await guardar('config',{id:'cobro',precioUSD:num($('cfPrecio').value)||prev.precioUSD,tasa,tasaFecha:tasa!==prev.tasa?Date.now():prev.tasaFecha,banco:$('cfBanco').value.trim(),telefono:$('cfTel').value.trim(),cedula:$('cfCed').value.trim(),titular:$('cfTit').value.trim(),
+        pruebaDias:Math.max(0,parseInt($('cfPrueba').value)||0),graciaDias:Math.max(0,parseInt($('cfGracia').value)||0),adminTel:$('cfAdminTel').value.trim()});log('Ajustes de cobro actualizados');toast('Ajustes guardados');render()};
+  },
   zonas(){
     const add=async()=>{const n=$('zNombre').value.trim().replace(/\s+/g,' ');if(!n){toast('Escribe el nombre de la zona');return}
       if(nombresZona().some(x=>x.toLowerCase()===n.toLowerCase())){toast('Esa zona ya existe');return}

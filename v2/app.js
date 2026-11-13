@@ -455,8 +455,11 @@ const FAVP='cy-favpend';const favPend=()=>{try{return JSON.parse(localStorage.ge
 try{const vv=new URLSearchParams(location.search).get('v');if(vv&&/^[\w-]{6,60}$/.test(vv)){const a=favPend();if(!a.includes(vv))a.push(vv);localStorage.setItem(FAVP,JSON.stringify(a));history.replaceState(null,'',location.pathname)}}catch(e){}
 const urlInvita=v=>LINKS.comprador+'?v='+encodeURIComponent(v.id);
 async function aplicarFavPend(){const pend=favPend();if(!pend.length||!ME||ME.rol!=='comprador')return;const c=comp(ME.id);if(!c||!c.vehiculo)return;
-  const nuevos=pend.filter(id=>vend(id)&&!(c.favoritos||[]).includes(id));try{localStorage.removeItem(FAVP)}catch(e){}
-  if(!nuevos.length)return;await guardar('comprador',{...S.comprador[c.id],favoritos:[...(c.favoritos||[]),...nuevos]});
+  const validos=pend.filter(id=>vend(id));const nuevos=validos.filter(id=>!(c.favoritos||[]).includes(id));try{localStorage.removeItem(FAVP)}catch(e){}
+  // el primer vendedor que lo invitó queda fijo de primero en sus favoritos
+  const inv=c.invitadoPor||validos[0]||null;
+  if(!nuevos.length&&inv===c.invitadoPor)return;await guardar('comprador',{...S.comprador[c.id],favoritos:[...(c.favoritos||[]),...nuevos],invitadoPor:inv});
+  if(!nuevos.length)return;
   toast(`⭐ ${nuevos.map(id=>vend(id).nombre).join(', ')} quedó en tus favoritos`);view='vendC';render()}
 try{const sp=new URLSearchParams(location.search);const f=sp.get('f'),k=sp.get('k');if(f)fichaURL=parseCodigo('F:'+f);if(k)kURL=parseCodigo('K:'+k)}catch(e){}
 function despDeFicha(p){return L('despacho').filter(d=>d.ficha&&d.ficha.num===p.num&&(!d.ficha.cod||!p.cod||d.ficha.cod===p.cod)).sort((a,b)=>b.t.creado-a.t.creado)[0]}
@@ -803,6 +806,10 @@ function avisoSusc(v){const s=suscripcion(v);
   if(s.estado==='gracia')return `<div class="notfound" style="font-size:15px">Tu mensualidad venció el ${fmtFecha(s.hasta)}. <a href="#" data-irv="miSusc">Paga pronto</a> para no quedar bloqueado.</div>`;
   if(s.dias<=3&&!s.pend)return `<div class="hint" style="padding:8px 10px;border:1px solid var(--yel);border-radius:10px">Tu ${s.estado==='prueba'?'prueba gratis':'mensualidad'} vence en ${Math.max(0,s.dias)} día${s.dias==1?'':'s'}. <a href="#" data-irv="miSusc">Ver Mensualidad</a></div>`;
   return ''}
+let invN={id:null,n:null,t:0};
+function invitados(v){if(invN.id!==v.id||Date.now()-invN.t>60000){invN={id:v.id,n:invN.id===v.id?invN.n:null,t:Date.now()};
+    sb.from('compradores').select('id',{count:'exact',head:true}).eq('data->>invitadoPor',v.id).then(r=>{if(!r.error&&invN.id===v.id&&invN.n!==r.count){invN.n=r.count;pedirRender()}})}
+  return invN.n}
 function cardInvita(v){const u=urlInvita(v);
   if(!window.qrcode)cargarQRlib().then(()=>pedirRender()).catch(()=>{});
   const txt=`Hola 👋 Soy ${v.nombre} en el Mercado Mayor de Coche. Con *CargaYa* ves dónde está mi puesto y controlas cada entrega a tu vehículo. Entra aquí y quedo en tus favoritos: `;
@@ -811,7 +818,8 @@ function cardInvita(v){const u=urlInvita(v);
    <button class="btn y" id="invShare" style="width:100%;margin-top:8px">📲 Compartir imagen del QR (WhatsApp)</button>
    <a class="btn g" style="display:block;text-align:center;text-decoration:none;margin-top:8px;color:#fff" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(txt+u)}">💬 Enviar enlace por WhatsApp</a>
    <div class="row" style="margin-top:8px"><button class="btn o" id="invDesc">⬇ Descargar QR</button><button class="btn o" style="flex:0 0 auto" data-copiar="${esc(u)}">Copiar enlace</button></div>
-   <p class="hint" style="word-break:break-all;margin-top:6px">${esc(u)}</p></div>`}
+   <p class="hint" style="word-break:break-all;margin-top:6px">${esc(u)}</p>
+   ${invitados(v)!=null?`<div class="found" style="margin-top:8px">👥 Compradores que entraron con tu invitación: <b>${invitados(v)}</b></div>`:''}</div>`}
 async function imagenInvita(v){await cargarQRlib();const u=urlInvita(v);const W=720,H=900,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
   x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#16181c';x.fillRect(0,0,W,130);x.fillStyle='#ffc400';x.fillRect(0,130,W,14);
   x.fillStyle='#ffc400';x.font='bold 64px sans-serif';x.textAlign='center';x.fillText('CargaYa',W/2,78);x.fillStyle='#fff';x.font='24px sans-serif';x.fillText('Mercado Mayor de Coche',W/2,114);
@@ -846,17 +854,17 @@ const normTxt=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g
 function distVend(v){if(!yoGPS)return null;const pv=posVend(v);if(!pv)return null;const ll=toLatLng(pv[0],pv[1]);return {m:distM(yoGPS,ll),r:rumbo(yoGPS,ll)}}
 const fmtDist=m=>m<1000?`≈ ${Math.max(10,Math.round(m/10)*10)} m`:`≈ ${(m/1000).toFixed(1).replace('.',',')} km`;
 function vVendC(){const c=ME.rol==='comprador'?comp(ME.id):null;const favs=(c&&c.favoritos)||[];
-  const activos=L('vendedor').filter(v=>suscripcion(v).estado!=='vencida');
+  const activos=L('vendedor').filter(v=>v.alDia!==undefined?v.alDia!==false:suscripcion(v).estado!=='vencida');
   const q=normTxt(vcBusca);const yoEn=yoGPS&&enPlano(yoGPS);const yoXY=yoEn?XY(yoGPS):null;
   const orden=(a,b)=>{const da=yoEn?distVend(a):null,db=yoEn?distVend(b):null;if(da&&db)return da.m-db.m;if(da)return -1;if(db)return 1;return (a.nombre||'').localeCompare(b.nombre||'')};
   const lista=activos.filter(v=>!q||normTxt(v.nombre+' '+(v.productos||'')+' '+(v.sector||'')+' '+(v.refPuesto||'')).includes(q)).sort(orden);
-  const tarjeta=v=>{const fav=favs.includes(v.id),pv=posVend(v),dv=yoEn?distVend(v):null;return `<div class="item"><div class="top"><b style="font-size:19px">${fav?'⭐ ':''}${esc(v.nombre)}</b><button class="btn ${fav?'y':'o'}" style="flex:0 0 auto;padding:6px 10px" data-fav="${esc(v.id)}">${fav?'★ Favorito':'☆ Favorito'}</button></div>
+  const tarjeta=v=>{const fav=favs.includes(v.id),pv=posVend(v),dv=yoEn?distVend(v):null;return `<div class="item"><div class="top"><b style="font-size:19px">${fav?'⭐ ':''}${esc(v.nombre)}${c&&c.invitadoPor===v.id&&fav?' <span class="chip st-entregado" style="font-size:12px;vertical-align:middle">Tu vendedor</span>':''}</b><button class="btn ${fav?'y':'o'}" style="flex:0 0 auto;padding:6px 10px" data-fav="${esc(v.id)}">${fav?'★ Favorito':'☆ Favorito'}</button></div>
     <div style="font-size:16px">${v.productos?'🛒 '+esc(v.productos):'<span class="hint">No indicó qué vende</span>'}</div>
     <div class="meta">📍 Sector: <b>${esc(v.sector||'sin indicar')}</b>${v.refPuesto?' · '+esc(v.refPuesto):''}</div>
     ${dv?`<div class="dist" style="padding:8px 12px;margin-top:6px"><div class="arrow" style="width:40px;height:40px;flex:0 0 40px"><svg width="22" height="22" viewBox="-13 -13 26 26" style="transform:rotate(${Math.round(dv.r.g)}deg)"><path d="M0,-11 L8,8 L0,3 L-8,8Z" fill="#16181c"/></svg></div><div><b style="font-size:26px">${fmtDist(dv.m)}</b><div>hacia el ${dv.r.txt}</div></div></div>`:''}
     ${vcMapa===v.id&&pv?`<div style="margin-top:6px">${planoSVG({zoom:[pv,...(yoXY?[yoXY]:[])],minW:420,camion:pv,camionTxt:v.nombre.slice(0,18).toUpperCase(),zonaHL:v.sector,yo:yoXY})}</div>`:''}
     <div class="row" style="flex-wrap:wrap">${pv?`<button class="btn o" data-vcmap="${esc(v.id)}">🗺 ${vcMapa===v.id?'Ocultar mapa':'Ver en el mapa'}</button>`:''}${v.tel&&wa(v.tel)?`<a class="btn g" style="text-align:center;text-decoration:none;color:#fff" target="_blank" rel="noopener" href="${wa(v.tel)}">💬 WhatsApp</a>`:''}</div></div>`};
-  const lf=lista.filter(v=>favs.includes(v.id)),lo=lista.filter(v=>!favs.includes(v.id));
+  const inv=c&&c.invitadoPor;const lf=lista.filter(v=>favs.includes(v.id)).sort((a,b)=>(b.id===inv)-(a.id===inv)),lo=lista.filter(v=>!favs.includes(v.id));
   return `<div class="grid"><div class="card"><h2>Vendedores</h2><p class="sub">Busca por producto o sector y marca tus favoritos.</p>
     <input id="vcBusca" placeholder="🔍 Ej: tomate, papa, Nave A…" value="${esc(vcBusca)}" autocomplete="off">
     <button class="btn ${yoGPS?'o':'y'}" id="vcYo" style="width:100%;margin-top:10px" ${yoBuscando?'disabled':''}>${yoBuscando?'Buscando tu ubicación… (hasta 12 s)':yoGPS?'📍 Actualizar dónde estoy':'📍 ¿Dónde estoy? Ver distancias'}</button>

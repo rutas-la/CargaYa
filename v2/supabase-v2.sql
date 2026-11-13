@@ -194,7 +194,8 @@ create or replace view vendedores_publico as
          data->>'sector'    as sector,
          data->>'refPuesto' as "refPuesto",
          data->'px'         as px,
-         data->'py'         as py
+         data->'py'         as py,
+         puede_despachar(id) as "alDia"            -- con la mensualidad vencida no aparece en el directorio
   from vendedores;
 revoke all on vendedores_publico from anon;
 grant select on vendedores_publico to authenticated;

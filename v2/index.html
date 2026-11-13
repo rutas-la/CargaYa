@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16181c">
+<title>CargaYa · Mercado Mayor de Coche</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>(function(){var q=new URLSearchParams(location.search),r=q.get('rol');
+  if(r==='vendedor'){location.replace('vendedor.html');return}
+  if(r==='comprador'||q.get('k')){location.replace('comprador.html'+location.search.replace(/([?&])rol=comprador&?/,'$1').replace(/[?&]$/,''));return}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<style>.mods{display:grid;gap:14px;max-width:560px;margin:0 auto}.mod{display:flex;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;text-decoration:none;color:var(--ink)}
+.mod img{width:64px;height:64px}.mod b{font-family:"Barlow Condensed";font-size:26px;display:block}.mod span{color:var(--ink2)}</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo"><div class="logo-mark">C</div><div><h1>CargaYa</h1><small>Mercado Mayor de Coche · Caracas</small></div></div></div><nav></nav></header>
+<main>
+<p class="sub" style="text-align:center;margin:8px 0 18px">Elige tu módulo. Guárdalo en tu teléfono para entrar directo la próxima vez.</p>
+<div class="mods">
+<a class="mod" href="comprador.html"><img src="icon-comprador.svg" alt=""><div><b>Comprador</b><span>Recibe tus compras en tu vehículo</span></div></a><a class="mod" href="vendedor.html"><img src="icon-vendedor.svg" alt=""><div><b>Vendedor</b><span>Despacha y controla tus entregas</span></div></a><a class="mod" href="admin.html"><img src="icon-admin.svg" alt=""><div><b>Administración</b><span>Panel, cobros y zonas</span></div></a>
+<a class="mod" href="guia.html" style="padding:12px 18px"><div><b style="font-size:20px">📘 Guía para la prueba</b></div></a>
+</div>
+</main>
+<footer>CargaYa</footer>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CargaYa · Guía para la prueba en el mercado</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{--ink:#16181c;--ink2:#4a4f58;--line:#e2e0d8;--bg:#f6f4ee;--yel:#ffc400;--yel2:#fff3c4;--grn:#12a150;--grn2:#dcf5e6;--red2:#fde3e1}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:17px;line-height:1.5}
+header{background:var(--ink);color:#fff;padding:18px}
+header h1{margin:0;font-size:24px}
+header p{margin:4px 0 0;color:#cfd2d6;font-size:15px}
+main{max-width:720px;margin:0 auto;padding:16px}
+nav.idx{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+nav.idx a{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
+section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+h2{margin:0 0 6px;font-size:22px}
+h2 .n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--yel);font-size:17px;margin-right:6px;vertical-align:2px}
+h3{margin:16px 0 4px;font-size:18px}
+ol,ul{padding-left:22px;margin:6px 0}
+li{margin:5px 0}
+.btn{display:block;text-align:center;background:var(--yel);color:var(--ink);font-weight:700;text-decoration:none;padding:14px;border-radius:12px;margin:10px 0}
+.btn.o{background:#fff;border:2px solid var(--ink)}
+.nota{background:var(--yel2);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:15.5px}
+.ok{background:var(--grn2);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:15.5px}
+.ojo{background:var(--red2);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:15.5px}
+table{width:100%;border-collapse:collapse;font-size:15px;margin-top:8px}
+td,th{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#f1efe8}
+.check li{list-style:none;margin-left:-22px}
+.check li::before{content:"☐ ";font-weight:700}
+small{color:var(--ink2)}
+</style>
+</head>
+<body>
+<header><h1>CargaYa · Guía para la prueba</h1><p>Mercado Mayor de Coche · para la persona que hace las pruebas en el lugar</p></header>
+<main>
+<p>Gracias por ayudar. <b>Cómo funciona:</b> al estacionar, el comprador elige en su teléfono la <b>zona</b> donde dejó el vehículo, con el nombre que todos usan en el mercado (ej: "Detrás del Barco"). La app <b>no usa GPS</b>. El vendedor ve esa zona y se la muestra al carretillero, que <b>no necesita teléfono</b>: lleva colgada su <b>credencial con número y QR</b>, que le crea e imprime su vendedor. Cuando entrega, el comprador <b>escanea la credencial</b> y la entrega queda confirmada.</p>
+<p>Hay <b>tres módulos</b>, cada uno con su link: <a href="comprador.html">Comprador</a>, <a href="vendedor.html">Vendedor</a> y <a href="admin.html">Administración</a>.</p>
+<nav class="idx"><a href="#material">Material</a><a href="#zonas">1 · Zonas</a><a href="#sola">2 · Prueba sola</a><a href="#real">3 · Prueba real</a><a href="#problemas">Problemas</a></nav>
+
+<section id="material">
+<h2>Material que necesitas</h2>
+<table>
+<tr><th>Qué</th><th>Para qué</th><th>Cuánto</th></tr>
+<tr><td><b>Credenciales de carretillero</b> (para colgar del cuello)</td><td>Las crea e imprime <b>cada vendedor</b> desde su módulo (pestaña <b>Mis carretilleros</b>). Se imprimen a doble faz en A4, se recortan, se plastifican y se perforan para el cordón.</td><td>Una por carretillero</td></tr>
+</table>
+
+<ul>
+<li>Usa el celular con <b>Chrome</b> (Android) o <b>Safari</b> (iPhone), con batería cargada y datos móviles.</li>
+<li>Para Administración, Miguel te crea una cuenta y te pasa el <b>PIN</b>. Vendedores y compradores crean su propia cuenta con su <b>teléfono y un PIN de 6 números</b>.</li>
+<li>Cuando la app pida la <b>cámara</b> (para escanear el carnet), toca <b>Permitir</b>. No pide ubicación.</li>
+</ul>
+<a class="btn" href="./">Abrir CargaYa (elegir módulo)</a>
+<a class="btn o" href="qr.html">Ver los QR para vendedores y compradores</a>
+</section>
+
+<section id="zonas">
+<h2><span class="n">1</span>Cargar las zonas <small>(15 minutos)</small></h2>
+<p>No hacen falta carteles ni GPS: usamos los <b>nombres que ya usa la gente</b> para cada parte del estacionamiento.</p>
+<ol>
+<li>Pregúntales a vendedores y carretilleros <b>cómo le dicen a cada parte</b> del estacionamiento de compradores (ej: "Detrás del Barco", "La bomba", "Frente a INMERCA"). Anota la lista.</li>
+<li>Abre el <a href="admin.html">módulo de Administración</a> y entra con tu teléfono y PIN.</li>
+<li>Entra a la pestaña <b>Zonas</b>. Escribe cada nombre tal como lo dicen y toca <b>Agregar</b>: tanto las zonas donde estacionan los compradores como los <b>sectores donde están los puestos</b> de los vendedores (ej: "Nave A").</li>
+<li>En cada zona toca <b>📍 Ubicar en el mapa</b> y toca en el plano dónde queda. Así el carretillero ve en el mapa a dónde ir. Todo esto se puede hacer desde cualquier lugar, no hace falta estar en el mercado.</li>
+<li>Mándale a Miguel la lista de nombres.</li>
+</ol>
+<div class="nota">Si un comprador estacionó en un lugar que no está en la lista, puede elegir <b>Otra…</b> y escribir el nombre. Si se repite, agrégala a la lista.</div>
+</section>
+
+<section id="sola">
+<h2><span class="n">2</span>Prueba sola <small>(20 minutos)</small></h2>
+<p>Necesitas <b>dos teléfonos</b>: uno de vendedor y otro de comprador. Si solo tienes uno, usa Chrome normal para uno y Chrome en <b>pestaña de incógnito</b> para el otro.</p>
+<ol>
+<li><b>Teléfono A, comprador:</b> escanea el QR de <b>Comprador</b> (abre el módulo de comprador) y crea la cuenta: nombre, teléfono, placa y un PIN de 6 números, todo en una pantalla. Elige la <b>zona</b> de la lista. Aparece el plano: <b>toca dónde quedó el vehículo</b> (es opcional). Pon tipo y color del vehículo, una referencia, saca la foto y guarda.</li>
+<li><b>Teléfono B, vendedor:</b> en la pestaña <b>Mi ubicación</b> escribe qué vende y elige su <b>sector</b>.</li>
+<li><b>Teléfono B:</b> en la misma pestaña, en <b>Invita a tus compradores</b>, comparte el QR por WhatsApp. <b>Teléfono C</b> lo abre, crea su cuenta y registra el vehículo: el vendedor debe aparecer solo en <b>⭐ Mis favoritos</b>.</li>
+<li><b>Teléfono A, comprador:</b> en la pestaña <b>Vendedores</b> busca un producto (ej: "papa"), marca un ⭐ favorito y toca <b>📍 ¿Dónde estoy?</b> (pide permiso de ubicación solo al comprador). Debe mostrar la distancia aproximada y la dirección a cada vendedor.</li>
+<li><b>Teléfono B, vendedor:</b> escanea el QR de <b>Vendedor</b> y crea la cuenta (nombre del puesto, teléfono y PIN). En <b>Mis carretilleros</b> agrega uno o dos carretilleros e imprime sus credenciales. En <b>Despachar</b> toca <b>Ubicar mi camión</b> para marcar en el plano dónde está (una sola vez).</li>
+<li><b>En B:</b> escribe la placa del comprador. Debe aparecer la zona y la foto. Arma la lista: una línea por producto con sus bultos (ej: Papa 2, Tomate 1), con <b>➕ Agregar ítem</b>.</li>
+<li><b>En B:</b> en <b>Carretillero</b>, toca el carretillero que lleva la mercancía. Si es <b>de otro vendedor</b>, escanea su credencial: también se puede. Toca <b>Despachar</b>.</li>
+<li>Aparece la pantalla grande con el <b>nombre de la zona</b> y el <b>plano con el camino</b> desde el camión hasta el vehículo (punto rojo): esa es la que el vendedor le muestra al carretillero.</li>
+<li>Camina hasta el vehículo como si fueras el carretillero.</li>
+<li><b>En A:</b> en <b>Por recibir</b>, toca <b>Ya me llegó</b> y luego <b>Escanear el carnet del carretillero</b> (apunta a la credencial impresa). Debe decir <b>"verificado"</b>. Toca <b>Recibí completo</b>. Prueba también con la credencial de <b>otro</b> carretillero (debe avisar) y <b>Reportar faltante</b>.</li>
+<li><b>En B:</b> el despacho debe pasar a <b>Entregado</b> (o <b>Reclamo</b>).</li>
+<li><b>En B:</b> cuando el carretillero vuelve a cobrar, toca <b>💵 Pagar al carretillero</b>, escribe el monto que acordaron, elige efectivo o Pago Móvil y registra el pago. En la pestaña <b>Pagos</b> se ve lo que falta pagar a cada carretillero y se pueden pagar varios viajes juntos (con el monto de cada uno).</li>
+<li><b>En B:</b> toca <b>🗂 Quitar</b> en un despacho recibido. Desaparece de la lista, pero sigue en la pestaña <b>Historial</b>, donde también se puede descargar todo en Excel.</li>
+</ol>
+<h3>Qué observar</h3>
+<ul class="check">
+<li>¿Fue fácil encontrar la zona en la lista y marcar el vehículo en el plano?</li>
+<li>¿El plano se parece al mercado real? ¿El camino tiene sentido?</li>
+<li>¿La pantalla de la zona se entiende de un vistazo?</li>
+<li>¿La confirmación le llegó rápido al vendedor?</li>
+<li>¿Algo fue confuso?</li>
+</ul>
+</section>
+
+<section id="real">
+<h2><span class="n">3</span>Prueba real: 1 vendedor, 1 carretillero, 1 comprador</h2>
+<h3>Al empezar</h3>
+<ul>
+<li><b>Vendedor y comprador:</b> que escaneen su QR, creen su cuenta con teléfono y PIN (que lo anoten) y toquen <b>Permitir</b> cuando pida la cámara. Que agreguen la app a la pantalla de inicio (Chrome → menú <b>⋮</b> → <b>Agregar a la pantalla principal</b>).</li>
+<li><b>Carretillero:</b> su vendedor le crea e imprime la credencial. Explícale: <b>1)</b> el vendedor lo elige al despachar y le muestra la zona en el teléfono; <b>2)</b> va a esa zona y busca el vehículo por la descripción, la placa y la referencia; <b>3)</b> al entregar, le muestra el carnet al comprador para que lo escanee.</li>
+</ul>
+<h3>Durante la prueba</h3>
+<ol>
+<li>El <b>comprador</b>, al estacionar y antes de irse a comprar, elige su zona y registra su vehículo (tipo, color, referencia y foto).</li>
+<li>Compra y le dice su <b>placa</b> al vendedor.</li>
+<li>El <b>vendedor</b> elige al carretillero, despacha y le muestra la pantalla de la zona.</li>
+<li>El <b>carretillero</b> lleva la mercancía al vehículo.</li>
+<li>El <b>comprador</b> toca <b>Ya me llegó</b>, escanea el carnet del carretillero y confirma, o reporta si falta algo. También puede escanear el carnet con la cámara normal del teléfono: se abre la app directo en la confirmación.</li>
+</ol>
+<h3>Anota para cada entrega</h3>
+<table>
+<tr><th>Dato</th><th>Ejemplo</th></tr>
+<tr><td>Minutos desde que salió el carretillero hasta que llegó al vehículo</td><td>4 min</td></tr>
+<tr><td>¿Encontró el vehículo a la primera?</td><td>Sí / No, por qué</td></tr>
+<tr><td>Cuánto tarda normalmente sin la app</td><td>15 min buscando</td></tr>
+<tr><td>Cuánto se le pagó al carretillero y cómo</td><td>Bs 50 en efectivo</td></tr>
+<tr><td>Qué dijo cada uno</td><td>"Lo de la zona me sirvió mucho"</td></tr>
+</table>
+<div class="ok">Al final, pregúntale a cada uno: <b>¿Lo usarías todos los días? ¿Cuánto pagarías al mes?</b> Al carretillero: <b>¿Te ahorró tiempo? ¿Hiciste más viajes?</b></div>
+</section>
+
+<section id="problemas">
+<h2>Si algo falla</h2>
+<h3>La cámara no abre o dice que se negó el permiso</h3>
+<p><b>Android / Chrome:</b> toca el candado 🔒 al lado de la dirección → <b>Permisos</b> → activa <b>Cámara</b>. Recarga la página.<br>
+<b>iPhone:</b> Ajustes → Safari → Cámara → <b>Permitir</b>.<br>
+Mientras tanto, se puede escribir el número del carretillero a mano.</p>
+<h3>El escáner no lee el carnet</h3>
+<p>Acerca o aleja el teléfono y busca buena luz. Si igual no lo lee, escribe el <b>número</b> en la casilla que está al lado del botón.</p>
+<h3>El comprador eligió una zona equivocada</h3>
+<p>En <b>Mi vehículo</b>, que toque <b>Moví el vehículo / editar</b> y elija la zona correcta.</p>
+<h3>El comprador no estaba cuando llegó la mercancía</h3>
+<p>Al volver, toca <b>Ya me llegó</b> y confirma sin escanear (puede escribir el número del carretillero si lo sabe). Queda registrado que confirmó sin carnet.</p>
+<h3>Al escanear dice "pero este despacho lo lleva el #…"</h3>
+<p>El carnet no es del carretillero asignado. Revisen con el vendedor antes de confirmar.</p>
+<h3>Alguien olvidó su PIN</h3>
+<p>Avísale a Miguel con el teléfono de la cuenta: él lo cambia.</p>
+<h3>Arriba dice "Sin conexión"</h3>
+<p>La app guarda lo que hagas y lo envía cuando vuelve la señal.</p>
+<div class="ojo">Cualquier otro problema: saca una <b>captura de pantalla</b> y mándasela a Miguel con una línea de qué estabas haciendo.</div>
+</section>
+</main>
+</body>
+</html>

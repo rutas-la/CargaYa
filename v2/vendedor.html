@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16181c">
+<title>CargaYa Vendedor · Mercado Mayor de Coche</title>
+<link rel="manifest" href="manifest-vendedor.webmanifest">
+<link rel="icon" href="icon-vendedor.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-vendedor.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script src="lib/supabase-2.119.0.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo"><div class="logo-mark">C</div><div><h1>CargaYa <span style="color:#ffc400">Vendedor</span></h1><small>Mercado Mayor de Coche · Caracas</small></div></div>
+    <div class="geo" id="estado"></div>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main id="app"></main>
+<footer>CargaYa · Vendedor</footer>
+<div class="toast" id="toast"></div>
+<div id="print"></div>
+<script>window.CARGAYA_MODULO='vendedor';</script>
+<script src="app.js"></script>
+</body>
+</html>

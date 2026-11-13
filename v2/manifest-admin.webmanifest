@@ -1,0 +1,11 @@
+{
+  "name": "CargaYa Administración",
+  "short_name": "CargaYa Admin",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ee",
+  "theme_color": "#16181c",
+  "lang": "es",
+  "icons": [{ "src": "icon-admin.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

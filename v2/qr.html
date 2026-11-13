@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CargaYa · Códigos QR para imprimir</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#f6f4ee;color:#16181c}
+.bar{padding:16px;text-align:center}
+button{font:inherit;font-weight:700;padding:12px 20px;border:0;border-radius:10px;background:#ffc400;cursor:pointer}
+.hojas{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;padding:0 16px 30px}
+.hojas img{width:min(100%,360px);border:1px solid #e2e0d8;border-radius:12px;background:#fff}
+@media print{.bar{display:none}body{background:#fff}.hojas{display:block;padding:0}.hojas img{display:block;width:16cm;margin:1cm auto;border:0;page-break-after:always}}
+</style>
+<script src="lib/qrcode.js"></script>
+</head><body>
+<div class="bar"><p>Un código por módulo: vendedores y compradores. Las credenciales de los carretilleros las imprime cada vendedor desde su módulo.</p><button onclick="print()">Imprimir</button></div>
+<div class="hojas" id="hojas"></div>
+<script>
+// Los QR se generan aquí mismo con la dirección real de esta página (sirve en cualquier dominio).
+const RAIZ = location.origin + location.pathname.replace(/[^/]*$/, '');
+function cartel(rol, titulo, linea) {
+  const url = RAIZ + rol + '.html', W = 1200, H = 1600, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#16181c'; x.fillRect(0, 0, W, 230); x.fillStyle = '#ffc400'; x.fillRect(0, 230, W, 22);
+  x.textAlign = 'center'; x.fillStyle = '#ffc400'; x.font = 'bold 120px sans-serif'; x.fillText('CargaYa', W / 2, 140);
+  x.fillStyle = '#fff'; x.font = '42px sans-serif'; x.fillText('Mercado Mayor de Coche', W / 2, 200);
+  x.fillStyle = '#16181c'; x.font = 'bold 96px sans-serif'; x.fillText(titulo, W / 2, 380);
+  x.font = '44px sans-serif'; x.fillStyle = '#555'; x.fillText(linea, W / 2, 450);
+  const q = qrcode(0, 'M'); q.addData(url); q.make(); const n = q.getModuleCount(), lado = 860, m = lado / n, x0 = (W - lado) / 2, y0 = 510;
+  x.fillStyle = '#16181c';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) x.fillRect(Math.floor(x0 + c * m), Math.floor(y0 + r * m), Math.ceil(m), Math.ceil(m));
+  x.font = 'bold 54px sans-serif'; x.fillText('Escanéame con la cámara', W / 2, 1460);
+  x.font = '30px sans-serif'; x.fillStyle = '#777'; x.fillText(url, W / 2, 1530);
+  const img = new Image(); img.alt = 'QR para ' + rol; img.src = cv.toDataURL('image/png'); document.getElementById('hojas').appendChild(img);
+}
+cartel('vendedor', 'Soy VENDEDOR', 'Despacha y controla tus entregas');
+cartel('comprador', 'Soy COMPRADOR', 'Recibe y confirma tu mercancía');
+</script>
+</body></html>

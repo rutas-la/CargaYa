@@ -403,13 +403,14 @@ async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=
   return admin}
 async function trasEntrar(){await cargar();cargado=true;
   if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id])await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});
-  rolElegido=null;render();aplicarFavPend()}
+  rolElegido=null;render();aplicarFavPend().then(aplicarAmigo)}
 async function salir(){try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
 function vLogin(){
   const r=MODULO,crear=modoCuenta==='crear'&&r!=='admin';
   return `<div class="card" style="max-width:520px;margin:0 auto"><h2>${r==='admin'?'Administración':crear?(r==='vendedor'?'Crea tu cuenta de vendedor':'Crea tu cuenta de comprador'):'Entra a tu cuenta'}</h2>
    ${r!=='admin'?`<div class="seg" style="margin:8px 0 4px">${[['crear','Soy nuevo'],['entrar','Ya tengo cuenta']].map(([k,t])=>`<button type="button" class="${modoCuenta===k?'on':''}" data-modo="${k}">${t}</button>`).join('')}</div>`:''}
    ${r==='comprador'&&favPend().length?'<div class="found" style="margin:8px 0">⭐ Te invitó un vendedor: cuando entres, quedará en tus favoritos.</div>':''}
+   ${r==='comprador'&&amigoPend()?'<div class="found" style="margin:8px 0">👥 Te invitó un amigo: cuando registres tu vehículo, recibirás sus vendedores favoritos.</div>':''}
    <form id="fLogin">
     ${crear?`<label>${r==='vendedor'?'Nombre de tu puesto o negocio':'Tu nombre o negocio'}</label><input id="lNombre" required autocomplete="organization">`:''}
     <label>Teléfono</label><input id="lTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username">
@@ -454,6 +455,19 @@ let fichaURL=null,kURL=null;
 const FAVP='cy-favpend';const favPend=()=>{try{return JSON.parse(localStorage.getItem(FAVP))||[]}catch(e){return []}};
 try{const vv=new URLSearchParams(location.search).get('v');if(vv&&/^[\w-]{6,60}$/.test(vv)){const a=favPend();if(!a.includes(vv))a.push(vv);localStorage.setItem(FAVP,JSON.stringify(a));history.replaceState(null,'',location.pathname)}}catch(e){}
 const urlInvita=v=>LINKS.comprador+'?v='+encodeURIComponent(v.id);
+/* Invitación de un comprador a un amigo o vecino: comprador.html?a=<código>
+   El amigo crea su cuenta y recibe los vendedores favoritos de quien lo invitó. */
+const AMIGOP='cy-amigo';const amigoPend=()=>{try{return localStorage.getItem(AMIGOP)||''}catch(e){return ''}};
+try{const aa=new URLSearchParams(location.search).get('a');if(aa&&/^[\w-]{6,60}$/.test(aa)){localStorage.setItem(AMIGOP,aa);history.replaceState(null,'',location.pathname)}}catch(e){}
+const urlAmigo=()=>LINKS.comprador+'?a='+encodeURIComponent(ME.uid);
+async function datosAmigo(cod){const r=await sb.rpc('invitacion_amigo',{codigo:cod});return r.error||!r.data?null:r.data}
+async function aplicarAmigo(){const cod=amigoPend();if(!cod||!ME||ME.rol!=='comprador')return;const c=comp(ME.id);if(!c||!c.vehiculo)return;
+  try{localStorage.removeItem(AMIGOP)}catch(e){}if(cod===ME.uid)return;
+  let a=null;try{a=await datosAmigo(cod)}catch(e){}if(!a)return;await cargarDirectorio(true);
+  const c2=S.comprador[c.id];const ya=c2.favoritos||[];const nuevos=(a.favoritos||[]).filter(id=>vend(id)&&vend(id).alDia!==false&&!ya.includes(id));
+  await guardar('comprador',{...c2,favoritos:[...ya,...nuevos],referidoPor:c2.referidoPor||cod});
+  if(!c2.referidoPor)log(`👥 ${c2.id} entró invitado por un amigo (${a.nombre||'comprador'})`);
+  toast(nuevos.length?`👥 ${a.nombre||'Tu amigo'} te recomendó ${nuevos.length} vendedor${nuevos.length==1?'':'es'}: ya están en tus favoritos`:`👥 Entraste invitado por ${a.nombre||'un amigo'}`);view='vendC';render()}
 async function aplicarFavPend(){const pend=favPend();if(!pend.length||!ME||ME.rol!=='comprador')return;const c=comp(ME.id);if(!c||!c.vehiculo)return;
   const validos=pend.filter(id=>vend(id));const nuevos=validos.filter(id=>!(c.favoritos||[]).includes(id));try{localStorage.removeItem(FAVP)}catch(e){}
   // el primer vendedor que lo invitó queda fijo de primero en sus favoritos
@@ -870,7 +884,18 @@ function vVendC(){const c=ME.rol==='comprador'?comp(ME.id):null;const favs=(c&&c
     <button class="btn ${yoGPS?'o':'y'}" id="vcYo" style="width:100%;margin-top:10px" ${yoBuscando?'disabled':''}>${yoBuscando?'Buscando tu ubicación… (hasta 12 s)':yoGPS?'📍 Actualizar dónde estoy':'📍 ¿Dónde estoy? Ver distancias'}</button>
     ${yoErr?`<div class="notfound" style="margin-top:8px">${esc(yoErr)}</div>`:yoGPS?(yoEn?`<p class="hint" style="margin-top:6px">Ubicado ${hhmm(yoGPS.t)} (±${yoGPS.acc} m). Distancias aproximadas, en línea recta. La flecha indica la dirección respecto del norte; usa el sector para orientarte.</p>`:`<div class="notfound" style="margin-top:8px">Parece que no estás en el mercado: el GPS te ubica a ${fmtDist(distM(yoGPS,CENTRO))} del centro.</div>`):''}</div>
    ${lf.length?`<div class="card"><h2>⭐ Mis favoritos</h2><div class="list">${lf.map(tarjeta).join('')}</div></div>`:''}
-   <div class="card"><h2>${q?`Resultados (${lo.length})`:lf.length?(yoEn?'Otros vendedores, los más cerca primero':'Otros vendedores'):yoEn?'Los más cerca primero':'Todos los vendedores'}</h2><div class="list">${lo.map(tarjeta).join('')||`<div class="empty">${q?(lf.length?'Ningún otro vendedor coincide con la búsqueda':'Ningún vendedor coincide con la búsqueda'):lf.length?'No hay otros vendedores':'Todavía no hay vendedores'}</div>`}</div></div></div>`}
+   <div class="card"><h2>${q?`Resultados (${lo.length})`:lf.length?(yoEn?'Otros vendedores, los más cerca primero':'Otros vendedores'):yoEn?'Los más cerca primero':'Todos los vendedores'}</h2><div class="list">${lo.map(tarjeta).join('')||`<div class="empty">${q?(lf.length?'Ningún otro vendedor coincide con la búsqueda':'Ningún vendedor coincide con la búsqueda'):lf.length?'No hay otros vendedores':'Todavía no hay vendedores'}</div>`}</div></div>
+   ${c&&c.vehiculo?cardAmigo(c):''}</div>`}
+let amigosN={t:0,n:null};
+function amigosInvitados(){if(Date.now()-amigosN.t>60000){amigosN.t=Date.now();sb.rpc('amigos_invitados').then(r=>{if(!r.error&&amigosN.n!==r.data){amigosN.n=r.data;pedirRender()}})}return amigosN.n}
+function cardAmigo(c){const u=urlAmigo();if(!window.qrcode)cargarQRlib().then(()=>pedirRender()).catch(()=>{});const n=amigosInvitados();
+  const nf=(c.favoritos||[]).length;const txt=`Hola 👋 Uso *CargaYa* en el Mercado Mayor de Coche para recibir mi mercancía y ubicar a mis vendedores. Entra con este enlace y te paso mis ${nf?nf+' ':''}vendedores de confianza: `;
+  return `<div class="card"><h2>👥 Invita a un amigo o vecino</h2><p class="sub">Tu amigo crea su cuenta con este enlace o escaneando el QR desde tu teléfono, y recibe tus vendedores favoritos${nf?` (${nf})`:''}.</p>
+   ${amigoQR?`<div style="text-align:center">${window.qrcode?`<img src="${qrImg(u,260)}" alt="QR de invitación" style="width:230px;height:230px;image-rendering:pixelated">`:'<div class="hint" style="padding:40px 0">Generando QR…</div>'}<p class="hint">Que tu amigo lo escanee con la cámara de su teléfono.</p></div>`:''}
+   <a class="btn g" style="display:block;text-align:center;text-decoration:none;margin-top:8px;color:#fff" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(txt+u)}">💬 Invitar por WhatsApp</a>
+   <div class="row" style="margin-top:8px"><button class="btn o" id="amQR">${amigoQR?'Ocultar QR':'📱 Mostrar QR'}</button><button class="btn o" style="flex:0 0 auto" id="amCopiar" data-u="${esc(u)}">Copiar enlace</button></div>
+   ${n!=null&&n>0?`<div class="found" style="margin-top:8px">👥 Amigos que entraron con tu invitación: <b>${n}</b></div>`:''}</div>`}
+let amigoQR=false;
 
 /* ---- Comprador ---- */
 let reg=null,corrigiendo=null,recibiendo=null,carnetOk={};
@@ -1068,6 +1093,8 @@ const bind={
     document.querySelectorAll('[data-vok]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await confirmar(S.despacho[b.dataset.vok],'vendedor')});
   },
   vendC(){const c=ME.rol==='comprador'?comp(ME.id):null;
+    if($('amQR'))$('amQR').onclick=()=>{amigoQR=!amigoQR;render()};
+    if($('amCopiar'))$('amCopiar').onclick=async()=>{try{await navigator.clipboard.writeText($('amCopiar').dataset.u);toast('Enlace copiado')}catch(e){toast('No se pudo copiar')}};
     const b=$('vcBusca');b.oninput=()=>{vcBusca=b.value;const pos=b.selectionStart;render();const nb=$('vcBusca');nb.focus();nb.setSelectionRange(pos,pos)};
     document.querySelectorAll('[data-fav]').forEach(x=>x.onclick=async()=>{if(!c){toast('Primero registra tu vehículo');return}const id=x.dataset.fav;const f=new Set(c.favoritos||[]);f.has(id)?f.delete(id):f.add(id);
       await guardar('comprador',{...S.comprador[c.id],favoritos:[...f]});render()});
@@ -1085,7 +1112,7 @@ const bind={
       $('fReg').onsubmit=async e=>{e.preventDefault();keep();if(!reg.zona){toast('Elige la zona donde estacionaste');return}
         const nuevo=!c||c.activo===false;
         const obj={...(c||{}),id:ME.id,owner:ME.uid||c?.owner,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.px??null,py:reg.py??null,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
-        reg=null;await guardar('comprador',obj);setTimeout(aplicarFavPend,300);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) ${nuevo?'llegó y estacionó en':'ahora está en'} "${obj.zona}"`);toast('Vehículo guardado');render()};
+        reg=null;await guardar('comprador',obj);setTimeout(()=>aplicarFavPend().then(aplicarAmigo),300);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) ${nuevo?'llegó y estacionó en':'ahora está en'} "${obj.zona}"`);toast('Vehículo guardado');render()};
       return}
     if(!c)return;
     if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null};render()};
@@ -1117,6 +1144,6 @@ const bind={
     else toast(k?`Carretillero #${k.num} ${k.nombre||''}`:'Credencial no encontrada');
     try{history.replaceState(null,'',location.pathname)}catch(e){}}
   if(conexion==='conectando')conexion=ONLINE?'en línea':'local';
-  render();vaciarCola();aplicarFavPend()})();
+  render();vaciarCola();aplicarFavPend().then(aplicarAmigo)})();
 setInterval(()=>{if(ME)pedirRender()},30000);
 

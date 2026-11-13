@@ -359,6 +359,22 @@ end $$;
 revoke all on function resumen_admin(bigint) from anon, public;
 grant execute on function resumen_admin(bigint) to authenticated;
 
+-- ---------- Invitación entre compradores ----------
+-- El amigo invitado recibe el primer nombre y los vendedores favoritos de quien lo invitó (nada más).
+create or replace function invitacion_amigo(codigo text) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('nombre', split_part(coalesce(data->>'nombre', ''), ' ', 1),
+                            'favoritos', coalesce(data->'favoritos', '[]'::jsonb))
+  from compradores where owner = codigo and codigo is distinct from yo() limit 1 $$;
+-- Cuántos amigos entraron con mi invitación
+create or replace function amigos_invitados() returns int
+language sql stable security definer set search_path = public as $$
+  select count(*)::int from compradores where data->>'referidoPor' = yo() $$;
+revoke all on function invitacion_amigo(text) from anon, public;
+revoke all on function amigos_invitados() from anon, public;
+grant execute on function invitacion_amigo(text) to authenticated;
+grant execute on function amigos_invitados() to authenticated;
+
 -- ---------- Respaldo: descarga completa solo para la administración ----------
 create or replace function respaldo() returns jsonb
 language plpgsql stable security definer set search_path = public as $$

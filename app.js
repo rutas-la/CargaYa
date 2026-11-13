@@ -251,8 +251,8 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
-function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr'];return ['comprador','vendC']}
-const NOMBRES={vendC:'Vendedores',pagosK:'Pagos',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr','miUbic','miSusc'];return ['comprador','vendC']}
+const NOMBRES={miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
 function leerItems(){const f=document.getElementById('fDesp');if(!f)return null;return [...f.querySelectorAll('.it-row')].map(r=>({desc:r.querySelector('.it-desc').value,bultos:r.querySelector('.it-bul').value}))}
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;const it=leerItems();if(it)desp.items=it}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
@@ -265,14 +265,14 @@ function pintarEstado(){const el=document.getElementById('estado');if(!el)return
 function render(){
   const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
   const nav=document.getElementById('nav');nav.innerHTML=vs.length>1?vs.map(v=>`<button data-v="${v}" class="${v===view?'on':''}">${NOMBRES[v]}</button>`).join(''):'';
-  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;view=b.dataset.v;render()};
+  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v!==view){ubicandoCamion=false;editPuesto=false;pagando=false;pagandoK=null;pagandoLote=null;fichaVista=null}view=b.dataset.v;render();window.scrollTo(0,0)};
   pintarEstado();
   const app=document.getElementById('app');
   if(fichaURL){app.innerHTML=vFichaURL();bindFichaURL();return}
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();
 }
 let otroModulo=null;
@@ -509,7 +509,7 @@ function copiaBtn(txt){return `<button type="button" class="btn o" style="flex:0
 let pagando=false,pagoForm={};
 function cardSuscripcion(v){const s=suscripcion(v),c=cfgCobro();
   const txt=s.estado==='prueba'?`Prueba gratis hasta el ${fmtFecha(s.hasta)} (${Math.max(0,s.dias)} días).`:s.estado==='activa'?`Pagado hasta el ${fmtFecha(s.hasta)} (${Math.max(0,s.dias)} días).`:s.estado==='gracia'?`Venció el ${fmtFecha(s.hasta)}. Paga pronto para no quedar bloqueado.`:`Venció el ${fmtFecha(s.hasta)}. Paga para volver a despachar.`;
-  if(!pagando)return `<div class="card" style="${s.estado==='vencida'||s.estado==='gracia'?'border:2px solid #e0362c':''}"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mi suscripción</h2>${chipSus(s)}</div>
+  if(!pagando)return `<div class="card" style="${s.estado==='vencida'||s.estado==='gracia'?'border:2px solid #e0362c':''}"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mi mensualidad</h2>${chipSus(s)}</div>
     <p class="sub">${txt}</p>${s.pend?`<div class="found">Pago de ${fmtBs(s.pend.monto)} (ref. ${esc(s.pend.referencia)}) en revisión. Puedes seguir despachando.</div>`:''}
     <button class="btn ${s.estado==='vencida'||s.estado==='gracia'||(s.dias<=5)?'y':'o'}" id="sPagar" style="width:100%;margin-top:8px">💳 Pagar mes · US$ ${c.precioUSD}${c.tasa?` (${fmtBs(montoBs(c))})`:''}</button></div>`;
   const ok=c.banco&&c.telefono&&c.cedula;
@@ -646,14 +646,11 @@ function vVendedor(){
      ${posComp(c)?`<div style="margin-top:12px">${planoSVG({zoom:[posComp(c),...(posVend(vend(d.vendedor))?[posVend(vend(d.vendedor))]:[])],minW:420,zonaHL:c.zona,dest:posComp(c),destTxt:c.id,camion:posVend(vend(d.vendedor)),camionTxt:'TÚ ESTÁS AQUÍ',ruta:posVend(vend(d.vendedor))})}</div>
        <p class="hint" style="margin-top:4px">${c.px!=null?'El punto rojo es donde el comprador marcó su vehículo.':'El punto rojo es la zona; el comprador no marcó el lugar exacto.'}${posVend(vend(d.vendedor))?'':' Ubica tu camión en el plano para ver el camino.'}</p>`:''}
      <button class="btn y big" id="fvListo" style="margin-top:12px">Listo, salió</button></div>`}
-  if(ubicandoCamion)return `<div class="card"><h2>Ubica tu camión en el plano</h2><p class="sub">Toca dónde está tu camión. Se hace una sola vez; cámbialo si te mueves.</p>
-    ${planoSVG({id:'vPick',pick:true,zoom:[[VZ.cx,VZ.cy]],minW:420,camion:posVend(v),camionTxt:'MI CAMIÓN'})}<div class="row" style="margin-top:10px"><button class="btn y" id="vListo">Listo</button></div></div>`;
   const mis=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado).sort((a,b)=>b.t.creado-a.t.creado);
   const cerrados=mis.filter(d=>d.estado==='entregado').length;
   const k=desp.k?carr(desp.k):null;
   return `<div class="grid g2"><div class="grid" style="align-content:start">
-   ${ME.rol==='vendedor'||ME.rol==='admin'?cardSuscripcion(v):''}
-   ${suscripcion(v).puedeDespachar?'':'<div class="notfound" style="font-size:16px"><b>Despachos bloqueados:</b> tu suscripción venció. Paga el mes con Pago Móvil para seguir usando CargaYa.</div>'}
+   ${avisoSusc(v)}
    <div class="card" style="${suscripcion(v).puedeDespachar?'':'opacity:.45;pointer-events:none'}"><h2>Nuevo despacho</h2>
    <form id="fDesp"><label>1 · Placa del comprador</label>
     <input id="placa" list="placas" placeholder="Ej: AB123CD" autocomplete="off" value="${esc(desp.placa||'')}" required>
@@ -671,6 +668,23 @@ function vVendedor(){
     ${desp.k&&ajeno(carr(desp.k),v.id)?`<div class="found" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px"><span>✓ <b>${esc(etqCarr(carr(desp.k),v.id))}</b> · credencial escaneada</span><a href="#" id="kQuitar">quitar</a></div>`:''}
     <button type="button" class="btn o" id="dScanK" style="width:100%;margin-top:8px">📷 Escanear credencial${misCarr(v.id).length?' (también de otro vendedor)':''}</button>
     <div style="margin-top:14px"><button class="btn y big" type="submit">Despachar</button></div></form></div>
+  <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
+   <p class="hint">Lo que quitas de la lista queda guardado en <a href="#" id="irHist">Historial</a>.</p>
+   <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>
+     ${d.pagoK?`<div class="found" style="font-size:14px">${txtPagoK(d)}</div>`:pagandoK===d.id?formPagoK(d,v):d.carretillero?`<button class="btn ${d.estado==='en_ruta'?'o':'y'}" data-pagk="${esc(d.id)}">💵 Pagar al carretillero</button>`:''}`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
+
+
+/* ---- Pestañas del vendedor: Mi ubicación y Mensualidad ---- */
+function vendYo(){return ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0]}
+function avisoSusc(v){const s=suscripcion(v);
+  if(!s.puedeDespachar)return `<div class="notfound" style="font-size:16px"><b>Despachos bloqueados:</b> tu mensualidad venció. <a href="#" data-irv="miSusc">Paga el mes aquí</a> para seguir usando CargaYa.</div>`;
+  if(s.estado==='gracia')return `<div class="notfound" style="font-size:15px">Tu mensualidad venció el ${fmtFecha(s.hasta)}. <a href="#" data-irv="miSusc">Paga pronto</a> para no quedar bloqueado.</div>`;
+  if(s.dias<=3&&!s.pend)return `<div class="hint" style="padding:8px 10px;border:1px solid var(--yel);border-radius:10px">Tu ${s.estado==='prueba'?'prueba gratis':'mensualidad'} vence en ${Math.max(0,s.dias)} día${s.dias==1?'':'s'}. <a href="#" data-irv="miSusc">Ver Mensualidad</a></div>`;
+  return ''}
+function vMiUbic(){const v=vendYo();if(!v)return '<div class="card empty">Cargando…</div>';
+  if(ubicandoCamion)return `<div class="card"><h2>Ubica tu camión en el plano</h2><p class="sub">Toca dónde está tu camión. Se hace una sola vez; cámbialo si te mueves.</p>
+    ${planoSVG({id:'vPick',pick:true,zoom:[[VZ.cx,VZ.cy]],minW:420,camion:posVend(v),camionTxt:'MI CAMIÓN'})}<div class="row" style="margin-top:10px"><button class="btn y" id="vListo">Listo</button></div></div>`;
+  return `<div class="grid" style="max-width:640px;margin:0 auto">
    <div class="card"><h2>Mi puesto</h2><p class="sub">Los compradores te encuentran en su lista de vendedores.</p>
     ${editPuesto?`<label>¿Qué vendes?</label><input id="mpProd" placeholder="Ej: Papa, cebolla, zanahoria" value="${esc(v.productos||'')}">
       <label>¿En qué sector está tu puesto?</label>${selZona('mpZona',v.sector||'')}
@@ -681,10 +695,10 @@ function vVendedor(){
       <div class="meta">${v.px!=null?`📍 Marcado en el plano${v.ubicT?' · '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:posVend(v)?'📍 Ubicado por su sector':'<span class="bad">Sin sector ni ubicación en el plano</span>'}</div>
       <button class="btn ${v.sector&&v.productos?'o':'y'}" id="mpEditar" style="width:100%;margin-top:8px">✏️ Qué vendo, sector y referencia</button>
       <button class="btn o" id="vUbicar" style="width:100%;margin-top:8px">🗺 ${v.px!=null?'Cambiar mi lugar en el plano':'Marcar mi lugar exacto en el plano (opcional)'}</button>`}</div>
-  <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
-   <p class="hint">Lo que quitas de la lista queda guardado en <a href="#" id="irHist">Historial</a>.</p>
-   <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>
-     ${d.pagoK?`<div class="found" style="font-size:14px">${txtPagoK(d)}</div>`:pagandoK===d.id?formPagoK(d,v):d.carretillero?`<button class="btn ${d.estado==='en_ruta'?'o':'y'}" data-pagk="${esc(d.id)}">💵 Pagar al carretillero</button>`:''}`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
+   ${posVend(v)?`<div class="card"><h2>Así te ven en el plano</h2>${planoSVG({zoom:[posVend(v)],minW:420,camion:posVend(v),camionTxt:'MI PUESTO'})}</div>`:''}</div>`}
+function vMiSusc(){const v=vendYo();if(!v)return '<div class="card empty">Cargando…</div>';
+  return `<div style="max-width:640px;margin:0 auto">${cardSuscripcion(v)}
+   ${pagando?'':'<p class="hint" style="margin-top:10px">Pagas el mes por Pago Móvil y cargas la referencia aquí. La administración lo revisa y lo aprueba; mientras tanto puedes seguir despachando.</p>'}</div>`}
 
 /* ---- Directorio de vendedores para el comprador ---- */
 let vcBusca='',vcMapa=null,yoGPS=null,yoErr=null,yoBuscando=false;
@@ -827,9 +841,7 @@ const bind={
     $('hCsv').onclick=()=>{csvHist(v,filtroHist(v.id));toast('Archivo descargado')};
     document.querySelectorAll('[data-desarch]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.desarch];await guardar('despacho',{...d,archivado:false});render()});
   },
-  vendedor(){
-    const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
-    if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};return}
+  miUbic(){const v=vendYo();if(!v)return;
     if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,ubicT:Date.now(),gpsT:null,lat:null,lng:null});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
     if($('vUbicar'))$('vUbicar').onclick=()=>{ubicandoCamion=true;render()};
     if($('mpEditar'))$('mpEditar').onclick=()=>{editPuesto=true;render()};
@@ -837,6 +849,8 @@ const bind={
     if($('mpZona'))$('mpZona').onchange=()=>{const t=$('mpZonaT');t.style.display=$('mpZona').value==='__otra'?'':'none'};
     if($('mpOk'))$('mpOk').onclick=async()=>{const prod=$('mpProd').value.trim(),ref=$('mpRef').value.trim(),sec=leerZona('mpZona');const prev=S.vendedor[v.id];editPuesto=false;
       await guardar('vendedor',{...prev,productos:prod,refPuesto:ref,sector:sec,...(sec!==prev.sector?{px:null,py:null,ubicT:Date.now()}:{})});toast('Guardado');render()};
+  },
+  miSusc(){const v=vendYo();if(!v)return;
     if($('sPagar'))$('sPagar').onclick=()=>{pagando=true;render()};
     document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Copiado: '+b.dataset.copiar)}catch(e){toast('No se pudo copiar')}});
     if(pagando){const keepP=()=>{if(!$('fPago'))return;pagoForm={...pagoForm,ref:$('pRef').value,banco:$('pBanco').value,tel:$('pTel').value,monto:$('pMonto').value,fecha:$('pFecha').value}};
@@ -851,6 +865,11 @@ const bind={
         if(c.adminTel){const u=wa(c.adminTel);if(u){const msg=`Hola, soy ${v.nombre} (CargaYa). Pagué la suscripción por Pago Móvil: ${fmtBs(monto)}, referencia ${ref}, desde ${pg.banco}, el ${pg.fecha}.`;
           const a=document.createElement('div');a.className='found';a.style.marginTop='10px';a.innerHTML=`Pago enviado ✓ <a class="btn o" style="display:block;text-align:center;text-decoration:none;margin-top:8px" target="_blank" rel="noopener" href="${u}?text=${encodeURIComponent(msg)}">💬 Avisar por WhatsApp a la administración</a>`;
           const card=document.querySelector('#app .card');card&&card.after(a)}}}}
+  },
+  vendedor(){
+    const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
+    if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};return}
+    document.querySelectorAll('[data-irv]').forEach(a=>a.onclick=e=>{e.preventDefault();view=a.dataset.irv;render()});
     const keep=()=>{desp.placa=$('placa').value;desp.items=leerItems()};
     const tot=()=>{const it=leerItems()||[];if($('itTot'))$('itTot').innerHTML=`Total: <b>${it.reduce((a,x)=>a+(parseInt(x.bultos)||0),0)}</b> bultos`};
     document.querySelectorAll('.it-bul').forEach(x=>x.oninput=tot);

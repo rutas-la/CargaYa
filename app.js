@@ -313,12 +313,13 @@ async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=
   return admin}
 async function trasEntrar(){await cargar();cargado=true;
   if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id])await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});
-  rolElegido=null;render()}
+  rolElegido=null;render();aplicarFavPend()}
 async function salir(){try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
 function vLogin(){
   const r=MODULO,crear=modoCuenta==='crear'&&r!=='admin';
   return `<div class="card" style="max-width:520px;margin:0 auto"><h2>${r==='admin'?'Administración':crear?(r==='vendedor'?'Crea tu cuenta de vendedor':'Crea tu cuenta de comprador'):'Entra a tu cuenta'}</h2>
    ${r!=='admin'?`<div class="seg" style="margin:8px 0 4px">${[['crear','Soy nuevo'],['entrar','Ya tengo cuenta']].map(([k,t])=>`<button type="button" class="${modoCuenta===k?'on':''}" data-modo="${k}">${t}</button>`).join('')}</div>`:''}
+   ${r==='comprador'&&favPend().length?'<div class="found" style="margin:8px 0">⭐ Te invitó un vendedor: cuando entres, quedará en tus favoritos.</div>':''}
    <form id="fLogin">
     ${crear?`<label>${r==='vendedor'?'Nombre de tu puesto o negocio':'Tu nombre o negocio'}</label><input id="lNombre" required autocomplete="organization">`:''}
     <label>Teléfono</label><input id="lTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username">
@@ -359,6 +360,14 @@ function bindLogin(){
 
 /* ---- Ficha abierta desde un QR (cámara normal del teléfono) ---- */
 let fichaURL=null,kURL=null;
+/* Invitación de un vendedor: comprador.html?v=<id> lo deja en favoritos */
+const FAVP='cy-favpend';const favPend=()=>{try{return JSON.parse(localStorage.getItem(FAVP))||[]}catch(e){return []}};
+try{const vv=new URLSearchParams(location.search).get('v');if(vv&&/^[\w-]{6,60}$/.test(vv)){const a=favPend();if(!a.includes(vv))a.push(vv);localStorage.setItem(FAVP,JSON.stringify(a));history.replaceState(null,'',location.pathname)}}catch(e){}
+const urlInvita=v=>LINKS.comprador+'?v='+encodeURIComponent(v.id);
+async function aplicarFavPend(){const pend=favPend();if(!pend.length||!ME||ME.rol!=='comprador')return;const c=comp(ME.id);if(!c||!c.vehiculo)return;
+  const nuevos=pend.filter(id=>vend(id)&&!(c.favoritos||[]).includes(id));try{localStorage.removeItem(FAVP)}catch(e){}
+  if(!nuevos.length)return;await guardar('comprador',{...S.comprador[c.id],favoritos:[...(c.favoritos||[]),...nuevos]});
+  toast(`⭐ ${nuevos.map(id=>vend(id).nombre).join(', ')} quedó en tus favoritos`);view='vendC';render()}
 try{const sp=new URLSearchParams(location.search);const f=sp.get('f'),k=sp.get('k');if(f)fichaURL=parseCodigo('F:'+f);if(k)kURL=parseCodigo('K:'+k)}catch(e){}
 function despDeFicha(p){return L('despacho').filter(d=>d.ficha&&d.ficha.num===p.num&&(!d.ficha.cod||!p.cod||d.ficha.cod===p.cod)).sort((a,b)=>b.t.creado-a.t.creado)[0]}
 function vFichaURL(){const p=fichaURL;const d=despDeFicha(p);
@@ -682,6 +691,23 @@ function avisoSusc(v){const s=suscripcion(v);
   if(s.estado==='gracia')return `<div class="notfound" style="font-size:15px">Tu mensualidad venció el ${fmtFecha(s.hasta)}. <a href="#" data-irv="miSusc">Paga pronto</a> para no quedar bloqueado.</div>`;
   if(s.dias<=3&&!s.pend)return `<div class="hint" style="padding:8px 10px;border:1px solid var(--yel);border-radius:10px">Tu ${s.estado==='prueba'?'prueba gratis':'mensualidad'} vence en ${Math.max(0,s.dias)} día${s.dias==1?'':'s'}. <a href="#" data-irv="miSusc">Ver Mensualidad</a></div>`;
   return ''}
+function cardInvita(v){const u=urlInvita(v);
+  if(!window.qrcode)cargarQRlib().then(()=>pedirRender()).catch(()=>{});
+  const txt=`Hola 👋 Soy ${v.nombre} en el Mercado Mayor de Coche. Con *CargaYa* ves dónde está mi puesto y controlas cada entrega a tu vehículo. Entra aquí y quedo en tus favoritos: `;
+  return `<div class="card"><h2>📣 Invita a tus compradores</h2><p class="sub">Comparte este QR o el enlace. El comprador que entre con él te tendrá automáticamente en sus <b>favoritos</b>.</p>
+   <div style="text-align:center">${window.qrcode?`<img id="invQR" src="${qrImg(u,260)}" alt="QR de invitación" style="width:220px;height:220px;image-rendering:pixelated">`:'<div class="hint" style="padding:40px 0">Generando QR…</div>'}</div>
+   <button class="btn y" id="invShare" style="width:100%;margin-top:8px">📲 Compartir imagen del QR (WhatsApp)</button>
+   <a class="btn g" style="display:block;text-align:center;text-decoration:none;margin-top:8px;color:#fff" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(txt+u)}">💬 Enviar enlace por WhatsApp</a>
+   <div class="row" style="margin-top:8px"><button class="btn o" id="invDesc">⬇ Descargar QR</button><button class="btn o" style="flex:0 0 auto" data-copiar="${esc(u)}">Copiar enlace</button></div>
+   <p class="hint" style="word-break:break-all;margin-top:6px">${esc(u)}</p></div>`}
+async function imagenInvita(v){await cargarQRlib();const u=urlInvita(v);const W=720,H=900,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#16181c';x.fillRect(0,0,W,130);x.fillStyle='#ffc400';x.fillRect(0,130,W,14);
+  x.fillStyle='#ffc400';x.font='bold 64px sans-serif';x.textAlign='center';x.fillText('CargaYa',W/2,78);x.fillStyle='#fff';x.font='24px sans-serif';x.fillText('Mercado Mayor de Coche',W/2,114);
+  x.fillStyle='#16181c';x.font='bold 40px sans-serif';const nom=v.nombre.length>28?v.nombre.slice(0,27)+'…':v.nombre;x.fillText(nom,W/2,205);
+  x.font='26px sans-serif';x.fillStyle='#555';if(v.productos)x.fillText(('🛒 '+v.productos).slice(0,44),W/2,245);
+  const img=new Image();img.src=qrImg(u,480);await new Promise(r=>{img.onload=r;img.onerror=r});x.imageSmoothingEnabled=false;x.drawImage(img,(W-480)/2,270,480,480);
+  x.fillStyle='#16181c';x.font='bold 30px sans-serif';x.fillText('Escanéame con la cámara',W/2,800);x.font='24px sans-serif';x.fillStyle='#555';x.fillText('y quedo en tus vendedores favoritos',W/2,840);
+  return await new Promise(r=>cv.toBlob(r,'image/png'))}
 function vMiUbic(){const v=vendYo();if(!v)return '<div class="card empty">Cargando…</div>';
   if(ubicandoCamion)return `<div class="card"><h2>Ubica tu camión en el plano</h2><p class="sub">Toca dónde está tu camión. Se hace una sola vez; cámbialo si te mueves.</p>
     ${planoSVG({id:'vPick',pick:true,zoom:[[VZ.cx,VZ.cy]],minW:420,camion:posVend(v),camionTxt:'MI CAMIÓN'})}<div class="row" style="margin-top:10px"><button class="btn y" id="vListo">Listo</button></div></div>`;
@@ -696,6 +722,7 @@ function vMiUbic(){const v=vendYo();if(!v)return '<div class="card empty">Cargan
       <div class="meta">${v.px!=null?`📍 Marcado en el plano${v.ubicT?' · '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:posVend(v)?'📍 Ubicado por su sector':v.sector?'<span class="hint">Tu sector todavía no está ubicado en el plano (lo hace la administración). Si quieres, marca tu lugar exacto.</span>':'<span class="bad">Falta indicar tu sector</span>'}</div>
       <button class="btn ${v.sector&&v.productos?'o':'y'}" id="mpEditar" style="width:100%;margin-top:8px">✏️ Qué vendo, sector y referencia</button>
       <button class="btn o" id="vUbicar" style="width:100%;margin-top:8px">🗺 ${v.px!=null?'Cambiar mi lugar en el plano':'Marcar mi lugar exacto en el plano (opcional)'}</button>`}</div>
+   ${cardInvita(v)}
    ${posVend(v)?`<div class="card"><h2>Así te ven en el plano</h2>${planoSVG({zoom:[posVend(v)],minW:420,camion:posVend(v),camionTxt:'MI PUESTO'})}</div>`:''}</div>`}
 function vMiSusc(){const v=vendYo();if(!v)return '<div class="card empty">Cargando…</div>';
   return `<div style="max-width:640px;margin:0 auto">${cardSuscripcion(v)}
@@ -843,6 +870,14 @@ const bind={
     document.querySelectorAll('[data-desarch]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.desarch];await guardar('despacho',{...d,archivado:false});render()});
   },
   miUbic(){const v=vendYo();if(!v)return;
+    document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Enlace copiado')}catch(e){toast('No se pudo copiar')}});
+    const nomArch='CargaYa-'+v.nombre.replace(/[^\w]+/g,'-').slice(0,30)+'.png';
+    if($('invDesc'))$('invDesc').onclick=async()=>{const bl=await imagenInvita(v);const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download=nomArch;document.body.appendChild(a);a.click();a.remove();toast('QR descargado')};
+    if($('invShare'))$('invShare').onclick=async()=>{const u=urlInvita(v);const txt=`Hola 👋 Soy ${v.nombre}. Entra a CargaYa con este enlace y quedo en tus favoritos: `;
+      try{const bl=await imagenInvita(v);const f=new File([bl],nomArch,{type:'image/png'});
+        if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:txt+u});return}
+        if(navigator.share){await navigator.share({title:'CargaYa',text:txt,url:u});return}}catch(e){if(e&&e.name==='AbortError')return}
+      window.open('https://wa.me/?text='+encodeURIComponent(txt+u),'_blank');toast('Se abrió WhatsApp con el enlace')};
     if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,ubicT:Date.now(),gpsT:null,lat:null,lng:null});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
     if($('vUbicar'))$('vUbicar').onclick=()=>{ubicandoCamion=true;render()};
     if($('mpEditar'))$('mpEditar').onclick=()=>{editPuesto=true;render()};
@@ -920,7 +955,7 @@ const bind={
       $('fReg').onsubmit=async e=>{e.preventDefault();keep();if(!reg.zona){toast('Elige la zona donde estacionaste');return}
         const nuevo=!c||c.activo===false;
         const obj={...(c||{}),id:ME.id,owner:ME.uid||c?.owner,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.px??null,py:reg.py??null,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
-        reg=null;await guardar('comprador',obj);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) ${nuevo?'llegó y estacionó en':'ahora está en'} "${obj.zona}"`);toast('Vehículo guardado');render()};
+        reg=null;await guardar('comprador',obj);setTimeout(aplicarFavPend,300);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) ${nuevo?'llegó y estacionó en':'ahora está en'} "${obj.zona}"`);toast('Vehículo guardado');render()};
       return}
     if(!c)return;
     if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null};render()};
@@ -952,6 +987,6 @@ const bind={
     else toast(k?`Carretillero #${k.num} ${k.nombre||''}`:'Credencial no encontrada');
     try{history.replaceState(null,'',location.pathname)}catch(e){}}
   if(conexion==='conectando')conexion=ONLINE?'en línea':'local';
-  render();vaciarCola()})();
+  render();vaciarCola();aplicarFavPend()})();
 setInterval(()=>{if(ME)pedirRender()},30000);
 

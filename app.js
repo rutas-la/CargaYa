@@ -8,37 +8,47 @@ const ONLINE=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY&&window.supabase);
 const sb=ONLINE?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY):null;
 
 /* ===================== Plano y geolocalización ===================== */
-// Plano trazado sobre la vista satelital (norte arriba). Escala aprox: 0,7 m por unidad.
-// Ancla: estación Metro Mercado (L3) 10.439694, -66.926833 en el punto (905,465) del plano.
-const M_PX=0.7, ANCLA={x:905,y:465,lat:10.439694,lng:-66.926833};
+// Plano trazado sobre la imagen satelital (norte arriba). 1 unidad del plano = 0,618 m.
+// Ancla: estación Metro Mercado (L3) 10.439694, -66.926833 en el punto (872,420) del plano.
+const M_PX=0.618, ANCLA={x:872,y:420,lat:10.439694,lng:-66.926833};
+const PV=2; // versión del plano: lo marcado sobre el plano anterior se vuelve a marcar
+const tienePos=o=>!!o&&o.px!=null&&o.pv===PV, zEn=z=>!!z&&z.x!=null&&z.pv===PV;
+const VB0='200 20 790 750';
 function toLatLng(x,y){return {lat:ANCLA.lat-(y-ANCLA.y)*M_PX/110574,lng:ANCLA.lng+(x-ANCLA.x)*M_PX/109477}}
 function fromLatLng(lat,lng){return {x:ANCLA.x+(lng-ANCLA.lng)*109477/M_PX,y:ANCLA.y-(lat-ANCLA.lat)*110574/M_PX}}
-const CENTRO=toLatLng(520,400);
+const CENTRO=toLatLng(540,330);
 function distM(a,b){const R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r;const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
 function rumbo(a,b){const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);const g=(Math.atan2(y,x)/r+360)%360;return {g,txt:['norte','noreste','este','sureste','sur','suroeste','oeste','noroeste'][Math.round(g/45)%8]}}
 const dentroMercado=f=>!CFG.GEOCERCA_ACTIVA||distM(f,CENTRO)<=CFG.RADIO_GEOCERCA_M;
 const enPlano=f=>f&&f.lat!=null&&distM(f,CENTRO)<=1500;
-const ANG=-61;
+const ANG=-60;
 function rot(cx,cy,ang,lx,ly){const a=ang*Math.PI/180;return [cx+lx*Math.cos(a)-ly*Math.sin(a),cy+lx*Math.sin(a)+ly*Math.cos(a)]}
-const VZ={cx:456,cy:474,w:270,h:118,N:[529,343],S:[383,605]};
-const VPOLY=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>rot(VZ.cx,VZ.cy,ANG,a*VZ.w/2,b*VZ.h/2));
-const GEO=[[235,85],[905,68],[995,330],[905,560],[740,710],[300,705],[60,650],[60,440],[200,330]];
-const AREAS=[
-  {id:'NE',nombre:'Estacionamiento Noreste',poly:[[712,205],[800,172],[905,330],[805,388],[715,352]],salida:'N',via:[[600,338],[700,348]]},
-  {id:'SO',nombre:'Estacionamiento Suroeste',poly:[[70,480],[160,440],[290,595],[240,640],[90,590]],salida:'S',via:[[300,628]]},
-  {id:'ZEA',nombre:'Frente al Galpón Calle Zea',poly:[[532,218],[610,216],[602,290],[540,282]],salida:'N',via:[[585,300]]},
-];
+const VZ={cx:520,cy:445}; // patio entre Nave Cate e INMERCA (camiones)
+const GEO=[[372,62],[800,62],[792,150],[772,330],[720,520],[690,640],[600,692],[470,620],[275,528],[285,420],[300,330],[340,180]];
 const EDIF=[
-  {n:'Galpón norte',p:'335,95 482,92 382,388 250,332',l:[365,235],r:-61},
-  {n:'Galpón Calle Zea',p:'500,104 772,104 772,206 520,216',l:[640,162],r:0},
-  {n:'Barco Pesca',p:'612,214 706,236 682,336 600,316',l:[645,300],r:0},
-  {n:'Agua Viva',p:'402,214 470,206 530,248 520,346 398,312',l:[462,286],r:-61},
-  {n:'Nave Cate',p:'382,330 432,346 332,588 276,562',l:[318,500],r:-61},
-  {n:'INMERCA',p:'602,344 652,360 500,652 446,630',l:[548,500],r:-61},
+  {n:'Galpón norte',p:'425,72 497,100 356,354 275,307',l:[386,213],r:-60},
+  {n:'Galpón Calle Zea',p:'522,87 750,87 750,148 560,148 515,192 500,140',l:[640,122],r:0},
+  {n:'Agua Viva',p:'462,186 544,233 509,294 427,247',l:[486,242],r:-60},
+  {n:'Barco Pesca',p:'630,190 685,205 645,300 597,280',l:[641,247],r:-67},
+  {n:'Nave Cate',p:'382,330 451,370 347,550 278,510',l:[364,440],r:-60},
+  {n:'INMERCA',p:'603,312 661,343 516,613 458,582',l:[560,465],r:-62},
 ];
-const HITOS=[{n:'Barco Pesca',x:655,y:275},{n:'el Galpón Calle Zea',x:640,y:160},{n:'INMERCA',x:548,y:500},{n:'la Nave Cate',x:352,y:460},{n:'Agua Viva',x:462,y:280},{n:'el Hospital',x:930,y:180},{n:'el Metro Mercado',x:905,y:465},{n:'el Galpón norte',x:340,y:230},{n:'los puestos',x:670,y:540}];
+const PUESTOS=[[665,345],[775,335],[700,650],[600,692],[516,613]];
+const HITOS=[{n:'Barco Pesca',x:641,y:247},{n:'el Galpón Calle Zea',x:640,y:118},{n:'INMERCA',x:560,y:462},{n:'la Nave Cate',x:356,y:435},{n:'Agua Viva',x:486,y:240},{n:'el Hospital',x:940,y:152},{n:'el Metro Mercado',x:872,y:420},{n:'el Galpón norte',x:386,y:213},{n:'los puestos',x:690,y:500}];
+// Entradas y pasillos iniciales (aproximados desde la imagen satelital). La administración los corrige en Zonas → Plano.
+const PLANO0={id:'plano',v:PV,
+  entradas:[{id:'E1',nombre:'Calle Zea (oeste)',x:372,y:66},{id:'E2',nombre:'Calle Zea (Galpón Calle Zea)',x:512,y:70},{id:'E3',nombre:'Calle Zea (hospital)',x:800,y:66},{id:'E4',nombre:'Puerta 1 (Intercomunal)',x:780,y:745}],
+  pasillos:[
+    {id:'P1',nombre:'Calle interna oeste',sentido:'doble',pts:[[372,66],[300,330],[285,420],[275,525]]},
+    {id:'P2',nombre:'Entre Galpón norte y Agua Viva',sentido:'doble',pts:[[512,70],[507,106],[420,262],[372,322],[300,330]]},
+    {id:'P3',nombre:'Patio entre naves',sentido:'doble',pts:[[420,262],[525,300],[460,450],[398,565]]},
+    {id:'P4',nombre:'Calle sur',sentido:'doble',pts:[[275,525],[398,565],[470,615],[600,662],[700,700],[780,745]]},
+    {id:'P5',nombre:'Avenida de los puestos',sentido:'doble',pts:[[800,66],[745,230],[705,340],[650,500],[600,662]]},
+    {id:'P6',nombre:'Frente al Galpón Calle Zea',sentido:'doble',pts:[[507,106],[512,160],[560,168],[740,172],[745,230]]},
+    {id:'P7',nombre:'Pasillo Barco Pesca',sentido:'doble',pts:[[560,168],[590,250],[560,305],[525,300]]}]};
+const planoCfg=()=>{const c=S.config&&S.config.plano;return c&&c.v===PV?c:PLANO0};
 function pip(x,y,poly){let a=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)a=!a}return a}
-const areaOf=(x,y)=>AREAS.find(a=>pip(x,y,a.poly))||(pip(x,y,VPOLY)?{id:'V',nombre:'Zona de camiones vendedores',via:[]}:null);
+const areaOf=(x,y)=>zonasActivas().find(z=>z.pv===PV&&z.poly&&z.poly.length>2&&pip(x,y,z.poly))||null;
 function zonasActivas(){return Object.values(S.zona).filter(z=>!z.baja)}
 function nombresZona(){return [...new Set(zonasActivas().map(z=>z.nombre))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}))}
 function zonaDe(f){if(!f)return null;if(f.zonaManual)return {z:{id:'manual',nombre:f.zonaManual},d:0,manual:true};if(f.lat==null)return null;let best=null;zonasActivas().forEach(z=>{const d=distM(f,z);if(!best||d<best.d)best={z,d}});return best&&best.d<=CFG.RADIO_ZONA_M?best:null}
@@ -119,35 +129,36 @@ function avisar(tipo,antes,d){if(tipo==='pago'&&ME&&ME.rol==='vendedor'&&d.vende
   if(m){toast(m);sonar()}}
 
 /* ===================== Rutas y mapa ===================== */
-function routePts(d){const c=comp(d.placa);if(!c||!enPlano(c))return null;const v=vend(d.vendedor);const end=XY(c);const a=areaOf(...end);
-  const ex=a&&a.salida?VZ[a.salida]:(Math.hypot(VZ.N[0]-end[0],VZ.N[1]-end[1])<Math.hypot(VZ.S[0]-end[0],VZ.S[1]-end[1])?VZ.N:VZ.S);
-  return [...(v&&enPlano(v)?[XY(v)]:[]),ex,...(a&&a.via?a.via:[]),end]}
-function baseSVG(){
-  let s=`<rect x="-300" y="-300" width="1600" height="1400" fill="#e9e6dc"/>
+function routePts(d){const c=comp(d.placa);if(!c||!enPlano(c))return null;const v=vend(d.vendedor);return rutaXY(v&&enPlano(v)?XY(v):null,XY(c))}
+const COL_ZONA={compradores:['#e0ecff','#1f6feb'],vendedores:['#fff3c4','#b08a1a'],puestos:['#f2dfc2','#a0784a'],otro:['#e6e6e6','#6b7078']};
+function baseSVG(){const pl=planoCfg();
+  let s=`<rect x="-300" y="-300" width="1700" height="1400" fill="#e9e6dc"/>
   <polygon points="${GEO.map(p=>p.join(',')).join(' ')}" fill="#efede6" stroke="#3ddc84" stroke-width="2" stroke-dasharray="6 6"/>
-  <g fill="none" stroke="#d3cfc2" stroke-linecap="round" stroke-linejoin="round">
-   <polyline points="230,82 1009,72" stroke-width="18"/><polyline points="840,760 1009,380" stroke-width="20"/>
-   <polyline points="245,95 240,560 300,628 470,690 650,705" stroke-width="14"/><polyline points="490,98 400,205" stroke-width="10"/>
-   <polyline points="529,343 600,338 700,348 860,235 900,80" stroke-width="12"/><polyline points="383,605 300,628" stroke-width="12"/></g>
-  <polygon points="662,372 800,382 712,702 545,702" fill="#f2dfc2"/>
-  <text x="672" y="560" font-family="Barlow Condensed" font-size="15" fill="#a0784a" text-anchor="middle" transform="rotate(-72 672 560)">PUESTOS / BUHONEROS</text>`;
+  <g fill="none" stroke="#d3cfc2" stroke-linecap="round" stroke-linejoin="round"><polyline points="120,62 1063,58" stroke-width="18"/><polyline points="1015,70 962,300 905,560 868,780" stroke-width="22"/></g>
+  <polygon points="${PUESTOS.map(p=>p.join(',')).join(' ')}" fill="#f2dfc2"/>
+  <text x="682" y="575" font-family="Barlow Condensed" font-size="15" fill="#a0784a" text-anchor="middle" transform="rotate(-71 682 575)">PUESTOS / BUHONEROS</text>`;
+  // zonas dibujadas (con su color según el tipo)
+  zonasActivas().filter(z=>z.pv===PV&&z.poly&&z.poly.length>2).forEach(z=>{const [f,c]=COL_ZONA[z.tipo]||COL_ZONA.otro;
+    s+=`<polygon points="${z.poly.map(p=>p.join(',')).join(' ')}" fill="${f}" fill-opacity=".75" stroke="${c}" stroke-opacity=".6" stroke-dasharray="5 4"/>`});
+  // pasillos
+  s+=`<g fill="none" stroke-linecap="round" stroke-linejoin="round">${(pl.pasillos||[]).map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#d3cfc2" stroke-width="13"/>`).join('')}
+    ${(pl.pasillos||[]).map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#fff" stroke-width="1.6" stroke-dasharray="6 6" opacity=".9"/>`).join('')}</g>`;
+  (pl.pasillos||[]).filter(p=>p.sentido==='uno'&&p.pts.length>1).forEach(p=>{for(let i=0;i+1<p.pts.length;i++){const [a,b]=[p.pts[i],p.pts[i+1]],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
+    s+=`<path d="M-5,-4 L5,0 L-5,4Z" fill="#7c8089" transform="translate(${f1(mx)} ${f1(my)}) rotate(${f1(g)})"/>`}});
   EDIF.forEach(e=>{s+=`<polygon points="${e.p}" fill="#cbc7bb" stroke="#b8b3a5"/><text x="${e.l[0]}" y="${e.l[1]}" font-family="Barlow Condensed" font-weight="700" font-size="14" fill="#5d6169" text-anchor="middle" transform="rotate(${e.r} ${e.l[0]} ${e.l[1]})">${e.n.toUpperCase()}</text>`});
-  AREAS.forEach(a=>{const cx=a.poly.reduce((s,p)=>s+p[0],0)/a.poly.length,cy=a.poly.reduce((s,p)=>s+p[1],0)/a.poly.length;
-    s+=`<polygon points="${a.poly.map(p=>p.join(',')).join(' ')}" fill="#e0ecff" fill-opacity=".7" stroke="#1f6feb" stroke-opacity=".5" stroke-dasharray="5 4"/><text x="${f1(cx)}" y="${f1(cy)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="#1f6feb" opacity=".7">COMPRADORES</text>`});
-  s+=`<polygon points="${VPOLY.map(p=>p.map(f1).join(',')).join(' ')}" fill="#fff3c4" stroke="#e8c96a"/>
-  <text x="${VZ.cx}" y="${VZ.cy}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="13" fill="#b08a1a" transform="rotate(${ANG} ${VZ.cx} ${VZ.cy})">CAMIONES VENDEDORES</text>
-  <text x="620" y="66" font-size="13" font-weight="600" fill="#7c8089">Calle Zea</text>
-  <text x="935" y="600" font-size="13" font-weight="600" fill="#7c8089" transform="rotate(-66 935 600)">Av. Intercomunal de El Valle</text>
-  <circle cx="905" cy="465" r="13" fill="#1f6feb"/><text x="905" y="470" text-anchor="middle" font-weight="700" font-size="14" fill="#fff">M</text>
-  <text x="905" y="495" text-anchor="middle" font-size="11.5" fill="#4a4f58">Metro Mercado</text>
-  <circle cx="930" cy="180" r="11" fill="#e0362c"/><text x="930" y="185" text-anchor="middle" font-weight="700" font-size="13" fill="#fff">H</text>
-  <g transform="translate(90 120)"><circle r="18" fill="#fff" stroke="#cbc7bb"/><path d="M0,-12 L6,6 L0,2 L-6,6Z" fill="#16181c"/><text y="-22" text-anchor="middle" font-size="11" font-weight="700" fill="#4a4f58">N</text></g>`;
+  (pl.entradas||[]).forEach(e=>{s+=`<g transform="translate(${e.x} ${e.y})"><rect x="-9" y="-9" width="18" height="18" rx="4" fill="#7b3fe4" stroke="#fff" stroke-width="2"/><path d="M-4,-4 L4,0 L-4,4Z" fill="#fff" transform="rotate(90)"/><text y="22" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="#7b3fe4" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(e.nombre)}</text></g>`});
+  s+=`<text x="620" y="50" font-size="13" font-weight="600" fill="#7c8089">Calle Zea</text>
+  <text x="940" y="620" font-size="13" font-weight="600" fill="#7c8089" transform="rotate(-77 940 620)">Av. Intercomunal de El Valle</text>
+  <circle cx="872" cy="420" r="13" fill="#1f6feb"/><text x="872" y="425" text-anchor="middle" font-weight="700" font-size="14" fill="#fff">M</text>
+  <text x="872" y="450" text-anchor="middle" font-size="11.5" fill="#4a4f58">Metro Mercado</text>
+  <circle cx="940" cy="152" r="11" fill="#e0362c"/><text x="940" y="157" text-anchor="middle" font-weight="700" font-size="13" fill="#fff">H</text>
+  <g transform="translate(240 70)"><circle r="18" fill="#fff" stroke="#cbc7bb"/><path d="M0,-12 L6,6 L0,2 L-6,6Z" fill="#16181c"/><text y="-22" text-anchor="middle" font-size="11" font-weight="700" fill="#4a4f58">N</text></g>`;
   return s}
 const PERSON='<circle r="9" fill="#1f6feb" stroke="#fff" stroke-width="3"/><circle r="22" fill="#1f6feb" fill-opacity=".15"/>';
 function mapSVG(opts={}){
   const focus=opts.focus;const activos=L('despacho').filter(d=>d.estado!=='entregado');
   const conPend=new Set(activos.map(d=>d.placa)),enRuta=new Set(activos.filter(d=>d.estado==='en_ruta').map(d=>d.placa));
-  let vb='40 40 960 690';const zp=focus?routePts(focus):opts.zoom||null;
+  let vb=VB0;const zp=focus?routePts(focus):opts.zoom||null;
   if(zp&&zp.length){const xs=zp.map(q=>q[0]),ys=zp.map(q=>q[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
     let w=Math.max(x1-x0+170,opts.minW||420),h=Math.max(y1-y0+170,300);if(w/h<1.4)w=h*1.4;else h=w/1.4;vb=`${f1((x0+x1)/2-w/2)} ${f1((y0+y1)/2-h/2)} ${f1(w)} ${f1(h)}`}
   let s=`<svg class="map" ${opts.id?`id="${opts.id}"`:''} viewBox="${vb}" role="img" aria-label="Plano del Mercado Mayor de Coche" ${opts.pick?'style="cursor:crosshair"':''}>${baseSVG()}`;
@@ -172,13 +183,13 @@ function fotoInput(input,cb){if(!input)return;input.onchange=()=>{const f=input.
 
 /* ---- Calibración del plano ---- */
 const PUNTOS_CAL=[
-  {id:'P1',nombre:'INMERCA · punta norte',ayuda:'Esquina del galpón INMERCA más cercana a Barco Pesca',x:627,y:352},
-  {id:'P2',nombre:'INMERCA · punta sur',ayuda:'El otro extremo del galpón INMERCA',x:473,y:641},
-  {id:'P3',nombre:'Nave Cate · punta norte',ayuda:'Extremo del galpón de Frutas Cate más cercano a Agua Viva',x:407,y:338},
-  {id:'P4',nombre:'Nave Cate · punta sur',ayuda:'El otro extremo del galpón de Frutas Cate',x:304,y:575},
-  {id:'P5',nombre:'Barco Pesca · esquina sureste',ayuda:'Esquina de Barco Pesca que da a la calle interna, del lado de INMERCA',x:682,y:336},
-  {id:'P6',nombre:'Galpón Calle Zea · esquina noreste',ayuda:'Esquina del galpón grande sobre Calle Zea, del lado del hospital',x:772,y:104},
-  {id:'P7',nombre:'Salida del Metro Mercado',ayuda:'En la boca de salida del metro',x:905,y:465},
+  {id:'P1',nombre:'INMERCA · punta norte',ayuda:'Esquina del galpón INMERCA más cercana a Barco Pesca',x:632,y:327},
+  {id:'P2',nombre:'INMERCA · punta sur',ayuda:'El otro extremo del galpón INMERCA',x:487,y:597},
+  {id:'P3',nombre:'Nave Cate · punta norte',ayuda:'Extremo del galpón de Frutas Cate más cercano a Agua Viva',x:408,y:345},
+  {id:'P4',nombre:'Nave Cate · punta sur',ayuda:'El otro extremo del galpón de Frutas Cate',x:304,y:525},
+  {id:'P5',nombre:'Barco Pesca · esquina sureste',ayuda:'Esquina de Barco Pesca que da a la calle interna, del lado de INMERCA',x:645,y:300},
+  {id:'P6',nombre:'Galpón Calle Zea · esquina noreste',ayuda:'Esquina del galpón grande sobre Calle Zea, del lado del hospital',x:750,y:87},
+  {id:'P7',nombre:'Salida del Metro Mercado',ayuda:'En la boca de salida del metro',x:872,y:420},
 ];
 function calTexto(){const ms=PUNTOS_CAL.map(p=>({p,m:S.calibracion[p.id]})).filter(o=>o.m);const extra=Object.values(S.calibracion).filter(m=>m.id.startsWith('X'));
   return ['CargaYa · calibración del plano',...ms.map(({p,m})=>`${p.id} ${p.nombre}: ${m.lat.toFixed(6)}, ${m.lng.toFixed(6)} ±${m.acc} m (desvío ${Math.round(distM(m,toLatLng(p.x,p.y)))} m)${m.nota?' · '+m.nota:''}`),
@@ -253,13 +264,13 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
 function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr','miUbic','miSusc'];return ['comprador','vendC']}
-const NOMBRES={miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
+const NOMBRES={miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Plano y zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
 function leerItems(){const f=document.getElementById('fDesp');if(!f)return null;return [...f.querySelectorAll('.it-row')].map(r=>({desc:r.querySelector('.it-desc').value,bultos:r.querySelector('.it-bul').value}))}
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;const it=leerItems();if(it)desp.items=it}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
-const ocupado=()=>!!otroModulo||!!yoBuscando||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
+const ocupado=()=>!!otroModulo||!!yoBuscando||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!zonaDib||!!plEdit||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
   el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">${ONLINE?'salir':'cambiar'}</a>`:''}`;
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();if(ONLINE){salir();return}setME(null);view=null;render()}}
@@ -411,22 +422,46 @@ async function reclamar(d,txt){await guardar('despacho',{...d,estado:'reclamo',r
 
 /* ---- Plano sin GPS: posiciones marcadas tocando el mapa ---- */
 const zonaPorNombre=n=>zonasActivas().find(z=>z.nombre===n);
-function posComp(c){if(!c)return null;if(c.px!=null)return [c.px,c.py];const z=zonaPorNombre(c.zona);return z&&z.x!=null?[z.x,z.y]:null}
-const posVend=v=>{if(!v)return null;if(v.px!=null)return [v.px,v.py];const z=zonaPorNombre(v.sector);return z&&z.x!=null?[z.x,z.y]:null};
-function rutaXY(a,b){const ar=areaOf(...b);const ex=ar&&ar.salida?VZ[ar.salida]:(Math.hypot(VZ.N[0]-b[0],VZ.N[1]-b[1])<Math.hypot(VZ.S[0]-b[0],VZ.S[1]-b[1])?VZ.N:VZ.S);
-  const enVend=a&&pip(a[0],a[1],VPOLY);return [...(a?[a]:[]),...(enVend||!a?[ex]:[]),...(ar&&ar.via&&(enVend||!a)?ar.via:[]),b]}
+function posComp(c){if(!c)return null;if(tienePos(c))return [c.px,c.py];const z=zonaPorNombre(c.zona);return zEn(z)?[z.x,z.y]:null}
+const posVend=v=>{if(!v)return null;if(tienePos(v))return [v.px,v.py];const z=zonaPorNombre(v.sector);return zEn(z)?[z.x,z.y]:null};
+// Red de pasillos: se cortan los cruces y se busca el camino más corto (respetando un solo sentido si lo hay)
+function redPasillos(){const ps=planoCfg().pasillos||[];const key=JSON.stringify(ps);if(redPasillos.k===key)return redPasillos.g;
+  const segs=[];ps.forEach(p=>{for(let i=0;i+1<(p.pts||[]).length;i++)segs.push({a:p.pts[i],b:p.pts[i+1],uno:p.sentido==='uno',ts:[0,1]})});
+  const proj=(q,s)=>{const dx=s.b[0]-s.a[0],dy=s.b[1]-s.a[1],L2=dx*dx+dy*dy||1;const t=Math.max(0,Math.min(1,((q[0]-s.a[0])*dx+(q[1]-s.a[1])*dy)/L2));return {t,x:s.a[0]+t*dx,y:s.a[1]+t*dy,d:Math.hypot(q[0]-s.a[0]-t*dx,q[1]-s.a[1]-t*dy)}};
+  for(let i=0;i<segs.length;i++)for(let j=i+1;j<segs.length;j++){const s=segs[i],r=segs[j];
+    const d1=[s.b[0]-s.a[0],s.b[1]-s.a[1]],d2=[r.b[0]-r.a[0],r.b[1]-r.a[1]],den=d1[0]*d2[1]-d1[1]*d2[0];
+    if(Math.abs(den)>1e-9){const t=((r.a[0]-s.a[0])*d2[1]-(r.a[1]-s.a[1])*d2[0])/den,u=((r.a[0]-s.a[0])*d1[1]-(r.a[1]-s.a[1])*d1[0])/den;
+      if(t>0.001&&t<0.999&&u>0.001&&u<0.999){s.ts.push(t);r.ts.push(u)}}
+    // uniones en T: un extremo que queda a menos de 14 unidades de otro pasillo se conecta
+    [[s,r],[r,s]].forEach(([x,y])=>[x.a,x.b].forEach(q=>{const k=proj(q,y);if(k.d<14&&k.t>0.001&&k.t<0.999)y.ts.push(k.t)}))}
+  const nodes=[],E=[];const nodo=(x,y)=>{for(let i=0;i<nodes.length;i++)if(Math.hypot(nodes[i][0]-x,nodes[i][1]-y)<14)return i;nodes.push([x,y]);return nodes.length-1};
+  segs.forEach(s=>{const ts=[...new Set(s.ts.map(t=>Math.round(t*1e4)/1e4))].sort((a,b)=>a-b);let prev=null;
+    ts.forEach(t=>{const n=nodo(s.a[0]+t*(s.b[0]-s.a[0]),s.a[1]+t*(s.b[1]-s.a[1]));if(prev!=null&&prev!==n)E.push({u:prev,v:n,uno:s.uno,w:Math.hypot(nodes[n][0]-nodes[prev][0],nodes[n][1]-nodes[prev][1])});prev=n})});
+  redPasillos.k=key;redPasillos.g={nodes,E,proj};return redPasillos.g}
+function caminoCorto(nodes,E,ini,fin,dirigido){const n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),hecho=Array(n).fill(false);const ady=Array.from({length:n},()=>[]);
+  E.forEach(e=>{ady[e.u].push([e.v,e.w]);if(!e.uno||!dirigido)ady[e.v].push([e.u,e.w])});dist[ini]=0;
+  for(;;){let u=-1;for(let i=0;i<n;i++)if(!hecho[i]&&dist[i]<Infinity&&(u<0||dist[i]<dist[u]))u=i;if(u<0||u===fin)break;hecho[u]=true;ady[u].forEach(([v,w])=>{if(dist[u]+w<dist[v]){dist[v]=dist[u]+w;prev[v]=u}})}
+  if(dist[fin]===Infinity)return null;const cam=[];for(let u=fin;u>=0;u=prev[u])cam.unshift(u);return cam}
+function rutaXY(a,b){const ini=a||[VZ.cx,VZ.cy];const g=redPasillos();if(!g.E.length)return [ini,b];
+  // se engancha cada extremo al tramo de pasillo más cercano (nodo temporal)
+  const pegar=(q,nodes,E)=>{let best=null;E.forEach((e,i)=>{const k=g.proj(q,{a:nodes[e.u],b:nodes[e.v]});if(!best||k.d<best.k.d)best={k,e}});
+    const id=nodes.length;nodes.push([best.k.x,best.k.y]);E.push({u:best.e.u,v:id,uno:best.e.uno,w:best.k.t*best.e.w},{u:id,v:best.e.v,uno:best.e.uno,w:(1-best.k.t)*best.e.w});return id};
+  const nodes=g.nodes.slice(),E=g.E.slice();const s=pegar(ini,nodes,E),t=pegar(b,nodes,E);
+  const cam=caminoCorto(nodes,E,s,t,true)||caminoCorto(nodes,E,s,t,false);if(!cam)return [ini,b];
+  const pts=[ini,...cam.map(i=>nodes[i]),b];return pts.filter((q,i)=>i===0||Math.hypot(q[0]-pts[i-1][0],q[1]-pts[i-1][1])>1)}
 function svgXY(svg,ev){const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const r=pt.matrixTransform(svg.getScreenCTM().inverse());return {x:Math.round(r.x),y:Math.round(r.y)}}
 function planoSVG(o={}){
-  let vb='40 40 960 690';
+  let vb=VB0;const ruta=o.ruta&&o.dest?rutaXY(o.ruta,o.dest):null;if(ruta&&o.zoom)o={...o,zoom:[...o.zoom.filter(Boolean),...ruta]};
   if(o.zoom&&o.zoom.length){const xs=o.zoom.map(q=>q[0]),ys=o.zoom.map(q=>q[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
     let w=Math.max(x1-x0+160,o.minW||380),h=Math.max(y1-y0+160,260);if(w/h<1.35)w=h*1.35;else h=w/1.35;vb=`${f1((x0+x1)/2-w/2)} ${f1((y0+y1)/2-h/2)} ${f1(w)} ${f1(h)}`}
   let s=`<svg class="map" ${o.id?`id="${o.id}"`:''} viewBox="${vb}" role="img" aria-label="Plano del Mercado Mayor de Coche" ${o.pick?'style="cursor:crosshair;touch-action:manipulation"':''}>${baseSVG()}`;
-  zonasActivas().filter(z=>z.x!=null).forEach(z=>{const hl=o.zonaHL&&z.nombre===o.zonaHL,w=Math.max(30,12+z.nombre.length*6.2);
+  zonasActivas().filter(zEn).forEach(z=>{const hl=o.zonaHL&&z.nombre===o.zonaHL,w=Math.max(30,12+z.nombre.length*6.2);
     s+=`<g transform="translate(${z.x} ${z.y})" opacity="${o.zonaHL&&!hl?.55:1}"><rect x="${-w/2}" y="-10" width="${w}" height="20" rx="5" fill="${hl?'#16181c':'#12a150'}" stroke="#fff" stroke-width="2"/><text y="4.5" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="${hl?'#ffc400':'#fff'}">${esc(z.nombre)}</text></g>`});
   if(o.todos){compradoresActivos().forEach(c=>{const q=posComp(c);if(!q)return;const enc=L('despacho').some(d=>d.placa===c.id&&d.estado==='en_ruta');
-    s+=`<circle cx="${q[0]}" cy="${q[1]+(c.px!=null?0:16)}" r="6" fill="${enc?'#f07b14':'#16181c'}" stroke="#fff" stroke-width="2"><title>${esc(c.id)} · ${esc(c.vehiculo||'')}</title></circle>`});
+    s+=`<circle cx="${q[0]}" cy="${q[1]+(tienePos(c)?0:16)}" r="6" fill="${enc?'#f07b14':'#16181c'}" stroke="#fff" stroke-width="2"><title>${esc(c.id)} · ${esc(c.vehiculo||'')}</title></circle>`});
     L('vendedor').forEach(v=>{const q=posVend(v);if(q)s+=`<g transform="translate(${q[0]} ${q[1]}) rotate(${ANG})"><rect x="-13" y="-7" width="26" height="14" rx="3" fill="#16181c"/><title>${esc(v.nombre)}</title></g>`})}
-  if(o.ruta&&o.dest){const r=rutaXY(o.ruta,o.dest);s+=`<polyline points="${r.map(q=>f1(q[0])+','+f1(q[1])).join(' ')}" fill="none" stroke="#e0362c" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" class="route"/>`}
+  if(o.extra)s+=o.extra;
+  if(ruta){const r=ruta;s+=`<polyline points="${r.map(q=>f1(q[0])+','+f1(q[1])).join(' ')}" fill="none" stroke="#e0362c" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" class="route"/>`}
   if(o.yo){const q=o.yo;s+=`<g transform="translate(${f1(q[0])} ${f1(q[1])})"><circle r="24" fill="#1f6feb" fill-opacity=".15"/><circle r="9" fill="#1f6feb" stroke="#fff" stroke-width="3"/><text y="26" text-anchor="middle" font-family="Barlow Condensed" font-weight="800" font-size="13" fill="#1f6feb" stroke="#fff" stroke-width="3" paint-order="stroke">TÚ</text></g>`}
   if(o.camion){const q=o.camion;s+=`<g transform="translate(${q[0]} ${q[1]})"><g transform="rotate(${ANG})"><rect x="-16" y="-9" width="32" height="18" rx="3" fill="#ffc400" stroke="#16181c" stroke-width="2"/></g><text y="-14" text-anchor="middle" font-family="Barlow Condensed" font-weight="800" font-size="13" fill="#16181c" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(o.camionTxt||'CAMIÓN')}</text></g>`}
   if(o.dest){const q=o.dest;s+=`<circle cx="${q[0]}" cy="${q[1]}" r="20" fill="none" stroke="#e0362c" stroke-width="3" class="pulse"/><circle cx="${q[0]}" cy="${q[1]}" r="9" fill="#e0362c" stroke="#fff" stroke-width="3"/>${o.destTxt?`<text x="${q[0]}" y="${q[1]+38}" text-anchor="middle" font-family="Share Tech Mono" font-size="14" fill="#16181c" stroke="#fff" stroke-width="4" paint-order="stroke">${esc(o.destTxt)}</text>`:''}`}
@@ -455,17 +490,38 @@ function vMercado(){
   <div class="card"><h2>Despachos</h2><div class="list">${ds.sort((a,b)=>b.t.creado-a.t.creado).slice(0,150).map(d=>itemDesp(d)+(d.archivado?'<div class="hint" style="margin-top:-6px">Archivado por el vendedor</div>':'')).join('')||'<div class="empty">Todavía no hay despachos</div>'}</div></div></div>`}
 
 /* ---- Zonas ---- */
-let zonaUbicando=null;
-function vZonas(){const ns=nombresZona();
-  if(zonaUbicando){const z=S.zona[zonaUbicando];return `<div class="card"><h2>Ubicar "${esc(z.nombre)}" en el plano</h2><p class="sub">Toca en el plano el centro de esa zona. Puedes tocar otra vez para corregir.</p>
-    ${planoSVG({id:'zPick',pick:true,dest:z.x!=null?[z.x,z.y]:null,destTxt:z.nombre})}
+let zonaUbicando=null,zonaDib=null,dibPts=[],plEdit=null;
+const TIPOS_ZONA=[['compradores','Estacionamiento de compradores'],['vendedores','Camiones de vendedores'],['puestos','Puestos'],['otro','Otro']];
+const centroide=ps=>[Math.round(ps.reduce((a,p)=>a+p[0],0)/ps.length),Math.round(ps.reduce((a,p)=>a+p[1],0)/ps.length)];
+function trazoSVG(ps,cerrar,color){if(!ps.length)return '';return `${ps.length>1?`<${cerrar&&ps.length>2?'polygon':'polyline'} points="${ps.map(q=>q.join(',')).join(' ')}" fill="${cerrar&&ps.length>2?color:'none'}" fill-opacity=".35" stroke="${color}" stroke-width="4" stroke-linejoin="round"/>`:''}${ps.map((q,i)=>`<circle cx="${q[0]}" cy="${q[1]}" r="${i===ps.length-1?7:5}" fill="${color}" stroke="#fff" stroke-width="2"/>`).join('')}`}
+function vZonas(){const ns=nombresZona();const pl=planoCfg();
+  if(zonaUbicando){const z=S.zona[zonaUbicando];return `<div class="card"><h2>Centro de "${esc(z.nombre)}"</h2><p class="sub">Toca en el plano el centro de esa zona (ahí se ubica el vehículo de quien elige la zona). Puedes tocar otra vez para corregir.</p>
+    ${planoSVG({id:'zPick',pick:true,dest:zEn(z)?[z.x,z.y]:null,destTxt:z.nombre})}
     <div class="row" style="margin-top:10px"><button class="btn y" id="zListo">Listo</button></div></div>`}
+  if(zonaDib){const z=S.zona[zonaDib];return `<div class="card"><h2>Área de "${esc(z.nombre)}"</h2><p class="sub">Toca las esquinas de la zona una por una, siguiendo el borde. Con 3 o más puntos queda cerrada.</p>
+    ${planoSVG({id:'zDib',pick:true,extra:trazoSVG(dibPts,true,'#1f6feb')})}
+    <div class="row" style="margin-top:10px"><button class="btn o" id="dDeshacer" ${dibPts.length?'':'disabled'}>↶ Deshacer punto</button><button class="btn o" id="dCancelar">Cancelar</button><button class="btn y" id="dListo" ${dibPts.length>2?'':'disabled'}>Guardar área (${dibPts.length} puntos)</button></div></div>`}
+  if(plEdit){const ent=plEdit.tipo==='entrada';return `<div class="card"><h2>${ent?'Marcar entrada':'Dibujar pasillo'}: "${esc(plEdit.nombre)}"</h2>
+    <p class="sub">${ent?'Toca en el plano dónde está la entrada o portón.':`Toca los puntos del recorrido en orden${plEdit.sentido==='uno'?' (en el sentido en que se circula)':''}. Para que se conecte con otro pasillo, empieza o termina encima de él.`}</p>
+    ${planoSVG({id:'plPick',pick:true,extra:trazoSVG(plEdit.pts,false,ent?'#7b3fe4':'#e0362c')})}
+    <div class="row" style="margin-top:10px">${ent?'':`<button class="btn o" id="plDeshacer" ${plEdit.pts.length?'':'disabled'}>↶ Deshacer punto</button>`}<button class="btn o" id="plCancelar">Cancelar</button><button class="btn y" id="plListo" ${(ent?plEdit.pts.length===1:plEdit.pts.length>1)?'':'disabled'}>Guardar</button></div></div>`}
   return `<div class="grid g2"><div class="card"><h2>Zonas y sectores</h2>
-   <p class="sub">Escribe los nombres que usa la gente para cada parte del mercado: dónde estacionan los compradores (ej: "Detrás del Barco", "La bomba") y dónde están los puestos (ej: "Nave A", "Frente a INMERCA"). El comprador elige su zona al estacionar y el vendedor su sector. Ubica cada una en el plano para que se puedan calcular las distancias.</p>
+   <p class="sub">Escribe los nombres que usa la gente para cada parte del mercado: dónde estacionan los compradores (ej: "Detrás del Barco", "La bomba"), dónde se ponen los camiones y dónde están los puestos (ej: "Zona de la cebolla"). Dibuja el área de cada una en el plano y marca su centro.</p>
    <div class="row"><div><label>Nombre de la zona</label><input id="zNombre" placeholder="Ej: Detrás del Barco" autocomplete="off"></div><button class="btn y" style="flex:0 0 auto;align-self:flex-end" id="zGuardar">Agregar</button></div></div>
-   <div class="card"><h2>${ns.length} zonas</h2><div class="list">${ns.map(n=>{const z=zonasActivas().find(x=>x.nombre===n);const veh=compradoresActivos().filter(c=>c.zona===n).length;
-     return `<div class="item"><div class="top"><b style="font-size:19px">${esc(n)}</b><span class="hint">${veh} vehículo${veh===1?'':'s'} ahora</span></div><div class="row"><button class="btn ${z.x!=null?'o':'y'}" data-zmap="${esc(z.id)}">📍 ${z.x!=null?'Mover en el mapa':'Ubicar en el mapa'}</button><button class="btn o" style="flex:0 0 auto" data-zdel="${esc(z.id)}">Quitar</button></div></div>`}).join('')||'<div class="empty">Todavía no hay zonas</div>'}</div></div>
-   <div style="grid-column:1/-1">${planoSVG({nota:'Las zonas en verde ya están ubicadas en el plano.'})}</div></div>`}
+   <div class="card"><h2>${ns.length} zonas</h2><div class="list">${ns.map(n=>{const z=zonasActivas().find(x=>x.nombre===n);const veh=compradoresActivos().filter(c=>c.zona===n).length;const area=z.pv===PV&&z.poly&&z.poly.length>2;
+     return `<div class="item"><div class="top"><b style="font-size:19px">${esc(n)}</b><span class="hint">${veh} vehículo${veh===1?'':'s'} ahora</span></div>
+      <select data-ztipo="${esc(z.id)}" style="margin-top:6px">${TIPOS_ZONA.map(([k,t])=>`<option value="${k}" ${(z.tipo||'compradores')===k?'selected':''}>${t}</option>`).join('')}</select>
+      <div class="row" style="flex-wrap:wrap;margin-top:6px"><button class="btn ${area?'o':'y'}" data-zdib="${esc(z.id)}">✏️ ${area?'Redibujar área':'Dibujar área'}</button><button class="btn ${zEn(z)?'o':'y'}" data-zmap="${esc(z.id)}">📍 ${zEn(z)?'Mover centro':'Marcar centro'}</button><button class="btn o" style="flex:0 0 auto" data-zdel="${esc(z.id)}">Quitar</button></div></div>`}).join('')||'<div class="empty">Todavía no hay zonas</div>'}</div></div>
+   <div class="card"><h2>Entradas y portones</h2><p class="sub">Aparecen en el plano en morado.</p>
+    <div class="list">${(pl.entradas||[]).map(e=>`<div class="row" style="align-items:center"><div>🚪 <b>${esc(e.nombre)}</b></div><button class="btn o" style="flex:0 0 auto" data-eedit="${esc(e.id)}">Mover</button><button class="btn o" style="flex:0 0 auto" data-edel="${esc(e.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin entradas</div>'}</div>
+    <div class="row" style="margin-top:8px"><div><label>Nueva entrada</label><input id="eNombre" placeholder="Ej: Portón Calle Zea" autocomplete="off"></div><button class="btn y" style="flex:0 0 auto;align-self:flex-end" id="eAgregar">Marcar en el plano</button></div></div>
+   <div class="card"><h2>Pasillos y calles internas</h2><p class="sub">Por aquí se calculan las rutas que ve el carretillero. Si un pasillo es de un solo sentido, dibújalo en el sentido de circulación.</p>
+    <div class="list">${(pl.pasillos||[]).map(q=>`<div class="row" style="align-items:center"><div>🛣 <b>${esc(q.nombre)}</b>${q.sentido==='uno'?' <span class="hint">· un solo sentido</span>':''}</div><button class="btn o" style="flex:0 0 auto" data-pedit="${esc(q.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-pdel="${esc(q.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin pasillos: las rutas se muestran en línea recta</div>'}</div>
+    <div class="row" style="margin-top:8px"><div><label>Nuevo pasillo</label><input id="pNombre" placeholder="Ej: Pasillo de la cebolla" autocomplete="off"></div><div style="flex:0 0 140px"><label>Sentido</label><select id="pSentido"><option value="doble">Doble sentido</option><option value="uno">Un solo sentido</option></select></div></div>
+    <button class="btn y" id="pAgregar" style="width:100%;margin-top:8px">Dibujar en el plano</button>
+    ${S.config.plano?`<button class="btn o" id="plReset" style="width:100%;margin-top:8px">Volver a las entradas y pasillos iniciales</button>`:''}</div>
+   <div style="grid-column:1/-1">${planoSVG({nota:'<span><i style="background:#7b3fe4"></i>Entrada</span><span><i style="background:#d3cfc2"></i>Pasillo</span><span><i style="background:#e0ecff"></i>Compradores</span><span><i style="background:#fff3c4"></i>Camiones</span><span><i style="background:#f2dfc2"></i>Puestos</span><span><i style="background:#12a150"></i>Centro de zona</span>'})}</div></div>`}
+async function guardarPlano(cambio,msg){const pl=JSON.parse(JSON.stringify(planoCfg()));cambio(pl);pl.id='plano';pl.v=PV;await guardar('config',pl);if(msg)log(msg);render()}
 
 /* ---- Carretilleros ---- */
 function statsK(k){const hoy=new Date().toDateString();const ds=L('despacho').filter(d=>d.carretillero===k.id&&new Date(d.t.creado).toDateString()===hoy);
@@ -671,7 +727,7 @@ function vVendedor(){
      <div class="stepbox" style="margin-top:12px;border-style:solid"><div class="hint">Lleva</div>${itemsDe(d).map(i=>`<div style="font-size:20px"><b>${i.bultos}</b> × ${esc(i.desc)}</div>`).join('')}<div class="hint">Total: ${d.bultos} bultos</div></div>
      ${c.foto?`<img class="photo" style="margin-top:10px;max-height:320px" src="${c.foto}" alt="">`:''}
      ${posComp(c)?`<div style="margin-top:12px">${planoSVG({zoom:[posComp(c),...(posVend(vend(d.vendedor))?[posVend(vend(d.vendedor))]:[])],minW:420,zonaHL:c.zona,dest:posComp(c),destTxt:c.id,camion:posVend(vend(d.vendedor)),camionTxt:'TÚ ESTÁS AQUÍ',ruta:posVend(vend(d.vendedor))})}</div>
-       <p class="hint" style="margin-top:4px">${c.px!=null?'El punto rojo es donde el comprador marcó su vehículo.':'El punto rojo es la zona; el comprador no marcó el lugar exacto.'}${posVend(vend(d.vendedor))?'':' Ubica tu camión en el plano para ver el camino.'}</p>`:''}
+       <p class="hint" style="margin-top:4px">${tienePos(c)?'El punto rojo es donde el comprador marcó su vehículo.':'El punto rojo es la zona; el comprador no marcó el lugar exacto.'}${posVend(vend(d.vendedor))?'':' Ubica tu camión en el plano para ver el camino.'}</p>`:''}
      <button class="btn y big" id="fvListo" style="margin-top:12px">Listo, salió</button></div>`}
   const mis=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado).sort((a,b)=>b.t.creado-a.t.creado);
   const cerrados=mis.filter(d=>d.estado==='entregado').length;
@@ -738,9 +794,9 @@ function vMiUbic(){const v=vendYo();if(!v)return '<div class="card empty">Cargan
       <div class="row" style="margin-top:10px"><button class="btn o" id="mpCancel">Cancelar</button><button class="btn y" id="mpOk">Guardar</button></div>`
      :`<div style="font-size:17px"><b>${esc(v.productos||'¿Qué vendes? Sin indicar')}</b></div>
       <div class="meta">Sector: <b>${esc(v.sector||'sin indicar')}</b>${v.refPuesto?' · 📌 '+esc(v.refPuesto):''}</div>
-      <div class="meta">${v.px!=null?`📍 Marcado en el plano${v.ubicT?' · '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:posVend(v)?'📍 Ubicado por su sector':v.sector?'<span class="hint">Tu sector todavía no está ubicado en el plano (lo hace la administración). Si quieres, marca tu lugar exacto.</span>':'<span class="bad">Falta indicar tu sector</span>'}</div>
+      <div class="meta">${tienePos(v)?`📍 Marcado en el plano${v.ubicT?' · '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:posVend(v)?'📍 Ubicado por su sector':v.sector?'<span class="hint">Tu sector todavía no está ubicado en el plano (lo hace la administración). Si quieres, marca tu lugar exacto.</span>':'<span class="bad">Falta indicar tu sector</span>'}</div>
       <button class="btn ${v.sector&&v.productos?'o':'y'}" id="mpEditar" style="width:100%;margin-top:8px">✏️ Qué vendo, sector y referencia</button>
-      <button class="btn o" id="vUbicar" style="width:100%;margin-top:8px">🗺 ${v.px!=null?'Cambiar mi lugar en el plano':'Marcar mi lugar exacto en el plano (opcional)'}</button>`}</div>
+      <button class="btn o" id="vUbicar" style="width:100%;margin-top:8px">🗺 ${tienePos(v)?'Cambiar mi lugar en el plano':'Marcar mi lugar exacto en el plano (opcional)'}</button>`}</div>
    ${cardInvita(v)}
    ${posVend(v)?`<div class="card"><h2>Así te ven en el plano</h2>${planoSVG({zoom:[posVend(v)],minW:420,camion:posVend(v),camionTxt:'MI PUESTO'})}</div>`:''}</div>`}
 function vMiSusc(){const v=vendYo();if(!v)return '<div class="card empty">Cargando…</div>';
@@ -814,12 +870,12 @@ function vComprador(){
   <div class="card"><h2>Mis compras</h2><p class="sub">${enCamino.length} por recibir · ${mis.length-enCamino.length} cerradas</p>
    <div class="list">${mis.map(d=>`${itemDesp(d,'comprador')}${d.estado!=='entregado'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}`).join('')||'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver aquí</div>'}</div></div></div>`}
 function vRegistro(c){
-  const r=reg||(reg={veh:c?.vehiculo||'',ref:c?.ref||'',foto:c?.foto||null,zona:c?.zona||'',px:c?.px??null,py:c?.py??null});
+  const r=reg||(reg={veh:c?.vehiculo||'',ref:c?.ref||'',foto:c?.foto||null,zona:c?.zona||'',px:c?.px??null,py:c?.py??null,pv:c?.pv});
   return `<div class="card" style="max-width:560px;margin:0 auto">
    <h2>Llegué y estacioné</h2><p class="sub">Antes de irte a comprar, dinos dónde quedó tu vehículo. Así el carretillero lo encuentra sin que estés ahí.</p>
    <form id="fReg"><div class="found"><span class="plate">${esc(ME.id)}</span> ${esc(ME.nombre)}</div>
     <label>¿En qué zona estacionaste?</label>${selZona('rZona',r.zona)}
-    ${(()=>{const z=zonaPorNombre(r.zona);const q=r.px!=null?[r.px,r.py]:null;if(!z||z.x==null)return '';
+    ${(()=>{const z=zonaPorNombre(r.zona);const q=r.px!=null&&r.pv===PV?[r.px,r.py]:null;if(!zEn(z))return '';
       return `<label>Toca en el plano dónde quedó tu vehículo (opcional)</label>${planoSVG({id:'rPick',pick:true,zoom:[[z.x,z.y]],minW:360,zonaHL:z.nombre,dest:q,destTxt:q?ME.id:''})}
       <p class="hint" style="margin-top:4px">${q?'✓ Marcado. Toca otra vez para corregir.':'Si no lo marcas, el carretillero verá solo la zona.'}</p>`})()}
     <label>Vehículo (tipo y color)</label><input id="rVeh" placeholder="Ej: Camión 350 blanco" value="${esc(r.veh)}" required>
@@ -861,13 +917,34 @@ const bind={
   zonas(){
     const add=async()=>{const n=$('zNombre').value.trim().replace(/\s+/g,' ');if(!n){toast('Escribe el nombre de la zona');return}
       if(nombresZona().some(x=>x.toLowerCase()===n.toLowerCase())){toast('Esa zona ya existe');return}
-      const id=n.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'-').slice(0,30)+'-'+Date.now().toString(36);await guardar('zona',{id,nombre:n,t:Date.now()});log(`Zona agregada: "${n}"`);$('zNombre').value='';render()};
-    if(zonaUbicando){const svg=$('zPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);const z=S.zona[zonaUbicando];await guardar('zona',{...z,x:q.x,y:q.y});render()};
+      const id=n.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'-').slice(0,30)+'-'+Date.now().toString(36);await guardar('zona',{id,nombre:n,tipo:'compradores',t:Date.now()});log(`Zona agregada: "${n}"`);$('zNombre').value='';render()};
+    if(zonaUbicando){const svg=$('zPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);const z=S.zona[zonaUbicando];const area=z.pv===PV&&z.poly?z.poly:null;await guardar('zona',{...z,x:q.x,y:q.y,pv:PV,poly:area});render()};
       $('zListo').onclick=()=>{log(`Zona "${S.zona[zonaUbicando].nombre}" ubicada en el plano`);zonaUbicando=null;render()};return}
-    document.querySelectorAll('[data-zmap]').forEach(b=>b.onclick=()=>{zonaUbicando=b.dataset.zmap;render()});
+    if(zonaDib){const svg=$('zDib');svg.onclick=ev=>{const q=svgXY(svg,ev);dibPts.push([q.x,q.y]);render()};
+      $('dDeshacer').onclick=()=>{dibPts.pop();render()};$('dCancelar').onclick=()=>{zonaDib=null;dibPts=[];render()};
+      $('dListo').onclick=async()=>{const z=S.zona[zonaDib];const c=centroide(dibPts);const centroOk=zEn(z)&&pip(z.x,z.y,dibPts);
+        await guardar('zona',{...z,poly:dibPts,pv:PV,x:centroOk?z.x:c[0],y:centroOk?z.y:c[1]});log(`Área de la zona "${z.nombre}" dibujada en el plano`);zonaDib=null;dibPts=[];render()};return}
+    if(plEdit){const svg=$('plPick');const ent=plEdit.tipo==='entrada';
+      svg.onclick=ev=>{const q=svgXY(svg,ev);if(ent)plEdit.pts=[[q.x,q.y]];else plEdit.pts.push([q.x,q.y]);render()};
+      if($('plDeshacer'))$('plDeshacer').onclick=()=>{plEdit.pts.pop();render()};$('plCancelar').onclick=()=>{plEdit=null;render()};
+      $('plListo').onclick=async()=>{const e=plEdit;plEdit=null;
+        if(ent)await guardarPlano(pl=>{const o={id:e.id,nombre:e.nombre,x:e.pts[0][0],y:e.pts[0][1]};const i=pl.entradas.findIndex(x=>x.id===e.id);i>=0?pl.entradas[i]=o:pl.entradas.push(o)},`Entrada "${e.nombre}" marcada en el plano`);
+        else await guardarPlano(pl=>{const o={id:e.id,nombre:e.nombre,sentido:e.sentido,pts:e.pts};const i=pl.pasillos.findIndex(x=>x.id===e.id);i>=0?pl.pasillos[i]=o:pl.pasillos.push(o)},`Pasillo "${e.nombre}" dibujado en el plano`)};return}
+    document.querySelectorAll('[data-zmap]').forEach(b=>b.onclick=()=>{zonaUbicando=b.dataset.zmap;render();window.scrollTo(0,0)});
+    document.querySelectorAll('[data-zdib]').forEach(b=>b.onclick=()=>{zonaDib=b.dataset.zdib;dibPts=[];render();window.scrollTo(0,0)});
+    document.querySelectorAll('[data-ztipo]').forEach(s=>s.onchange=async()=>{const z=S.zona[s.dataset.ztipo];await guardar('zona',{...z,tipo:s.value});render()});
     $('zGuardar').onclick=add;$('zNombre').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add()}};
     document.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=async()=>{const z=S.zona[b.dataset.zdel];if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para quitar';return}
       await guardar('zona',{...z,baja:true});log(`Zona quitada: "${z.nombre}"`);render()});
+    const pl=planoCfg();
+    $('eAgregar').onclick=()=>{const n=$('eNombre').value.trim();if(!n){toast('Escribe el nombre de la entrada');return}plEdit={tipo:'entrada',id:'E'+Date.now().toString(36),nombre:n,pts:[]};render();window.scrollTo(0,0)};
+    $('pAgregar').onclick=()=>{const n=$('pNombre').value.trim();if(!n){toast('Escribe el nombre del pasillo');return}plEdit={tipo:'pasillo',id:'P'+Date.now().toString(36),nombre:n,sentido:$('pSentido').value,pts:[]};render();window.scrollTo(0,0)};
+    document.querySelectorAll('[data-eedit]').forEach(b=>b.onclick=()=>{const e=pl.entradas.find(x=>x.id===b.dataset.eedit);plEdit={tipo:'entrada',id:e.id,nombre:e.nombre,pts:[[e.x,e.y]]};render();window.scrollTo(0,0)});
+    document.querySelectorAll('[data-pedit]').forEach(b=>b.onclick=()=>{const q=pl.pasillos.find(x=>x.id===b.dataset.pedit);plEdit={tipo:'pasillo',id:q.id,nombre:q.nombre,sentido:q.sentido,pts:[]};render();window.scrollTo(0,0)});
+    const quitar=(attr,campo,txt)=>document.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='¿Seguro?';return}const id=b.getAttribute(attr);const x=pl[campo].find(o=>o.id===id);
+      await guardarPlano(p=>{p[campo]=p[campo].filter(o=>o.id!==id)},`${txt} quitado del plano: "${x?.nombre||id}"`)});
+    quitar('data-edel','entradas','Entrada');quitar('data-pdel','pasillos','Pasillo');
+    if($('plReset'))$('plReset').onclick=async()=>{const b=$('plReset');if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await guardar('config',{...PLANO0});log('Entradas y pasillos vueltos a los iniciales');render()};
   },
   carretilleros(){const dorso=()=>$('akDorso').checked;
     $('akTodos').onclick=()=>{const ks=L('vendedor').sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).flatMap(v=>misCarr(v.id));imprimirCredenciales(ks,dorso(),null)};
@@ -908,7 +985,7 @@ const bind={
         if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:txt+u});return}
         if(navigator.share){await navigator.share({title:'CargaYa',text:txt,url:u});return}}catch(e){if(e&&e.name==='AbortError')return}
       window.open('https://wa.me/?text='+encodeURIComponent(txt+u),'_blank');toast('Se abrió WhatsApp con el enlace')};
-    if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,ubicT:Date.now(),gpsT:null,lat:null,lng:null});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
+    if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,pv:PV,ubicT:Date.now(),gpsT:null,lat:null,lng:null});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
     if($('vUbicar'))$('vUbicar').onclick=()=>{ubicandoCamion=true;render()};
     if($('mpEditar'))$('mpEditar').onclick=()=>{editPuesto=true;render()};
     if($('mpCancel'))$('mpCancel').onclick=()=>{editPuesto=false;render()};
@@ -981,16 +1058,16 @@ const bind={
     if(ME.rol==='comprador'&&(!c||!c.vehiculo||c.activo===false||reg)){
       const keep=()=>{reg.veh=$('rVeh').value;reg.ref=$('rRef').value;reg.zona=leerZona('rZona')};
       if($('rZona'))$('rZona').onchange=()=>{const t=$('rZonaT');t.style.display=$('rZona').value==='__otra'?'':'none';if($('rZona').value==='__otra'){t.focus();return}keep();reg.px=reg.py=null;setTimeout(render,0)};
-      if($('rPick'))$('rPick').onclick=ev=>{keep();const q=svgXY($('rPick'),ev);reg.px=q.x;reg.py=q.y;render()};
+      if($('rPick'))$('rPick').onclick=ev=>{keep();const q=svgXY($('rPick'),ev);reg.px=q.x;reg.py=q.y;reg.pv=PV;render()};
       fotoInput($('rFoto'),url=>{keep();reg.foto=url;render()});
       if($('cancelReg'))$('cancelReg').onclick=()=>{reg=null;render()};
       $('fReg').onsubmit=async e=>{e.preventDefault();keep();if(!reg.zona){toast('Elige la zona donde estacionaste');return}
         const nuevo=!c||c.activo===false;
-        const obj={...(c||{}),id:ME.id,owner:ME.uid||c?.owner,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.px??null,py:reg.py??null,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
+        const obj={...(c||{}),id:ME.id,owner:ME.uid||c?.owner,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.pv===PV?reg.px??null:null,py:reg.pv===PV?reg.py??null:null,pv:PV,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
         reg=null;await guardar('comprador',obj);setTimeout(()=>aplicarFavPend().then(aplicarAmigo),300);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) ${nuevo?'llegó y estacionó en':'ahora está en'} "${obj.zona}"`);toast('Vehículo guardado');render()};
       return}
     if(!c)return;
-    if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null};render()};
+    if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null,pv:c.pv};render()};
     if($('meVoy'))$('meVoy').onclick=async()=>{if($('meVoy').dataset.ok!=='1'){$('meVoy').dataset.ok='1';$('meVoy').textContent='Toca otra vez para confirmar';return}await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);if(!ONLINE)setME(null);render()};
     document.querySelectorAll('[data-rabrir]').forEach(b=>b.onclick=()=>{recibiendo=b.dataset.rabrir;render()});
     if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;render()};

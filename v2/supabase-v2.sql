@@ -195,7 +195,8 @@ create or replace view vendedores_publico as
          data->>'refPuesto' as "refPuesto",
          data->'px'         as px,
          data->'py'         as py,
-         puede_despachar(id) as "alDia"            -- con la mensualidad vencida no aparece en el directorio
+         puede_despachar(id) as "alDia",           -- con la mensualidad vencida no aparece en el directorio
+         data->'pv'         as pv                  -- versión del plano en que marcó su lugar
   from vendedores;
 revoke all on vendedores_publico from anon;
 grant select on vendedores_publico to authenticated;

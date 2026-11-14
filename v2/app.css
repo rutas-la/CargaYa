@@ -151,3 +151,7 @@ footer{max-width:1180px;margin:0 auto;padding:0 18px 30px;color:var(--mute);font
   .cartel .cb{font-size:20pt;color:#555;font-family:Barlow,Arial}
 }
 .tz{width:100%;border-collapse:collapse;font-size:15px;margin-top:6px}.tz td,.tz th{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left}.tz th{font-size:13px;color:var(--ink2)}
+.kpis{grid-template-columns:repeat(6,1fr)}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.tz th{white-space:nowrap}

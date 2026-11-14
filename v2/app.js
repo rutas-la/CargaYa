@@ -286,8 +286,8 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
-function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','cobros','comprAdm','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr','miUbic','miSusc'];return ['comprador','vendC']}
-const NOMBRES={comprAdm:'Compradores',miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Plano y zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','uso','cobros','comprAdm','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr','miUbic','miSusc'];return ['comprador','vendC']}
+const NOMBRES={uso:'Uso',comprAdm:'Compradores',miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Plano y zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
 function leerItems(){const f=document.getElementById('fDesp');if(!f)return null;return [...f.querySelectorAll('.it-row')].map(r=>({desc:r.querySelector('.it-desc').value,bultos:r.querySelector('.it-bul').value}))}
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;const it=leerItems();if(it)desp.items=it}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
@@ -300,14 +300,14 @@ function pintarEstado(){const el=document.getElementById('estado');if(!el)return
 function render(){IDX.t=0;
   const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
   const nav=document.getElementById('nav');nav.innerHTML=vs.length>1?vs.map(v=>`<button data-v="${v}" class="${v===view?'on':''}">${NOMBRES[v]}</button>`).join(''):'';
-  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v!==view){gpsErr='';ubicandoCamion=false;editPuesto=false;pagando=false;pagandoK=null;pagandoLote=null;fichaVista=null}view=b.dataset.v;if(view==='comprAdm')CA.key=null;if(view==='histVend')histC.key=null;if(view==='vendC')cargarDirectorio();render();window.scrollTo(0,0)};
+  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v!==view){gpsErr='';ubicandoCamion=false;editPuesto=false;pagando=false;pagandoK=null;pagandoLote=null;fichaVista=null}view=b.dataset.v;if(view==='comprAdm')CA.key=null;if(view==='uso')cargarMetricas();if(view==='histVend')histC.key=null;if(view==='vendC')cargarDirectorio();render();window.scrollTo(0,0)};
   pintarEstado();
   const app=document.getElementById('app');
   if(fichaURL){app.innerHTML=vFichaURL();bindFichaURL();return}
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({uso:vUso,comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();firmarFotos();
 }
 let otroModulo=null;
@@ -553,6 +553,65 @@ function vZonas(){const ns=nombresZona();const pl=planoCfg();
     ${S.config.plano?`<button class="btn o" id="plReset" style="width:100%;margin-top:8px">Volver a las entradas y pasillos iniciales</button>`:''}</div>
    <div style="grid-column:1/-1">${planoSVG({nota:'<span><i style="background:#7b3fe4"></i>Entrada</span><span><i style="background:#d3cfc2"></i>Pasillo</span><span><i style="background:#e0ecff"></i>Compradores</span><span><i style="background:#fff3c4"></i>Camiones</span><span><i style="background:#f2dfc2"></i>Puestos</span><span><i style="background:#12a150"></i>Centro de zona</span>'})}</div></div>`}
 async function guardarPlano(cambio,msg){const pl=JSON.parse(JSON.stringify(planoCfg()));cambio(pl);pl.id='plano';pl.v=PV;await guardar('config',pl);if(msg)log(msg);render()}
+
+/* ---- Uso de la app (administración): métricas calculadas en el servidor ---- */
+let MET=null,metT=0,metCargando=false,metErr='',usoQ='',usoTab='compradores',usoOrden='d30';
+async function cargarMetricas(forzar){if(!ONLINE||metCargando||(!forzar&&MET&&Date.now()-metT<120000))return;metCargando=true;metErr='';pedirRender();
+  const r=await sb.rpc('metricas_admin');metCargando=false;if(r.error){metErr='No se pudieron calcular las métricas. Revisa la conexión.'}else{MET=r.data;metT=Date.now()}pedirRender()}
+const pct=(a,b)=>b?Math.round(a*100/b)+' %':'—';
+const fmtN=n=>Number(n||0).toLocaleString('es-VE');
+const fFecha=t=>t?fmtFecha(+t):'—';
+// Gráfico de barras simple (SVG) para una serie diaria o semanal
+function barras(serie,campo,color,etq){const W=640,H=150,pad=28,n=serie.length;if(!n)return '<div class="empty">Sin datos todavía</div>';
+  const max=Math.max(1,...serie.map(x=>+x[campo]||0));const bw=(W-pad-6)/n;
+  return `<svg viewBox="0 0 ${W} ${H+24}" style="width:100%;height:auto;display:block">
+   <text x="${pad}" y="12" font-size="11" fill="#7c8089">${esc(etq)} · máx. ${fmtN(max)}</text>
+   ${serie.map((x,i)=>{const v=+x[campo]||0,hh=Math.round(v/max*H);const X=pad+i*bw;return `<rect x="${f1(X+1)}" y="${H+16-hh}" width="${f1(Math.max(1,bw-2))}" height="${hh}" rx="2" fill="${color}"><title>${esc((x.d||x.s).split('-').reverse().join('/'))}: ${fmtN(v)}</title></rect>${(n<=16||i%5===0)?`<text x="${f1(X+bw/2)}" y="${H+24}" font-size="9" fill="#7c8089" text-anchor="middle">${(x.d||x.s).slice(5).split('-').reverse().join('/')}</text>`:''}`}).join('')}</svg>`}
+function kpi(v,t,sub){return `<div class="kpi"><b>${v}</b><span>${t}</span>${sub?`<small style="display:block;color:var(--mute);font-size:11.5px;margin-top:2px">${sub}</small>`:''}</div>`}
+function vUso(){if(!MET&&!metCargando&&!metErr)cargarMetricas();
+  if(!MET)return `<div class="card empty">${metErr?`<span class="bad">${esc(metErr)}</span><br><button class="btn o" id="usoRef" style="margin-top:10px">Reintentar</button>`:'Calculando métricas…'}</div>`;
+  const C=MET.compradores,V=MET.vendedores,D=MET.despachos,P=MET.pagos;const q=normTxt(usoQ);
+  const ord={d30:(a,b)=>b.d30-a.d30,total:(a,b)=>b.total-a.total,ultimo:(a,b)=>(b.ultimo||0)-(a.ultimo||0),nombre:(a,b)=>(a.nombre||'').localeCompare(b.nombre||'')}[usoOrden]||(()=>0);
+  const lc=MET.compradores_det.filter(c=>!q||normTxt((c.nombre||'')+' '+c.id+' '+(c.zona||'')).includes(q)).sort(ord);
+  const lv=MET.vendedores_det.filter(v=>!q||normTxt((v.nombre||'')+' '+(v.sector||'')+' '+(v.productos||'')).includes(q)).sort(ord);
+  const sinUso=MET.compradores_det.filter(c=>!c.total).length;
+  return `<div class="grid">
+   <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2>Uso real de la app</h2>
+     <span class="hint">Calculado ${hhmm(MET.generado)} · <a href="#" id="usoRef">${metCargando?'actualizando…':'actualizar'}</a> · <a href="#" id="usoXls">⬇ Excel</a></span></div>
+    <h3 style="margin:10px 0 6px">Compradores</h3>
+    <div class="kpis">${kpi(fmtN(C.total),'Registrados',`+${fmtN(C.nuevos_30d)} en 30 días · +${fmtN(C.nuevos_7d)} en 7`)}${kpi(fmtN(C.con_despacho_30d),'Recibieron mercancía (30 d)',pct(C.con_despacho_30d,C.total)+' de los registrados')}${kpi(fmtN(C.activos_ahora),'En el mercado ahora','')}${kpi(fmtN(C.con_despacho_total),'Usaron la app alguna vez',`${fmtN(sinUso)} nunca recibieron un despacho`)}${kpi(fmtN(C.invitados_vendedor+C.invitados_amigo),'Llegaron por invitación',`${fmtN(C.invitados_vendedor)} de vendedores · ${fmtN(C.invitados_amigo)} de amigos`)}${kpi(fmtN(C.con_favoritos),'Con vendedores favoritos',pct(C.con_favoritos,C.total))}</div>
+    <h3 style="margin:14px 0 6px">Vendedores</h3>
+    <div class="kpis">${kpi(fmtN(V.total),'Registrados',`+${fmtN(V.nuevos_30d)} en 30 días`)}${kpi(fmtN(V.con_despacho_7d),'Despacharon esta semana',pct(V.con_despacho_7d,V.total))}${kpi(fmtN(V.con_despacho_30d),'Despacharon en 30 días',pct(V.con_despacho_30d,V.total))}${kpi(fmtN(V.al_dia),'Pueden despachar (al día o en prueba)',`${fmtN(V.pagaron_alguna_vez)} pagaron alguna vez`)}${kpi(fmtN(V.carretilleros_activos),'Carretilleros activos','')}${kpi(fmtN(P.aprobados_30d),'Mensualidades cobradas (30 d)',`US$ ${fmtN(P.monto_usd_30d)} · ${fmtN(P.pendientes)} por aprobar`)}</div>
+    <h3 style="margin:14px 0 6px">Despachos</h3>
+    <div class="kpis">${kpi(fmtN(D.hoy),'Hoy','')}${kpi(fmtN(D.d7),'Últimos 7 días','')}${kpi(fmtN(D.d30),'Últimos 30 días',`${fmtN(D.bultos_30d)} bultos`)}${kpi(pct(D.confirmados_30d,D.d30),'Confirmados por el comprador (30 d)',`${pct(D.por_carnet_30d,D.d30)} escaneando la credencial · ${pct(D.por_vendedor_30d,D.d30)} de palabra`)}${kpi(pct(D.reclamos_30d,D.d30),'Con reclamo (30 d)',fmtN(D.reclamos_30d)+' reclamos')}${kpi(D.prom_min_30d+' min','Del despacho a la confirmación','promedio 30 días')}</div></div>
+   <div class="grid g2">
+    <div class="card"><h2>Despachos por día · 30 días</h2>${barras(MET.por_dia,'despachos','#1f6feb','Despachos')}</div>
+    <div class="card"><h2>Compradores que recibieron por día · 30 días</h2>${barras(MET.por_dia,'compradores','#12a150','Compradores distintos')}</div>
+    <div class="card"><h2>Despachos por semana · 16 semanas</h2>${barras(MET.por_semana,'despachos','#1f6feb','Despachos')}</div>
+    <div class="card"><h2>Compradores nuevos por semana · 16 semanas</h2>${barras(MET.por_semana,'nuevos_compradores','#b08a1a','Registros nuevos')}<p class="hint">Vendedores activos por semana: ${MET.por_semana.slice(-4).map(x=>fmtN(x.vendedores_activos)).join(' · ')} (últimas 4)</p></div></div>
+   <div class="card"><div class="seg" style="margin-bottom:10px"><button type="button" class="${usoTab==='compradores'?'on':''}" data-usotab="compradores">Por comprador (${fmtN(MET.compradores_det.length)})</button><button type="button" class="${usoTab==='vendedores'?'on':''}" data-usotab="vendedores">Por vendedor (${fmtN(MET.vendedores_det.length)})</button></div>
+    <div class="row"><input id="usoQ" placeholder="🔍 Buscar…" value="${esc(usoQ)}" autocomplete="off"><div style="flex:0 0 170px"><select id="usoOrden">${[['d30','Más activos (30 d)'],['total','Más despachos (total)'],['ultimo','Último despacho'],['nombre','Nombre']].map(([k,t])=>`<option value="${k}" ${usoOrden===k?'selected':''}>${t}</option>`).join('')}</select></div></div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="tz" style="min-width:900px">${usoTab==='compradores'
+      ?`<thead><tr><th>Comprador</th><th>Zona</th><th>Registrado</th><th>Último despacho</th><th>Días con compras</th><th>7 d</th><th>30 d</th><th>Total</th><th>Vendedores</th><th>Confirmó</th><th>Reclamos</th><th>Llegó por</th></tr></thead>
+       <tbody>${lc.slice(0,300).map(c=>`<tr><td><span class="plate" style="font-size:13px">${esc(c.id)}</span> ${esc(c.nombre||'')}</td><td>${esc(c.zona||'')}</td><td>${fFecha(c.creado)}</td><td>${c.ultimo?fmtFecha(+c.ultimo)+' '+hhmm(+c.ultimo):'nunca'}</td><td>${fmtN(c.dias_activo)}</td><td>${fmtN(c.d7)}</td><td>${fmtN(c.d30)}</td><td>${fmtN(c.total)}</td><td>${fmtN(c.vendedores)}</td><td>${pct(c.confirmados,c.total)}</td><td>${fmtN(c.reclamos)}</td><td>${c.invitado==='vendedor'?'⭐ vendedor':c.invitado==='amigo'?'👥 amigo':'—'}</td></tr>`).join('')}</tbody>`
+      :`<thead><tr><th>Vendedor</th><th>Sector</th><th>Registrado</th><th>Mensualidad</th><th>Carretilleros</th><th>Último despacho</th><th>Días activo</th><th>Hoy</th><th>7 d</th><th>30 d</th><th>Total</th><th>Compradores</th><th>Reclamos</th><th>Invitó</th></tr></thead>
+       <tbody>${lv.slice(0,300).map(v=>`<tr><td><b>${esc(v.nombre||'')}</b><div class="meta">${esc(v.productos||'')}</div></td><td>${esc(v.sector||'')}</td><td>${fFecha(v.creado)}</td><td>${v.al_dia?'<span class="chip st-entregado">Al día</span>':'<span class="chip st-en_ruta">Vencida</span>'}</td><td>${fmtN(v.carretilleros)}</td><td>${v.ultimo?fmtFecha(+v.ultimo)+' '+hhmm(+v.ultimo):'nunca'}</td><td>${fmtN(v.dias_activo)}</td><td>${fmtN(v.hoy)}</td><td>${fmtN(v.d7)}</td><td>${fmtN(v.d30)}</td><td>${fmtN(v.total)}</td><td>${fmtN(v.compradores)}</td><td>${fmtN(v.reclamos)}</td><td>${fmtN(v.invitados)}</td></tr>`).join('')}</tbody>`}</table></div>
+    ${(usoTab==='compradores'?lc:lv).length>300?'<p class="hint">Se muestran 300. El Excel trae todos.</p>':''}
+    ${usoTab==='compradores'&&MET.compradores_det.length>=500?'<p class="hint">La tabla incluye los 500 compradores con actividad más reciente.</p>':''}</div></div>`}
+function excelUso(){const M=MET;const f=t=>t?new Date(+t).toLocaleDateString('es-VE'):'';const C=M.compradores,V=M.vendedores,D=M.despachos,P=M.pagos;
+  const res=[['Compradores registrados',C.total],['Compradores nuevos (30 días)',C.nuevos_30d],['Compradores nuevos (7 días)',C.nuevos_7d],['Compradores que recibieron mercancía (30 días)',C.con_despacho_30d],['Compradores que usaron la app alguna vez',C.con_despacho_total],['Compradores en el mercado ahora',C.activos_ahora],['Compradores invitados por vendedores',C.invitados_vendedor],['Compradores invitados por amigos',C.invitados_amigo],['Compradores con favoritos',C.con_favoritos],
+    ['Vendedores registrados',V.total],['Vendedores nuevos (30 días)',V.nuevos_30d],['Vendedores que despacharon (7 días)',V.con_despacho_7d],['Vendedores que despacharon (30 días)',V.con_despacho_30d],['Vendedores al día o en prueba',V.al_dia],['Vendedores que pagaron alguna vez',V.pagaron_alguna_vez],['Carretilleros activos',V.carretilleros_activos],
+    ['Despachos hoy',D.hoy],['Despachos 7 días',D.d7],['Despachos 30 días',D.d30],['Despachos total',D.total],['Bultos 30 días',D.bultos_30d],['Confirmados por el comprador (30 días)',D.confirmados_30d],['Confirmados escaneando credencial (30 días)',D.por_carnet_30d],['Confirmados con el botón (30 días)',D.por_boton_30d],['Confirmados de palabra por el vendedor (30 días)',D.por_vendedor_30d],['Reclamos (30 días)',D.reclamos_30d],['Minutos promedio hasta confirmar (30 días)',D.prom_min_30d],
+    ['Mensualidades aprobadas (30 días)',P.aprobados_30d],['Monto cobrado US$ (30 días)',+P.monto_usd_30d],['Pagos pendientes de aprobar',P.pendientes]].map(([a,b])=>[a,+b||0]);
+  descargarLibro(`CargaYa-uso-${hoyLocal()}`,[
+    {nombre:'Resumen',cab:['Indicador','Valor'],filas:res},
+    {nombre:'Por día',cab:['Día','Despachos','Compradores distintos','Vendedores distintos','Reclamos'],filas:M.por_dia.map(x=>[x.d.split('-').reverse().join('/'),+x.despachos,+x.compradores,+x.vendedores,+x.reclamos])},
+    {nombre:'Por semana',cab:['Semana (lunes)','Despachos','Compradores activos','Vendedores activos','Compradores nuevos','Vendedores nuevos'],filas:M.por_semana.map(x=>[x.s.split('-').reverse().join('/'),+x.despachos,+x.compradores_activos,+x.vendedores_activos,+x.nuevos_compradores,+x.nuevos_vendedores])},
+    {nombre:'Compradores',cab:['Placa','Nombre','Teléfono','Zona','En el mercado','Registrado','Última llegada','Último despacho','Días con compras','Despachos 7 d','Despachos 30 d','Despachos total','Vendedores distintos','Confirmados','Reclamos','Favoritos','Llegó por'],
+     filas:M.compradores_det.map(c=>[c.id,c.nombre,c.tel,c.zona,c.activo?'Sí':'No',f(c.creado),f(c.llegada),f(c.ultimo),+c.dias_activo,+c.d7,+c.d30,+c.total,+c.vendedores,+c.confirmados,+c.reclamos,+c.favoritos,c.invitado==='vendedor'?'Vendedor':c.invitado==='amigo'?'Amigo':''])},
+    {nombre:'Vendedores',cab:['Nombre','Teléfono','Qué vende','Sector','Registrado','Puede despachar','Pagado hasta','Carretilleros','Último despacho','Días activo','Hoy','7 d','30 d','Total','Compradores distintos','Reclamos','Compradores que invitó'],
+     filas:M.vendedores_det.map(v=>[v.nombre,v.tel,v.productos,v.sector,f(v.creado),v.al_dia?'Sí':'No',f(v.pagado_hasta),+v.carretilleros,f(v.ultimo),+v.dias_activo,+v.hoy,+v.d7,+v.d30,+v.total,+v.compradores,+v.reclamos,+v.invitados])}]);
+  toast('Archivo descargado')}
 
 /* ---- Compradores registrados (administración) ---- */
 let caBusca='',caFiltro='todos',caN=100,CA={key:null,rows:[],total:0,cargando:false,error:null};
@@ -1069,6 +1128,13 @@ const bind={
     if($('fCfg'))$('fCfg').onsubmit=async e=>{e.preventDefault();const num=x=>parseFloat(String(x).replace(/\./g,'').replace(',','.'))||0;const prev=cfgCobro();const tasa=num($('cfTasa').value);
       await guardar('config',{id:'cobro',precioUSD:num($('cfPrecio').value)||prev.precioUSD,tasa,tasaFecha:tasa!==prev.tasa?Date.now():prev.tasaFecha,banco:$('cfBanco').value.trim(),telefono:$('cfTel').value.trim(),cedula:$('cfCed').value.trim(),titular:$('cfTit').value.trim(),
         pruebaDias:Math.max(0,parseInt($('cfPrueba').value)||0),graciaDias:Math.max(0,parseInt($('cfGracia').value)||0),adminTel:$('cfAdminTel').value.trim()});log('Ajustes de cobro actualizados');toast('Ajustes guardados');render()};
+  },
+  uso(){
+    if($('usoRef'))$('usoRef').onclick=e=>{e.preventDefault();cargarMetricas(true)};
+    if($('usoXls'))$('usoXls').onclick=e=>{e.preventDefault();if(MET)excelUso()};
+    document.querySelectorAll('[data-usotab]').forEach(b=>b.onclick=()=>{usoTab=b.dataset.usotab;render()});
+    if($('usoOrden'))$('usoOrden').onchange=()=>{usoOrden=$('usoOrden').value;render()};
+    if($('usoQ')){let t=null;$('usoQ').oninput=()=>{usoQ=$('usoQ').value;clearTimeout(t);t=setTimeout(()=>{const pos=$('usoQ').selectionStart;render();const nb=$('usoQ');nb.focus();nb.setSelectionRange(pos,pos)},300)}}
   },
   comprAdm(){
     const b=$('caBusca');let t=null;b.oninput=()=>{caBusca=b.value;caN=100;clearTimeout(t);t=setTimeout(()=>{const pos=$('caBusca').selectionStart;CA.key=null;render();const nb=$('caBusca');nb.focus();nb.setSelectionRange(pos,pos)},350)};

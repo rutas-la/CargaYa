@@ -381,6 +381,96 @@ revoke all on function amigos_invitados() from anon, public;
 grant execute on function invitacion_amigo(text) to authenticated;
 grant execute on function amigos_invitados() to authenticated;
 
+-- ---------- Métricas de uso (administración) ----------
+-- Totales, evolución por día y por semana, y detalle por comprador y por vendedor.
+create or replace function metricas_admin() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare hoy0 bigint := (extract(epoch from date_trunc('day', now())) * 1000)::bigint;
+        d30 bigint; d7 bigint; d112 bigint; r jsonb;
+begin
+  if not es_admin() then raise exception 'Solo la administración'; end if;
+  d30 := hoy0 - 30::bigint * 86400000; d7 := hoy0 - 7::bigint * 86400000; d112 := hoy0 - 112::bigint * 86400000;
+  with
+  dd as materialized (
+    select placa, vendedor, estado, creado, data->'verif'->>'metodo' metodo,
+           (data->'t'->>'entregado')::numeric ent, coalesce((data->>'bultos')::numeric, 0) bultos
+    from despachos),
+  tot as (
+    select count(*) total, count(*) filter (where creado >= hoy0) hoy, count(*) filter (where creado >= d7) d7n, count(*) filter (where creado >= d30) d30n,
+           coalesce(sum(bultos) filter (where creado >= d30), 0) bultos30,
+           count(*) filter (where creado >= d30 and estado = 'entregado') ok30,
+           count(*) filter (where creado >= d30 and metodo = 'carnet') carnet30,
+           count(*) filter (where creado >= d30 and metodo = 'boton') boton30,
+           count(*) filter (where creado >= d30 and metodo = 'vendedor') vend30,
+           count(*) filter (where creado >= d30 and estado = 'reclamo') recl30,
+           coalesce(round(avg((ent - creado) / 60000) filter (where creado >= d30 and estado = 'entregado' and ent is not null)), 0) prom30,
+           count(distinct placa) filter (where creado >= d30) compr30, count(distinct placa) compr_tot,
+           count(distinct vendedor) filter (where creado >= d7) vend7, count(distinct vendedor) filter (where creado >= d30) vend30d
+    from dd),
+  pc as (select placa, count(*) n, count(*) filter (where creado >= d30) n30, count(*) filter (where creado >= d7) n7,
+                count(*) filter (where estado = 'entregado') ok, count(*) filter (where estado = 'reclamo') rc,
+                count(distinct vendedor) nv, max(creado) ult, count(distinct (creado / 86400000)) dias from dd group by placa),
+  pv as (select vendedor, count(*) n, count(*) filter (where creado >= d30) n30, count(*) filter (where creado >= d7) n7, count(*) filter (where creado >= hoy0) nh,
+                count(*) filter (where estado = 'reclamo') rc, count(distinct placa) nc, max(creado) ult, count(distinct (creado / 86400000)) dias from dd group by vendedor),
+  kv as (select vendedor, count(*) n from carretilleros where coalesce((data->>'baja')::boolean, false) = false group by vendedor),
+  iv as (select data->>'invitadoPor' v, count(*) n from compradores where data->>'invitadoPor' is not null group by 1),
+  cm as (select count(*) total, count(*) filter (where activo) activos,
+                count(*) filter (where coalesce((data->>'creado')::numeric, 0) >= d7) n7, count(*) filter (where coalesce((data->>'creado')::numeric, 0) >= d30) n30,
+                count(*) filter (where coalesce((data->>'llegada')::numeric, 0) >= d7) vin7,
+                count(*) filter (where data->>'invitadoPor' is not null) inv_v, count(*) filter (where data->>'referidoPor' is not null) inv_a,
+                count(*) filter (where jsonb_array_length(coalesce(data->'favoritos', '[]')) > 0) fav from compradores),
+  vm as (select count(*) total, count(*) filter (where coalesce((data->>'creado')::numeric, 0) >= d30) n30,
+                count(*) filter (where puede_despachar(id)) al_dia, count(*) filter (where data ? 'pagadoHasta') pagaron from vendedores)
+  select jsonb_build_object(
+    'generado', ahora_ms(),
+    'compradores', (select jsonb_build_object('total', total, 'activos_ahora', activos, 'nuevos_7d', n7, 'nuevos_30d', n30, 'vinieron_7d', vin7,
+        'invitados_vendedor', inv_v, 'invitados_amigo', inv_a, 'con_favoritos', fav,
+        'con_despacho_30d', (select compr30 from tot), 'con_despacho_total', (select compr_tot from tot)) from cm),
+    'vendedores', (select jsonb_build_object('total', total, 'nuevos_30d', n30, 'al_dia', al_dia, 'pagaron_alguna_vez', pagaron,
+        'con_despacho_7d', (select vend7 from tot), 'con_despacho_30d', (select vend30d from tot),
+        'carretilleros_activos', (select coalesce(sum(n), 0) from kv)) from vm),
+    'despachos', (select jsonb_build_object('total', total, 'hoy', hoy, 'd7', d7n, 'd30', d30n, 'bultos_30d', bultos30, 'confirmados_30d', ok30,
+        'por_carnet_30d', carnet30, 'por_boton_30d', boton30, 'por_vendedor_30d', vend30, 'reclamos_30d', recl30, 'prom_min_30d', prom30) from tot),
+    'pagos', jsonb_build_object(
+       'aprobados_30d', (select count(*) from pagos where estado = 'aprobado' and coalesce((data->>'t')::numeric, 0) >= d30),
+       'monto_usd_30d', (select coalesce(sum((data->>'montoUSD')::numeric), 0) from pagos where estado = 'aprobado' and coalesce((data->>'t')::numeric, 0) >= d30),
+       'pendientes', (select count(*) from pagos where estado = 'pendiente')),
+    'por_dia', (select coalesce(jsonb_agg(jsonb_build_object('d', dia, 'despachos', n, 'compradores', c, 'vendedores', v, 'reclamos', rc) order by dia), '[]') from (
+        select to_char(to_timestamp(creado / 1000) at time zone 'America/Caracas', 'YYYY-MM-DD') dia,
+               count(*) n, count(distinct placa) c, count(distinct vendedor) v, count(*) filter (where estado = 'reclamo') rc
+        from dd where creado >= d30 group by 1) t),
+    'por_semana', (select coalesce(jsonb_agg(x order by x->>'s'), '[]') from (
+        select jsonb_build_object('s', s, 'despachos', coalesce(dn, 0), 'compradores_activos', coalesce(dc, 0), 'vendedores_activos', coalesce(dv, 0),
+                                  'nuevos_compradores', coalesce(nc, 0), 'nuevos_vendedores', coalesce(nv, 0)) x
+        from (select to_char(generate_series(date_trunc('week', now()) - interval '15 weeks', date_trunc('week', now()), '1 week'), 'YYYY-MM-DD') s) sem
+        left join (select to_char(date_trunc('week', to_timestamp(creado / 1000) at time zone 'America/Caracas'), 'YYYY-MM-DD') s, count(*) dn, count(distinct placa) dc, count(distinct vendedor) dv
+                   from dd where creado >= d112 group by 1) a using (s)
+        left join (select to_char(date_trunc('week', to_timestamp((data->>'creado')::numeric / 1000) at time zone 'America/Caracas'), 'YYYY-MM-DD') s, count(*) nc
+                   from compradores where data->>'creado' is not null group by 1) b using (s)
+        left join (select to_char(date_trunc('week', to_timestamp((data->>'creado')::numeric / 1000) at time zone 'America/Caracas'), 'YYYY-MM-DD') s, count(*) nv
+                   from vendedores where data->>'creado' is not null group by 1) c using (s)) t),
+    'compradores_det', (select coalesce(jsonb_agg(x), '[]') from (
+        select jsonb_build_object('id', c.id, 'nombre', c.data->>'nombre', 'tel', c.data->>'tel', 'zona', c.data->>'zona', 'activo', c.activo,
+                 'creado', c.data->'creado', 'llegada', c.data->'llegada', 'favoritos', jsonb_array_length(coalesce(c.data->'favoritos', '[]')),
+                 'invitado', case when c.data->>'invitadoPor' is not null then 'vendedor' when c.data->>'referidoPor' is not null then 'amigo' else '' end,
+                 'total', coalesce(d.n, 0), 'd30', coalesce(d.n30, 0), 'd7', coalesce(d.n7, 0), 'confirmados', coalesce(d.ok, 0), 'reclamos', coalesce(d.rc, 0),
+                 'vendedores', coalesce(d.nv, 0), 'ultimo', d.ult, 'dias_activo', coalesce(d.dias, 0)) x
+        from compradores c left join pc d on d.placa = c.id
+        order by coalesce(d.ult, (c.data->>'llegada')::numeric, 0) desc limit 500) t),
+    'vendedores_det', (select coalesce(jsonb_agg(x), '[]') from (
+        select jsonb_build_object('id', v.id, 'nombre', v.data->>'nombre', 'tel', v.data->>'tel', 'sector', v.data->>'sector', 'productos', v.data->>'productos',
+                 'creado', v.data->'creado', 'al_dia', puede_despachar(v.id), 'pagado_hasta', v.data->'pagadoHasta',
+                 'carretilleros', coalesce(k.n, 0), 'invitados', coalesce(i.n, 0),
+                 'total', coalesce(d.n, 0), 'd30', coalesce(d.n30, 0), 'd7', coalesce(d.n7, 0), 'hoy', coalesce(d.nh, 0), 'reclamos', coalesce(d.rc, 0),
+                 'compradores', coalesce(d.nc, 0), 'ultimo', d.ult, 'dias_activo', coalesce(d.dias, 0)) x
+        from vendedores v left join pv d on d.vendedor = v.id left join kv k on k.vendedor = v.id left join iv i on i.v = v.id
+        order by coalesce(d.ult, 0) desc) t))
+  into r;
+  return r;
+end $$;
+revoke all on function metricas_admin() from anon, public;
+grant execute on function metricas_admin() to authenticated;
+
 -- ---------- Respaldo: descarga completa solo para la administración ----------
 create or replace function respaldo() returns jsonb
 language plpgsql stable security definer set search_path = public as $$

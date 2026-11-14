@@ -748,12 +748,13 @@ function papeleta(d,v){const c=d?comp(d.placa):null;const vv=v||(d?vend(d.vended
   return `<div class="pap"><div class="in">
    <div class="ph"><b>CargaYa</b><span>PAPELETA DE ENTREGA</span><em>${d?esc(nro(d)):'N° ______'}</em></div>
    <div class="pr">${linea('Placa',c?c.id:'', '48%')}${linea('Hora',d?hhmm(d.t.creado):'','48%')}</div>
+   <div class="pr">${linea('Recibe',c?c.nombre:'','52%')}${linea('Tel.',c?c.tel:'','44%')}</div>
    <div class="pr">${linea('Zona',c?c.zona:'','48%')}${linea('Vehículo',c?c.vehiculo:'','48%')}</div>
    <div class="pr">${linea('Referencia / color',c?c.ref:'')}</div>
    <div class="pits"><div class="pit"><span>Bultos</span><span>Mercancía</span></div>${filas}<div class="ptot">Total bultos: <b>${d?d.bultos:''}</b></div></div>
    <div class="pr">${linea('Vendedor',vv?vv.nombre:'','58%')}${linea('Carretillero N°',k?k.num:'','38%')}</div>
    <div class="pmap">${mapa}<div class="pleg">${q?'● Vehículo del comprador':'Marca con una ✗ dónde está el vehículo'} · ▬ Camión del vendedor · Norte →</div></div>
-   <div class="pfirma"><span>Recibido conforme (firma del comprador)</span><span>Fecha ${d?fmtFecha(d.t.creado):'___/___/_____'}</span></div>
+   <div class="pfirma"><span>Recibido conforme · firma y nombre de quien recibe</span><span>Fecha ${d?fmtFecha(d.t.creado):'___/___/_____'}</span></div>
   </div></div>`}
 async function imprimirPapeletas(ds,v){const cells=ds.length?ds:[null,null,null,null];let html='';
   for(let i=0;i<cells.length;i+=4){const g=[0,1,2,3].map(j=>i+j<cells.length?cells[i+j]:undefined);html+=`<div class="hoja-cred">${g.map(x=>x===undefined?'<div class="pap vacia"></div>':papeleta(x,v)).join('')}</div>`}

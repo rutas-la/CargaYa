@@ -863,7 +863,7 @@ function vVendedor(){
   const cerrados=mis.filter(d=>d.estado==='entregado').length;
   const k=desp.k?carr(desp.k):null;
   return `<div class="grid g2"><div class="grid" style="align-content:start">
-   ${avisoSusc(v)}
+   ${avisoSusc(v)||`<div class="hint" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:10px"><span>💳 Mensualidad: <b>${(ETQS[suscripcion(v).estado]||[''])[0]}</b>${suscripcion(v).hasta?' hasta el '+fmtFecha(suscripcion(v).hasta):''}</span><a href="#" data-irv="miSusc" style="white-space:nowrap">Ver / Pagar</a></div>`}
    <div class="card" style="${suscripcion(v).puedeDespachar?'':'opacity:.45;pointer-events:none'}"><h2>Nuevo despacho</h2>
    <form id="fDesp"><label>1 · Placa del comprador</label>
     <input id="placa" list="placas" placeholder="Ej: AB123CD" autocomplete="off" value="${esc(desp.placa||'')}" required>

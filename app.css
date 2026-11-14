@@ -19,8 +19,8 @@ header{background:var(--ink);color:#fff;padding:14px 18px 0;position:sticky;top:
 .logo small{display:block;color:#b9bcc2;font-size:12.5px;font-family:Barlow;font-weight:500}
 .geo{font-size:12.5px;color:#cfd2d6;display:flex;align-items:center;gap:6px}
 .geo i{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 3px rgba(61,220,132,.25)}
-nav{display:flex;gap:4px;margin-top:12px;overflow-x:auto}
-nav button{background:none;border:0;color:#b9bcc2;padding:10px 14px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}
+nav{display:flex;flex-wrap:wrap;gap:2px 4px;margin-top:12px}
+nav button{background:none;border:0;color:#b9bcc2;padding:9px 12px;font-size:15px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}
 nav button.on{color:#fff;border-color:var(--yel)}
 main{max-width:1180px;margin:0 auto;padding:18px}
 .grid{display:grid;gap:16px}

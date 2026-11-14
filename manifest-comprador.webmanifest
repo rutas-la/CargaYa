@@ -1,11 +1,42 @@
 {
   "name": "CargaYa Comprador",
-  "short_name": "CargaYa Comprador",
+  "short_name": "CargaYa Compra",
   "start_url": "./comprador.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f4ee",
+  "background_color": "#ffc400",
   "theme_color": "#16181c",
   "lang": "es",
-  "icons": [{ "src": "icon-comprador.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+  "icons": [
+    {
+      "src": "icon-comprador-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-comprador-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-comprador-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-comprador-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-comprador.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }

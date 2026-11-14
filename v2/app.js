@@ -367,7 +367,7 @@ function pintarEstado(){const el=document.getElementById('estado');if(!el)return
 function render(){IDX.t=0;
   const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
   const nav=document.getElementById('nav');nav.innerHTML=vs.length>1?vs.map(v=>`<button data-v="${v}" class="${v===view?'on':''}">${NOMBRES[v]}</button>`).join(''):'';
-  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v!==view){ubicandoCamion=false;editPuesto=false;pagando=false;pagandoK=null;pagandoLote=null;fichaVista=null}view=b.dataset.v;if(view==='histVend')histC.key=null;if(view==='vendC')cargarDirectorio();render();window.scrollTo(0,0)};
+  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v!==view){gpsErr='';ubicandoCamion=false;editPuesto=false;pagando=false;pagandoK=null;pagandoLote=null;fichaVista=null}view=b.dataset.v;if(view==='histVend')histC.key=null;if(view==='vendC')cargarDirectorio();render();window.scrollTo(0,0)};
   pintarEstado();
   const app=document.getElementById('app');
   if(fichaURL){app.innerHTML=vFichaURL();bindFichaURL();return}
@@ -899,8 +899,8 @@ async function imagenInvita(v){await cargarQRlib();const u=urlInvita(v);const W=
   x.fillStyle='#16181c';x.font='bold 30px sans-serif';x.fillText('Escanéame con la cámara',W/2,800);x.font='24px sans-serif';x.fillStyle='#555';x.fillText('y quedo en tus vendedores favoritos',W/2,840);
   return await new Promise(r=>cv.toBlob(r,'image/png'))}
 function vMiUbic(){const v=vendYo();if(!v)return '<div class="card empty">Cargando…</div>';
-  if(ubicandoCamion)return `<div class="card"><h2>Ubica tu camión en el plano</h2><p class="sub">Toca dónde está tu camión. Se hace una sola vez; cámbialo si te mueves.</p>
-    ${planoSVG({id:'vPick',pick:true,zoom:[[VZ.cx,VZ.cy]],minW:420,camion:posVend(v),camionTxt:'MI CAMIÓN'})}<div class="row" style="margin-top:10px"><button class="btn y" id="vListo">Listo</button></div></div>`;
+  if(ubicandoCamion)return `<div class="card"><h2>Ubica tu camión en el plano</h2><p class="sub">${tienePos(v)&&v.ubicMetodo==='gps'?`Te ubicamos por GPS (±${v.ubicAcc||'?'} m). Si el punto no es exacto, toca en el plano dónde está tu camión.`:'Toca dónde está tu camión. Se hace una sola vez; cámbialo si te mueves.'}</p>
+    ${planoSVG({id:'vPick',pick:true,zoom:[tienePos(v)?[v.px,v.py]:[VZ.cx,VZ.cy]],minW:420,camion:posVend(v),camionTxt:'MI CAMIÓN'})}<div class="row" style="margin-top:10px"><button class="btn y" id="vListo">Listo</button></div></div>`;
   return `<div class="grid" style="max-width:640px;margin:0 auto">
    <div class="card"><h2>Mi puesto</h2><p class="sub">Los compradores te encuentran en su lista de vendedores.</p>
     ${editPuesto?`<label>¿Qué vendes?</label><input id="mpProd" placeholder="Ej: Papa, cebolla, zanahoria" value="${esc(v.productos||'')}">
@@ -909,9 +909,11 @@ function vMiUbic(){const v=vendYo();if(!v)return '<div class="card empty">Cargan
       <div class="row" style="margin-top:10px"><button class="btn o" id="mpCancel">Cancelar</button><button class="btn y" id="mpOk">Guardar</button></div>`
      :`<div style="font-size:17px"><b>${esc(v.productos||'¿Qué vendes? Sin indicar')}</b></div>
       <div class="meta">Sector: <b>${esc(v.sector||'sin indicar')}</b>${v.refPuesto?' · 📌 '+esc(v.refPuesto):''}</div>
-      <div class="meta">${tienePos(v)?`📍 Marcado en el plano${v.ubicT?' · '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:posVend(v)?'📍 Ubicado por su sector':v.sector?'<span class="hint">Tu sector todavía no está ubicado en el plano (lo hace la administración). Si quieres, marca tu lugar exacto.</span>':'<span class="bad">Falta indicar tu sector</span>'}</div>
+      <div class="meta">${tienePos(v)?`📍 Ubicado ${txtUbic(v)}${v.ubicT?' · '+fmtFecha(v.ubicT)+' '+hhmm(v.ubicT):''}`:posVend(v)?'📍 Ubicado por su sector':v.sector?'<span class="hint">Tu sector todavía no está ubicado en el plano (lo hace la administración). Si quieres, marca tu lugar exacto.</span>':'<span class="bad">Falta indicar tu sector</span>'}</div>
       <button class="btn ${v.sector&&v.productos?'o':'y'}" id="mpEditar" style="width:100%;margin-top:8px">✏️ Qué vendo, sector y referencia</button>
-      <button class="btn o" id="vUbicar" style="width:100%;margin-top:8px">🗺 ${tienePos(v)?'Cambiar mi lugar en el plano':'Marcar mi lugar exacto en el plano (opcional)'}</button>`}</div>
+      <p class="hint" style="margin:10px 0 0">${tienePos(v)?'Cambiar mi lugar exacto:':'Mi lugar exacto (opcional):'}</p>
+      <div class="row" style="margin-top:4px"><button class="btn o" id="vGPS" ${gpsBusca?'disabled':''}>${gpsBusca?'Buscando… (hasta 12 s)':'📡 Usar mi GPS'}</button><button class="btn o" id="vUbicar">🗺 Marcar en el plano</button></div>
+      ${gpsErr&&!ubicandoCamion?`<div class="notfound" style="margin-top:8px">${esc(gpsErr)}</div>`:''}`}</div>
    ${cardInvita(v)}
    ${posVend(v)?`<div class="card"><h2>Así te ven en el plano</h2>${planoSVG({zoom:[posVend(v)],minW:420,camion:posVend(v),camionTxt:'MI PUESTO'})}</div>`:''}</div>`}
 function vMiSusc(){const v=vendYo();if(!v)return '<div class="card empty">Cargando…</div>';
@@ -955,6 +957,14 @@ let amigoQR=false;
 
 /* ---- Comprador ---- */
 let reg=null,corrigiendo=null,recibiendo=null,carnetOk={};
+// Ubicación por GPS sobre el plano (con margen de unos 40 m alrededor del mercado)
+async function ubicarGPS(){const f=await mejorFix(12000);const q=fromLatLng(f.lat,f.lng);
+  const xs=GEO.map(p=>p[0]),ys=GEO.map(p=>p[1]),m=65;
+  if(!(pip(q.x,q.y,GEO)||(q.x>Math.min(...xs)-m&&q.x<Math.max(...xs)+m&&q.y>Math.min(...ys)-m&&q.y<Math.max(...ys)+m)))
+    throw new Error(`Tu GPS te ubica fuera del mercado (a unos ${(d=>d>2000?Math.round(d/1000)+' km':Math.round(d)+' m')(distM(f,CENTRO))} del centro). Márcalo a mano en el plano.`);
+  return {x:Math.round(q.x),y:Math.round(q.y),acc:f.acc}}
+const txtUbic=o=>o.ubicMetodo==='gps'?`por GPS (±${o.ubicAcc||'?'} m)`:'a mano en el plano';
+let gpsBusca=false,gpsErr='';
 function selZona(id,actual){const ns=nombresZona();if(!ns.length)return `<input id="${id}T" placeholder="Ej: Detrás del Barco" value="${esc(actual||'')}">`;
   const otra=actual&&!ns.includes(actual);
   return `<select id="${id}"><option value="">— Elige la zona —</option>${ns.map(n=>`<option ${actual===n?'selected':''}>${esc(n)}</option>`).join('')}<option value="__otra" ${otra?'selected':''}>Otra…</option></select>
@@ -985,14 +995,18 @@ function vComprador(){
   <div class="card"><h2>Mis compras</h2><p class="sub">${enCamino.length} por recibir · ${mis.length-enCamino.length} cerradas</p>
    <div class="list">${mis.map(d=>`${itemDesp(d,'comprador')}${d.estado!=='entregado'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}`).join('')||'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver aquí</div>'}</div></div></div>`}
 function vRegistro(c){
-  const r=reg||(reg={veh:c?.vehiculo||'',ref:c?.ref||'',foto:c?.foto||null,zona:c?.zona||'',px:c?.px??null,py:c?.py??null,pv:c?.pv});
+  const r=reg||(reg={veh:c?.vehiculo||'',ref:c?.ref||'',foto:c?.foto||null,zona:c?.zona||'',px:c?.px??null,py:c?.py??null,pv:c?.pv,metodo:c?.ubicMetodo,acc:c?.ubicAcc});
   return `<div class="card" style="max-width:560px;margin:0 auto">
    <h2>Llegué y estacioné</h2><p class="sub">Antes de irte a comprar, dinos dónde quedó tu vehículo. Así el carretillero lo encuentra sin que estés ahí.</p>
    <form id="fReg"><div class="found"><span class="plate">${esc(ME.id)}</span> ${esc(ME.nombre)}</div>
     <label>¿En qué zona estacionaste?</label>${selZona('rZona',r.zona)}
-    ${(()=>{const z=zonaPorNombre(r.zona);const q=r.px!=null&&r.pv===PV?[r.px,r.py]:null;if(!zEn(z))return '';
-      return `<label>Toca en el plano dónde quedó tu vehículo (opcional)</label>${planoSVG({id:'rPick',pick:true,zoom:[[z.x,z.y]],minW:360,zonaHL:z.nombre,dest:q,destTxt:q?ME.id:''})}
-      <p class="hint" style="margin-top:4px">${q?'✓ Marcado. Toca otra vez para corregir.':'Si no lo marcas, el carretillero verá solo la zona.'}</p>`})()}
+    ${(()=>{const z=zonaPorNombre(r.zona);const q=r.px!=null&&r.pv===PV?[r.px,r.py]:null;const verMapa=q||r.manual;
+      return `<label>¿Dónde exactamente quedó tu vehículo? (opcional)</label>
+      <div class="row"><button type="button" class="btn ${q&&r.metodo==='gps'?'y':'o'}" id="rGPS" ${gpsBusca?'disabled':''}>${gpsBusca?'Buscando… (hasta 12 s)':'📡 Usar mi GPS'}</button><button type="button" class="btn ${verMapa&&r.metodo!=='gps'?'y':'o'}" id="rManual">🗺 Marcar en el plano</button></div>
+      ${gpsErr?`<div class="notfound" style="margin-top:8px">${esc(gpsErr)}</div>`:''}
+      ${verMapa?`${planoSVG({id:'rPick',pick:true,zoom:[q||(zEn(z)?[z.x,z.y]:[VZ.cx,VZ.cy])],minW:360,zonaHL:z?z.nombre:null,dest:q,destTxt:q?ME.id:''})}
+      <p class="hint" style="margin-top:4px">${q?(r.metodo==='gps'?`✓ Ubicado por GPS (±${r.acc||'?'} m). Si no es exacto, toca el plano para corregir.`:'✓ Marcado. Toca otra vez para corregir.'):'Toca en el plano dónde quedó tu vehículo.'}</p>`
+      :`<p class="hint" style="margin-top:4px">${q?'':'Si no lo marcas, el carretillero verá solo la zona.'}</p>`}`})()}
     <label>Vehículo (tipo y color)</label><input id="rVeh" placeholder="Ej: Camión 350 blanco" value="${esc(r.veh)}" required>
     <label>Referencia para encontrarlo (opcional)</label><input id="rRef" placeholder="Ej: detrás del camión cava azul" value="${esc(r.ref)}">
     <label>Foto del vehículo y lo que lo rodea (recomendado)</label>
@@ -1109,8 +1123,12 @@ const bind={
         if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:txt+u});return}
         if(navigator.share){await navigator.share({title:'CargaYa',text:txt,url:u});return}}catch(e){if(e&&e.name==='AbortError')return}
       window.open('https://wa.me/?text='+encodeURIComponent(txt+u),'_blank');toast('Se abrió WhatsApp con el enlace')};
-    if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,pv:PV,ubicT:Date.now(),gpsT:null,lat:null,lng:null});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
-    if($('vUbicar'))$('vUbicar').onclick=()=>{ubicandoCamion=true;render()};
+    if(ubicandoCamion){const svg=$('vPick');svg.onclick=async ev=>{const q=svgXY(svg,ev);await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,pv:PV,ubicMetodo:'manual',ubicAcc:null,ubicT:Date.now(),gpsT:null,lat:null,lng:null});render()};$('vListo').onclick=()=>{ubicandoCamion=false;render()};return}
+    if($('vUbicar'))$('vUbicar').onclick=()=>{gpsErr='';ubicandoCamion=true;render()};
+    if($('vGPS'))$('vGPS').onclick=async()=>{gpsBusca=true;gpsErr='';render();try{const q=await ubicarGPS();
+        await guardar('vendedor',{...S.vendedor[v.id],px:q.x,py:q.y,pv:PV,ubicMetodo:'gps',ubicAcc:q.acc,ubicT:Date.now()});
+        if(q.acc>30)toast(`Precisión baja (±${q.acc} m): revisa el punto y corrígelo tocando el plano`);ubicandoCamion=true}
+      catch(e){gpsErr=errGPS(e)}gpsBusca=false;render()};
     if($('mpEditar'))$('mpEditar').onclick=()=>{editPuesto=true;render()};
     if($('mpCancel'))$('mpCancel').onclick=()=>{editPuesto=false;render()};
     if($('mpZona'))$('mpZona').onchange=()=>{const t=$('mpZonaT');t.style.display=$('mpZona').value==='__otra'?'':'none'};
@@ -1183,16 +1201,19 @@ const bind={
     if(ME.rol==='comprador'&&(!c||!c.vehiculo||c.activo===false||reg)){
       const keep=()=>{reg.veh=$('rVeh').value;reg.ref=$('rRef').value;reg.zona=leerZona('rZona')};
       if($('rZona'))$('rZona').onchange=()=>{const t=$('rZonaT');t.style.display=$('rZona').value==='__otra'?'':'none';if($('rZona').value==='__otra'){t.focus();return}keep();reg.px=reg.py=null;setTimeout(render,0)};
-      if($('rPick'))$('rPick').onclick=ev=>{keep();const q=svgXY($('rPick'),ev);reg.px=q.x;reg.py=q.y;reg.pv=PV;render()};
+      if($('rPick'))$('rPick').onclick=ev=>{keep();const q=svgXY($('rPick'),ev);reg.px=q.x;reg.py=q.y;reg.pv=PV;reg.metodo='manual';reg.acc=null;render()};
+      if($('rManual'))$('rManual').onclick=()=>{keep();gpsErr='';reg.manual=true;render()};
+      if($('rGPS'))$('rGPS').onclick=async()=>{keep();gpsBusca=true;gpsErr='';render();try{const q=await ubicarGPS();reg.px=q.x;reg.py=q.y;reg.pv=PV;reg.metodo='gps';reg.acc=q.acc;reg.manual=true;
+          if(q.acc>30)toast(`Precisión baja (±${q.acc} m): revisa el punto y corrígelo tocando el plano`)}catch(e){gpsErr=errGPS(e)}gpsBusca=false;render()};
       fotoInput($('rFoto'),url=>{keep();reg.foto=url;render()});
       if($('cancelReg'))$('cancelReg').onclick=()=>{reg=null;render()};
       $('fReg').onsubmit=async e=>{e.preventDefault();keep();if(!reg.zona){toast('Elige la zona donde estacionaste');return}
         const nuevo=!c||c.activo===false;
-        const obj={...(c||{}),id:ME.id,owner:ME.uid||c?.owner,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.pv===PV?reg.px??null:null,py:reg.pv===PV?reg.py??null:null,pv:PV,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
+        const obj={...(c||{}),id:ME.id,owner:ME.uid||c?.owner,nombre:ME.nombre,tel:c?.tel||ME.tel||'',vehiculo:reg.veh.trim(),ref:reg.ref.trim(),zona:reg.zona,px:reg.pv===PV?reg.px??null:null,py:reg.pv===PV?reg.py??null:null,pv:PV,ubicMetodo:reg.pv===PV&&reg.px!=null?(reg.metodo||'manual'):null,ubicAcc:reg.metodo==='gps'?reg.acc:null,llegada:nuevo?Date.now():c.llegada,foto:reg.foto||null,activo:true};
         reg=null;await guardar('comprador',obj);setTimeout(()=>aplicarFavPend().then(aplicarAmigo),300);log(`${obj.id} (${obj.nombre}, ${obj.vehiculo}) ${nuevo?'llegó y estacionó en':'ahora está en'} "${obj.zona}"`);toast('Vehículo guardado');render()};
       return}
     if(!c)return;
-    if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null,pv:c.pv};render()};
+    if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null,pv:c.pv,metodo:c.ubicMetodo,acc:c.ubicAcc};render()};
     if($('meVoy'))$('meVoy').onclick=async()=>{if($('meVoy').dataset.ok!=='1'){$('meVoy').dataset.ok='1';$('meVoy').textContent='Toca otra vez para confirmar';return}await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);if(!ONLINE)setME(null);render()};
     document.querySelectorAll('[data-rabrir]').forEach(b=>b.onclick=()=>{recibiendo=b.dataset.rabrir;render()});
     if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;render()};

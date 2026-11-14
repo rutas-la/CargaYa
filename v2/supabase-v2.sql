@@ -406,10 +406,12 @@ begin
   if not es_admin() then raise exception 'Solo la administración'; end if;
   if pin_nuevo !~ '^\d{6}$' then raise exception 'El PIN debe tener 6 números'; end if;
   if tel_digitos !~ '^\d{8,15}$' then raise exception 'Teléfono inválido'; end if;
-  update auth.users set encrypted_password = crypt(pin_nuevo, gen_salt('bf')), updated_at = now()
-   where email like tel_digitos || '@%';   -- tel_digitos ya validado: solo dígitos
-  get diagnostics n = row_count;
+  -- Busca la cuenta por los últimos 10 dígitos (sirve con o sin código de país, con 0 o con +58 / +54)
+  select count(*) into n from auth.users where email like '%' || right(tel_digitos, 10) || '@%';
   if n = 0 then return 'No existe una cuenta con ese teléfono'; end if;
+  if n > 1 then return 'Hay ' || n || ' cuentas que terminan en esos números. Escribe el teléfono completo con el código de país.'; end if;
+  update auth.users set encrypted_password = crypt(pin_nuevo, gen_salt('bf')), updated_at = now()
+   where email like '%' || right(tel_digitos, 10) || '@%';
   insert into actividad (m) values ('🔑 La administración cambió el PIN del teléfono ' || tel_digitos);
   return 'ok';
 end $$;

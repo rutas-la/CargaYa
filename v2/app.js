@@ -1050,7 +1050,7 @@ const bind={
     if($('admRespJ'))$('admRespJ').onclick=async()=>{const r=await sb.rpc('respaldo');if(r.error){toast('No se pudo generar la copia');return}const blob=new Blob([JSON.stringify(r.data,null,1)],{type:'application/json'});
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-copia-tecnica-${hoyLocal()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast('Copia técnica descargada')};
     if($('admPinOk'))$('admPinOk').onclick=async()=>{const tel=telDigitos($('admPinTel').value),pin=$('admPinNuevo').value.trim();
-      if(tel.length<10){toast('Escribe el teléfono completo');return}if(!/^\d{6}$/.test(pin)){toast('El PIN debe tener 6 números');return}
+      if(tel.length<10){toast('Escribe el teléfono completo');return}if(tel.length<11&&!/^58/.test(tel)){toast('Escribe el teléfono con el código de país (ej: +54 9 11…)');return}if(!/^\d{6}$/.test(pin)){toast('El PIN debe tener 6 números');return}
       $('admPinOk').disabled=true;const r=await sb.rpc('cambiar_pin',{tel_digitos:tel,pin_nuevo:pin});if($('admPinOk'))$('admPinOk').disabled=false;
       if(r.error){toast('No se pudo cambiar: '+r.error.message);return}if(r.data!=='ok'){toast(r.data);return}
       $('admPinTel').value='';$('admPinNuevo').value='';toast('PIN cambiado. Avísale al usuario.')};

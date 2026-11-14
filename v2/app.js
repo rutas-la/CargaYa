@@ -579,8 +579,9 @@ function vMercado(){
    <div class="card"><h2>Actividad</h2><p class="sub">Cada paso queda registrado con la hora.</p>
     <div class="log">${S.log.map(l=>`<div><time>${hhmm(l.t)}</time>${esc(l.m)}</div>`).join('')||'<div class="empty">Sin actividad todavía</div>'}</div></div></div>
   <div class="card"><h2>Despachos</h2><div class="list">${ds.sort((a,b)=>b.t.creado-a.t.creado).slice(0,150).map(d=>itemDesp(d)+(d.archivado?'<div class="hint" style="margin-top:-6px">Archivado por el vendedor</div>':'')).join('')||'<div class="empty">Todavía no hay despachos</div>'}</div></div></div>
-  <div class="grid g2"><div class="card"><h2>Respaldo</h2><p class="sub">Descarga una copia de vendedores, compradores, carretilleros, pagos y configuración (archivo .json). Guárdala en tu computadora una vez por semana.</p>
-    <button class="btn y" id="admResp" style="width:100%">⬇ Descargar respaldo</button></div>
+  <div class="grid g2"><div class="card"><h2>Respaldo</h2><p class="sub">Descarga un Excel con una hoja por tema: vendedores, compradores, carretilleros, pagos de mensualidad, zonas y los despachos de los últimos 7 días. Guárdalo en tu computadora una vez por semana.</p>
+    <button class="btn y" id="admResp" style="width:100%">⬇ Descargar respaldo en Excel</button>
+    <button class="btn o" id="admRespJ" style="width:100%;margin-top:8px">Copia técnica (.json, para restaurar datos)</button></div>
    <div class="card"><h2>Cambiar PIN de un usuario</h2><p class="sub">Para quien olvidó su PIN. Escribe su teléfono y un PIN nuevo de 6 números, y díselo por WhatsApp.</p>
     <div class="row"><div><label>Teléfono</label><input id="admPinTel" inputmode="tel" placeholder="0414-000-0000"></div><div><label>PIN nuevo</label><input id="admPinNuevo" inputmode="numeric" maxlength="6" placeholder="6 números"></div></div>
     <button class="btn o" id="admPinOk" style="width:100%;margin-top:10px">Cambiar PIN</button></div></div>`}
@@ -661,26 +662,50 @@ function zipStore(files){const enc=new TextEncoder(),partes=[],dir=[];let off=0;
     off+=loc.length+nb.length+db.length});
   const tam=dir.reduce((a,x)=>a+x.length,0);
   return new Blob([...partes,...dir,new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(tam),...u32(off),0,0])],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
-function descargarXLSX(archivo,hoja,cab,filas){const x=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'');
+function descargarXLSX(archivo,hoja,cab,filas){descargarLibro(archivo,[{nombre:hoja,cab,filas}])}
+// Libro de Excel con varias hojas: [{nombre,cab,filas}]
+function descargarLibro(archivo,hojas){const x=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'');
   const col=i=>{let s='';i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s};
   const celda=(v,r,c,est)=>{const ref=col(c)+r;if(v==null||v==='')return '';if(typeof v==='number'&&isFinite(v))return `<c r="${ref}"${est?` s="${est}"`:''}><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr"${est?` s="${est}"`:''}><is><t xml:space="preserve">${x(v)}</t></is></c>`};
-  const todas=[cab,...filas];const anchos=cab.map((_,i)=>Math.min(45,Math.max(8,...todas.map(f=>String(f[i]==null?'':f[i]).length+2))));
-  const ult=col(cab.length-1)+(filas.length+1);
-  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${anchos.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${todas.map((f,ri)=>`<row r="${ri+1}">${f.map((v,ci)=>celda(v,ri+1,ci,ri===0?1:0)).join('')}</row>`).join('')}</sheetData><autoFilter ref="A1:${ult}"/></worksheet>`;
+  const nombres=[];hojas=hojas.map(hj=>{let n=x(String(hj.nombre).replace(/[\\\/?*\[\]:]/g,' ').slice(0,31))||'Hoja';while(nombres.includes(n))n=n.slice(0,28)+'_'+nombres.length;nombres.push(n);return {...hj,n}});
+  const hojaXML=hj=>{const todas=[hj.cab,...hj.filas];const anchos=hj.cab.map((_,i)=>Math.min(45,Math.max(8,...todas.slice(0,2000).map(f=>String(f[i]==null?'':f[i]).length+2))));
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${anchos.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${todas.map((f,ri)=>`<row r="${ri+1}">${f.map((v,ci)=>celda(v,ri+1,ci,ri===0?1:0)).join('')}</row>`).join('')}</sheetData><autoFilter ref="A1:${col(hj.cab.length-1)}${hj.filas.length+1}"/></worksheet>`};
   const blob=zipStore([
-    ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${hojas.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
     ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
-    ['xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(hoja.slice(0,31))}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${x(hoja.slice(0,31))}'!$A$1:$${col(cab.length-1)}$${filas.length+1}</definedName></definedNames></workbook>`],
-    ['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${hojas.map((hj,i)=>`<sheet name="${hj.n}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames>${hojas.map((hj,i)=>`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${hj.n}'!$A$1:$${col(hj.cab.length-1)}$${hj.filas.length+1}</definedName>`).join('')}</definedNames></workbook>`],
+    ['xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${hojas.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${hojas.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
     ['xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC400"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
-    ['xl/worksheets/sheet1.xml',sheet]]);
+    ...hojas.map((hj,i)=>[`xl/worksheets/sheet${i+1}.xml`,hojaXML(hj)])]);
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=archivo.replace(/[^\w.-]+/g,'-')+'.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 
-function csvCompradores(ls){const f=t=>t?new Date(t):null;
+function hojaCompradores(ls){const f=t=>t?new Date(t):null;
   const cab=['Placa','Nombre','Teléfono','Vehículo','Zona','Referencia','Estado','Última llegada','Registrado','Vendedores favoritos','Invitado por'];
   const filas=ls.map(c=>{const ll=f(c.llegada),cr=f(c.creado);return [c.id,c.nombre,c.tel,c.vehiculo,c.zona,c.ref,c.activo!==false?'En el mercado':'Se fue',ll?ll.toLocaleDateString('es-VE')+' '+hhmm(ll):'',cr?cr.toLocaleDateString('es-VE'):'',(c.favoritos||[]).length||0,
     c.invitadoPor?(vend(c.invitadoPor)?.nombre||'Vendedor'):c.referidoPor?'Amigo':'']});
-  descargarXLSX(`CargaYa-compradores-${hoyLocal()}`,'Compradores',cab,filas)}
+  return {nombre:'Compradores',cab,filas}}
+function csvCompradores(ls){const hj=hojaCompradores(ls);descargarXLSX(`CargaYa-compradores-${hoyLocal()}`,hj.nombre,hj.cab,hj.filas)}
+
+/* ---- Respaldo en Excel (administración) ---- */
+async function respaldoExcel(){const r=await sb.rpc('respaldo');if(r.error)throw r.error;const R=r.data;const f=t=>t?new Date(+t):null,fe=t=>{const d=f(t);return d&&!isNaN(d)?d.toLocaleDateString('es-VE'):''},fh=t=>{const d=f(t);return d&&!isNaN(d)?d.toLocaleDateString('es-VE')+' '+hhmm(d):''};
+  const vn={};(R.vendedores||[]).forEach(v=>vn[v.id]=v.nombre||'');const kn={};(R.carretilleros||[]).forEach(k=>kn[k.id]=k);
+  // despachos de los últimos 7 días (de a 1000)
+  const ds=[];for(let i=0;;i+=1000){const q=await sb.from('despachos').select('data').gte('creado',inicioDia(7)).order('creado',{ascending:false}).range(i,i+999);if(q.error)throw q.error;q.data.forEach(x=>ds.push(x.data));if(q.data.length<1000||ds.length>=200000)break}
+  const nk={};ds.forEach(d=>{if(d.carretillero)nk[d.carretillero]=(nk[d.carretillero]||0)+1});const kv={};(R.carretilleros||[]).forEach(k=>{if(!k.baja)kv[k.vendedor]=(kv[k.vendedor]||0)+1});
+  const hojas=[
+    {nombre:'Vendedores',cab:['Nombre','Teléfono','Qué vende','Sector','Referencia del puesto','Registrado','Pagado hasta','Mensualidad','Carretilleros activos'],
+     filas:(R.vendedores||[]).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).map(v=>{const s=suscripcion(v);return [v.nombre,v.tel,v.productos,v.sector,v.refPuesto,fe(v.creado),v.pagadoHasta?fe(v.pagadoHasta):'',(ETQS[s.estado]||[s.estado])[0],kv[v.id]||0]})},
+    hojaCompradores((R.compradores||[]).sort((a,b)=>(b.llegada||0)-(a.llegada||0))),
+    {nombre:'Carretilleros',cab:['Número','Nombre','Vendedor','Estado','Viajes últimos 7 días','Código de credencial'],
+     filas:(R.carretilleros||[]).sort((a,b)=>(vn[a.vendedor]||'').localeCompare(vn[b.vendedor]||'')||String(a.num).localeCompare(String(b.num))).map(k=>['#'+k.num,k.nombre,vn[k.vendedor]||'',k.baja?'De baja':'Activo',nk[k.id]||0,k.id])},
+    {nombre:'Pagos de mensualidad',cab:['Cargado','Vendedor','Fecha del pago','Referencia','Banco','Teléfono que pagó','Monto Bs','Monto US$','Tasa','Estado','Motivo del rechazo'],
+     filas:(R.pagos||[]).sort((a,b)=>(b.t||0)-(a.t||0)).map(p=>[fh(p.t),vn[p.vendedor]||'',/^\d{4}-\d\d-\d\d$/.test(p.fecha||'')?p.fecha.split('-').reverse().join('/'):p.fecha,p.referencia,p.banco,p.telefono,+p.monto||0,+p.montoUSD||0,+p.tasa||0,({pendiente:'Pendiente',aprobado:'Aprobado',rechazado:'Rechazado'})[p.estado]||p.estado,p.motivo||''])},
+    {nombre:'Zonas',cab:['Nombre','Tipo','Área dibujada','Centro marcado','Estado'],
+     filas:(R.zonas||[]).map(z=>[z.nombre,(TIPOS_ZONA.find(t=>t[0]===(z.tipo||'compradores'))||['',''])[1],z.pv===PV&&z.poly&&z.poly.length>2?'Sí':'No',zEn(z)?'Sí':'No',z.baja?'Quitada':'Activa'])},
+    {nombre:'Despachos 7 días',cab:['Fecha','Salida','Recibido','Vendedor','Despacho','Placa','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago'],
+     filas:ds.map(d=>{const k=kn[d.carretillero];return [fe(d.t.creado),hhmm(d.t.creado),d.t.entregado?hhmm(d.t.entregado):'',vn[d.vendedor]||'',nro(d),d.placa,resumenItems(d),+d.bultos||0,k?'#'+k.num+' '+(k.nombre||''):'',ETQ[d.estado]||d.estado,
+       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||'',d.pagoK?(+d.pagoK.monto||0):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':'')]})}];
+  descargarLibro(`CargaYa-respaldo-${hoyLocal()}`,hojas);toast('Respaldo descargado')}
 
 /* ---- Carretilleros ---- */
 // Índices por pantalla: evitan recorrer todos los despachos por cada carretillero o vendedor
@@ -1089,9 +1114,9 @@ const bind={
       const id=nuevoId('V');await guardar('vendedor',{id,nombre,tel,creado:Date.now()});setME({rol:'vendedor',id,nombre});log(`Se registró el vendedor ${nombre}`);rolElegido=null;render()};
   },
   mercado(){
-    if($('admResp'))$('admResp').onclick=async()=>{$('admResp').disabled=true;const r=await sb.rpc('respaldo');if($('admResp'))$('admResp').disabled=false;
-      if(r.error){toast('No se pudo generar el respaldo');return}const blob=new Blob([JSON.stringify(r.data,null,1)],{type:'application/json'});
-      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-respaldo-${hoyLocal()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast('Respaldo descargado')};
+    if($('admResp'))$('admResp').onclick=async()=>{$('admResp').disabled=true;toast('Preparando el respaldo…');try{await respaldoExcel()}catch(e){toast('No se pudo generar el respaldo')}if($('admResp'))$('admResp').disabled=false};
+    if($('admRespJ'))$('admRespJ').onclick=async()=>{const r=await sb.rpc('respaldo');if(r.error){toast('No se pudo generar la copia');return}const blob=new Blob([JSON.stringify(r.data,null,1)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-copia-tecnica-${hoyLocal()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast('Copia técnica descargada')};
     if($('admPinOk'))$('admPinOk').onclick=async()=>{const tel=telDigitos($('admPinTel').value),pin=$('admPinNuevo').value.trim();
       if(tel.length<10){toast('Escribe el teléfono completo');return}if(!/^\d{6}$/.test(pin)){toast('El PIN debe tener 6 números');return}
       $('admPinOk').disabled=true;const r=await sb.rpc('cambiar_pin',{tel_digitos:tel,pin_nuevo:pin});if($('admPinOk'))$('admPinOk').disabled=false;

@@ -21,10 +21,8 @@ function fromLatLng(lat,lng){return {x:ANCLA.x+(lng-ANCLA.lng)*109477/M_PX,y:ANC
 const CENTRO=toLatLng(540,330);
 function distM(a,b){const R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r;const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
 function rumbo(a,b){const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);const g=(Math.atan2(y,x)/r+360)%360;return {g,txt:['norte','noreste','este','sureste','sur','suroeste','oeste','noroeste'][Math.round(g/45)%8]}}
-const dentroMercado=f=>!CFG.GEOCERCA_ACTIVA||distM(f,CENTRO)<=CFG.RADIO_GEOCERCA_M;
 const enPlano=f=>f&&f.lat!=null&&distM(f,CENTRO)<=1500;
 const ANG=-60;
-function rot(cx,cy,ang,lx,ly){const a=ang*Math.PI/180;return [cx+lx*Math.cos(a)-ly*Math.sin(a),cy+lx*Math.sin(a)+ly*Math.cos(a)]}
 const VZ={cx:520,cy:445}; // patio entre Nave Cate e INMERCA (camiones)
 const GEO=[[372,62],[800,62],[792,150],[772,330],[720,520],[690,640],[600,692],[470,620],[275,528],[285,420],[300,330],[340,180]];
 const EDIF=[
@@ -36,7 +34,6 @@ const EDIF=[
   {n:'INMERCA',p:'603,312 661,343 516,613 458,582',l:[560,465],r:-62},
 ];
 const PUESTOS=[[665,345],[775,335],[700,650],[600,692],[516,613]];
-const HITOS=[{n:'Barco Pesca',x:641,y:247},{n:'el Galpón Calle Zea',x:640,y:118},{n:'INMERCA',x:560,y:462},{n:'la Nave Cate',x:356,y:435},{n:'Agua Viva',x:486,y:240},{n:'el Hospital',x:940,y:152},{n:'el Metro Mercado',x:872,y:420},{n:'el Galpón norte',x:386,y:213},{n:'los puestos',x:690,y:500}];
 // Entradas y pasillos iniciales (aproximados desde la imagen satelital). La administración los corrige en Zonas → Plano.
 const PLANO0={id:'plano',v:PV,
   entradas:[{id:'E1',nombre:'Calle Zea (oeste)',x:372,y:66},{id:'E2',nombre:'Calle Zea (Galpón Calle Zea)',x:512,y:70},{id:'E3',nombre:'Calle Zea (hospital)',x:800,y:66},{id:'E4',nombre:'Puerta 1 (Intercomunal)',x:780,y:745}],
@@ -53,10 +50,7 @@ function pip(x,y,poly){let a=false;for(let i=0,j=poly.length-1;i<poly.length;j=i
 const areaOf=(x,y)=>zonasActivas().find(z=>z.pv===PV&&z.poly&&z.poly.length>2&&pip(x,y,z.poly))||null;
 function zonasActivas(){return Object.values(S.zona).filter(z=>!z.baja)}
 function nombresZona(){return [...new Set(zonasActivas().map(z=>z.nombre))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}))}
-function zonaDe(f){if(!f)return null;if(f.zonaManual)return {z:{id:'manual',nombre:f.zonaManual},d:0,manual:true};if(f.lat==null)return null;let best=null;zonasActivas().forEach(z=>{const d=distM(f,z);if(!best||d<best.d)best={z,d}});return best&&best.d<=CFG.RADIO_ZONA_M?best:null}
-function hitoTxt(f){if(!enPlano(f))return '';const {x,y}=fromLatLng(f.lat,f.lng);const h=HITOS.reduce((b,h)=>Math.hypot(h.x-x,h.y-y)<Math.hypot(b.x-x,b.y-y)?h:b);return ('cerca de '+h.n).replace('de el ','del ')}
 function lugar(f){return f&&f.zona?{zona:f.zona,cerca:f.ref||'',codigo:f.zona}:{zona:'Sin zona',cerca:f?.ref||''}}
-function locTxt(f){const l=lugar(f);return l.cerca?`${l.zona} · ${l.cerca}`:l.zona}
 const f1=n=>Math.round(n*10)/10;
 const XY=f=>{const p=fromLatLng(f.lat,f.lng);return [p.x,p.y]};
 
@@ -175,11 +169,13 @@ async function enviar(op){if(op.k!=='r')return sb.from('actividad').insert({m:op
 const errRed=e=>!e||!e.code||/fetch|network|timeout|Failed/i.test(e.message||'');
 function msgErr(op,e){const m=(e&&e.message)||'';if(op.k==='r'&&op.tipo==='comprador')return 'Esa placa ya está registrada por otra cuenta. Avísale a la administración.';
   if(op.k==='r'&&op.tipo==='despacho'&&/row-level security|42501/i.test(m+(e.code||'')))return 'No se pudo despachar: tu mensualidad venció. Págala en la pestaña Mensualidad.';
+  if(/pago pendiente de revisi/i.test(m))return 'Ya tienes un pago pendiente de revisión. Espera a que la administración lo apruebe.';
   if(/solo puede confirmar/i.test(m))return 'Solo puedes confirmar o reclamar la entrega.';if(/row-level security|permission|42501/i.test(m+(e.code||'')))return 'No tienes permiso para hacer eso.';return 'No se pudo guardar: '+m}
 async function recargarRegistro(tipo,id){const r=await sb.from(TABLA[tipo]).select('data').eq('id',id);if(!r.error){if(r.data&&r.data[0])S[tipo][id]=r.data[0].data;else delete S[tipo][id];pedirRender()}}
-async function vaciarCola(){if(!ONLINE||!cola.length)return;while(cola.length){const op=cola[0];let r;try{r=await enviar(op)}catch(e){r={error:e}}
+let vaciando=false;
+async function vaciarCola(){if(!ONLINE||!cola.length||vaciando)return;vaciando=true;try{while(cola.length){const op=cola[0];let r;try{r=await enviar(op)}catch(e){r={error:e}}
   if(r&&r.error){if(errRed(r.error)){conexion='sin conexión';pintarEstado();return}cola.shift();saveCola();toast(msgErr(op,r.error));if(op.k==='r')recargarRegistro(op.tipo,op.obj.id);continue}
-  cola.shift();saveCola()}pintarEstado()}
+  cola.shift();saveCola()}}finally{vaciando=false}pintarEstado()}
 async function guardar(tipo,obj){S[tipo][obj.id]=obj;IDX.t=0;saveLocal();pedirRender();if(!ONLINE)return;cola.push({k:'r',tipo,obj});saveCola();await vaciarCola()}
 async function log(m){if(!ONLINE){S.log.unshift({t:Date.now(),m});S.log=S.log.slice(0,80);saveLocal();return}cola.push({k:'a',m});saveCola();await vaciarCola()}
 setInterval(vaciarCola,10000);window.addEventListener('online',vaciarCola);
@@ -231,31 +227,6 @@ function baseSVG(){const pl=planoCfg();
   <circle cx="940" cy="152" r="11" fill="#e0362c"/><text x="940" y="157" text-anchor="middle" font-weight="700" font-size="13" fill="#fff">H</text>
   <g transform="translate(240 70)"><circle r="18" fill="#fff" stroke="#cbc7bb"/><path d="M0,-12 L6,6 L0,2 L-6,6Z" fill="#16181c"/><text y="-22" text-anchor="middle" font-size="11" font-weight="700" fill="#4a4f58">N</text></g>`;
   return s}
-const PERSON='<circle r="9" fill="#1f6feb" stroke="#fff" stroke-width="3"/><circle r="22" fill="#1f6feb" fill-opacity=".15"/>';
-function mapSVG(opts={}){
-  const focus=opts.focus;const activos=L('despacho').filter(d=>d.estado!=='entregado');
-  const conPend=new Set(activos.map(d=>d.placa)),enRuta=new Set(activos.filter(d=>d.estado==='en_ruta').map(d=>d.placa));
-  let vb=VB0;const zp=focus?routePts(focus):opts.zoom||null;
-  if(zp&&zp.length){const xs=zp.map(q=>q[0]),ys=zp.map(q=>q[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
-    let w=Math.max(x1-x0+170,opts.minW||420),h=Math.max(y1-y0+170,300);if(w/h<1.4)w=h*1.4;else h=w/1.4;vb=`${f1((x0+x1)/2-w/2)} ${f1((y0+y1)/2-h/2)} ${f1(w)} ${f1(h)}`}
-  let s=`<svg class="map" ${opts.id?`id="${opts.id}"`:''} viewBox="${vb}" role="img" aria-label="Plano del Mercado Mayor de Coche" ${opts.pick?'style="cursor:crosshair"':''}>${baseSVG()}`;
-  L('vendedor').filter(enPlano).forEach(v=>{const [x,y]=XY(v),hl=focus&&v.id===focus.vendedor;
-    s+=`<g transform="translate(${f1(x)} ${f1(y)}) rotate(${ANG})"><rect x="-17" y="-8" width="34" height="16" rx="3" fill="${hl?'#ffc400':'#16181c'}" stroke="${hl?'#16181c':'none'}" stroke-width="2"/><text y="3.5" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="${hl?'#16181c':'#ffc400'}">${esc(v.id)}</text><title>${esc(v.nombre)}</title></g>`});
-  compradoresActivos().filter(enPlano).forEach(c=>{if(opts.skip===c.id)return;const [x,y]=XY(c),isF=(focus&&c.id===focus.placa)||c.id===opts.mine;
-    const fill=isF?'#ffc400':enRuta.has(c.id)?'#f07b14':conPend.has(c.id)?'#1f6feb':'#16181c';
-    s+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(Math.min(c.acc||6,40)/M_PX)}" fill="${fill}" fill-opacity=".15"/><circle cx="${f1(x)}" cy="${f1(y)}" r="${isF?8:6}" fill="${fill}" stroke="${isF?'#16181c':'#fff'}" stroke-width="2"><title>${esc(c.id)} · ${esc(c.vehiculo)}</title></circle>`;
-    if(isF||opts.labels)s+=`<text x="${f1(x)}" y="${f1(y-13)}" text-anchor="middle" font-family="Share Tech Mono" font-size="12" fill="#16181c" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(c.id)}</text>`;
-    if(isF&&focus)s+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="18" fill="none" stroke="#e0362c" stroke-width="3" class="pulse"/>`});
-  (focus?[focus]:activos.filter(d=>d.estado==='en_ruta')).forEach(d=>{const p=routePts(d);if(!p)return;
-    s+=`<polyline points="${p.map(q=>f1(q[0])+','+f1(q[1])).join(' ')}" fill="none" stroke="${focus?'#e0362c':'#f07b14'}" stroke-width="${focus?4:3}" stroke-linejoin="round" stroke-linecap="round" class="route"/>`});
-  zonasActivas().filter(enPlano).forEach(z=>{const [x,y]=XY(z),w=Math.max(30,12+z.nombre.length*6.2);s+=`<g transform="translate(${f1(x)} ${f1(y)})"><rect x="${-w/2}" y="-10" width="${w}" height="20" rx="5" fill="#12a150" stroke="#fff" stroke-width="2"/><text y="4.5" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="#fff">${esc(z.nombre)}</text></g>`});
-  if(opts.target){const [x,y]=opts.target;s+=`<circle cx="${x}" cy="${y}" r="18" fill="#e0362c" fill-opacity=".15" stroke="#e0362c" stroke-width="3"/><circle cx="${x}" cy="${y}" r="6" fill="#e0362c" stroke="#fff" stroke-width="2"/>`}
-  if(opts.pin2&&enPlano(opts.pin2)){const [x,y]=XY(opts.pin2);s+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(Math.min(opts.pin2.acc||6,40)/M_PX)}" fill="#1f6feb" fill-opacity=".18"/><circle cx="${f1(x)}" cy="${f1(y)}" r="7" fill="#1f6feb" stroke="#fff" stroke-width="3"/>`}
-  if(opts.pin&&enPlano(opts.pin)){const [x,y]=XY(opts.pin);s+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(Math.min(opts.pin.acc||6,40)/M_PX)}" fill="#e0362c" fill-opacity=".18"/><circle cx="${f1(x)}" cy="${f1(y)}" r="8" fill="#e0362c" stroke="#fff" stroke-width="3" class="pulse"/>`}
-  s+='</svg>';
-  if(opts.nolegend)return `<div class="mapwrap">${s}</div>`;
-  return `<div class="mapwrap">${s}<div class="legend"><span><i style="background:#16181c;border-radius:50%"></i>Vehículo de comprador</span><span><i style="background:#1f6feb;border-radius:50%"></i>Con mercancía por llegar</span><span><i style="background:#f07b14;border-radius:50%"></i>En camino</span><span><i style="background:#12a150"></i>Punto de zona</span></div></div>`}
-function svgPoint(svg,ev){const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const r=pt.matrixTransform(svg.getScreenCTM().inverse());return toLatLng(r.x,r.y)}
 // Fotos: se suben a Storage (no se guardan dentro de la base). Vehículos: carpeta pública con nombre al azar.
 // Capturas de pago: carpeta privada; se muestran con un enlace temporal.
 async function subirFoto(dataURL,bucket){const blob=await (await fetch(dataURL)).blob();
@@ -270,49 +241,11 @@ async function firmarFotos(){if(!ONLINE)return;const els=[...document.querySelec
   el.src=c.url;el.removeAttribute('data-firmar')}}
 function fotoInput(input,cb,bucket){if(!input)return;input.onchange=()=>{const f=input.files[0];if(!f)return;const img=new Image();img.onload=()=>{const sc=Math.min(1,480/Math.max(img.width,img.height));const cv=document.createElement('canvas');cv.width=img.width*sc;cv.height=img.height*sc;cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);const u=cv.toDataURL('image/jpeg',0.6);if(!ONLINE||!ME){cb(u);return}toast('Subiendo foto…');subirFoto(u,bucket||'fotos').then(url=>{toast('Foto lista');cb(url)}).catch(()=>toast('No se pudo subir la foto. Revisa la conexión y prueba de nuevo.'))};img.src=URL.createObjectURL(f)}}
 
-/* ---- Calibración del plano ---- */
-const PUNTOS_CAL=[
-  {id:'P1',nombre:'INMERCA · punta norte',ayuda:'Esquina del galpón INMERCA más cercana a Barco Pesca',x:632,y:327},
-  {id:'P2',nombre:'INMERCA · punta sur',ayuda:'El otro extremo del galpón INMERCA',x:487,y:597},
-  {id:'P3',nombre:'Nave Cate · punta norte',ayuda:'Extremo del galpón de Frutas Cate más cercano a Agua Viva',x:408,y:345},
-  {id:'P4',nombre:'Nave Cate · punta sur',ayuda:'El otro extremo del galpón de Frutas Cate',x:304,y:525},
-  {id:'P5',nombre:'Barco Pesca · esquina sureste',ayuda:'Esquina de Barco Pesca que da a la calle interna, del lado de INMERCA',x:645,y:300},
-  {id:'P6',nombre:'Galpón Calle Zea · esquina noreste',ayuda:'Esquina del galpón grande sobre Calle Zea, del lado del hospital',x:750,y:87},
-  {id:'P7',nombre:'Salida del Metro Mercado',ayuda:'En la boca de salida del metro',x:872,y:420},
-];
-function calTexto(){const ms=PUNTOS_CAL.map(p=>({p,m:S.calibracion[p.id]})).filter(o=>o.m);const extra=Object.values(S.calibracion).filter(m=>m.id.startsWith('X'));
-  return ['CargaYa · calibración del plano',...ms.map(({p,m})=>`${p.id} ${p.nombre}: ${m.lat.toFixed(6)}, ${m.lng.toFixed(6)} ±${m.acc} m (desvío ${Math.round(distM(m,toLatLng(p.x,p.y)))} m)${m.nota?' · '+m.nota:''}`),
-    ...extra.map(m=>`${m.nombre}: ${m.lat.toFixed(6)}, ${m.lng.toFixed(6)} ±${m.acc} m`)].join('\n')}
-let calMidiendo=null;
-function vCalibrar(){
-  const hechos=PUNTOS_CAL.filter(p=>S.calibracion[p.id]);
-  const desv=hechos.map(p=>distM(S.calibracion[p.id],toLatLng(p.x,p.y)));const prom=desv.length?Math.round(desv.reduce((a,b)=>a+b,0)/desv.length):null;
-  const extra=Object.values(S.calibracion).filter(m=>m.id.startsWith('X'));
-  return `<div class="grid"><div class="card"><h2>Calibrar el plano</h2>
-   <p class="sub">Ve a cada punto, párate justo en la esquina y toca <b>"Estoy aquí"</b>. Espera a que diga la precisión (±m). Mejor al aire libre, lejos de techos y camiones altos.</p>
-   <div class="row" style="margin-top:8px"><div><b style="font-size:22px">${hechos.length} / ${PUNTOS_CAL.length}</b> puntos medidos${prom!=null?` · desvío promedio del plano: <b>${prom} m</b>`:''}</div></div>
-   ${hechos.length?`<div class="row" style="margin-top:12px"><a class="btn y" style="text-align:center;text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(calTexto())}" target="_blank" rel="noopener">💬 Enviar resultados por WhatsApp</a><button class="btn o" id="calCopiar">Copiar resultados</button></div>`:''}
-   <p class="hint" style="margin-top:8px">En el mapa: <span style="color:#e0362c">●</span> dónde está el punto en el plano · <span style="color:#1f6feb">●</span> dónde lo marcó el GPS.</p></div>
-  <div class="grid g2" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-  ${PUNTOS_CAL.map(p=>{const m=S.calibracion[p.id];const d=m?Math.round(distM(m,toLatLng(p.x,p.y))):null;
-    return `<div class="card"><div class="top" style="display:flex;justify-content:space-between;gap:8px"><h3 style="font-size:20px">${p.id} · ${esc(p.nombre)}</h3>${m?'<span class="chip st-entregado">Medido</span>':'<span class="chip st-pendiente">Falta</span>'}</div>
-     <p class="sub">${esc(p.ayuda)}</p>
-     ${mapSVG({zoom:[[p.x,p.y]],minW:300,target:[p.x,p.y],pin2:m||null,nolegend:true})}
-     ${m?`<div class="found">GPS ${m.lat.toFixed(6)}, ${m.lng.toFixed(6)} · ±${m.acc} m · ${hhmm(m.t)}<br>Diferencia con el plano: <b>${d} m</b></div>`:''}
-     <label>Nota (opcional)</label><input id="nota-${p.id}" placeholder="Ej: no pude llegar a la esquina, quedé a 5 m" value="${esc(m?.nota||'')}">
-     <button class="btn ${m?'o':'y'}" style="width:100%;margin-top:10px" data-cal="${p.id}" ${calMidiendo?'disabled':''}>${calMidiendo===p.id?'Leyendo GPS… (hasta 20 s)':m?'📍 Medir de nuevo':'📍 Estoy aquí: guardar GPS'}</button></div>`}).join('')}
-  </div>
-  <div class="card"><h2>Otro punto útil (opcional)</h2><p class="sub">Por ejemplo: entrada de vehículos, salida, una esquina del estacionamiento de compradores.</p>
-   <div class="row"><input id="calNombre" placeholder="Ej: Entrada de vehículos por Calle Zea"><button class="btn o" style="flex:0 0 auto" id="calOtro" ${calMidiendo?'disabled':''}>📍 Guardar aquí</button></div>
-   <div class="list">${extra.map(m=>`<div class="item">${esc(m.nombre)} · ${m.lat.toFixed(6)}, ${m.lng.toFixed(6)} · ±${m.acc} m</div>`).join('')}</div></div></div>`}
-
-/* ===================== Códigos: carnets y fichas ===================== */
 const RAIZ=location.origin+location.pathname.replace(/[^/]*$/,'');
 const BASE=RAIZ;
 const MODULO=window.CARGAYA_MODULO||'comprador';
 const LINKS={comprador:RAIZ+'comprador.html',vendedor:RAIZ+'vendedor.html',admin:RAIZ+'admin.html'};
 const NOMBRE_MOD={comprador:'Comprador',vendedor:'Vendedor',admin:'Administración'};
-const urlFicha=(num,cod)=>`${BASE}?f=${num}-${cod}`;
 const urlCarnet=id=>`${RAIZ}comprador.html?k=${id}`;
 const pad=(n,l)=>String(n).padStart(l,'0');
 function parseCodigo(txt){if(!txt)return null;txt=String(txt).trim();
@@ -360,7 +293,7 @@ function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
-const ocupado=()=>!!otroModulo||!!yoBuscando||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!zonaDib||!!plEdit||!!ubicandoCamion||!!calMidiendo||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
+const ocupado=()=>!!otroModulo||!!yoBuscando||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!zonaDib||!!plEdit||!!ubicandoCamion||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
   el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">${ONLINE?'salir':'cambiar'}</a>`:''}`;
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();if(ONLINE){salir();return}setME(null);view=null;render()}}
@@ -374,7 +307,7 @@ function render(){IDX.t=0;
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,calibrar:vCalibrar,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador})[view]();
   bind[view]&&bind[view]();firmarFotos();
 }
 let otroModulo=null;
@@ -413,7 +346,7 @@ async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=
   else setME(null);
   return admin}
 async function trasEntrar(){await cargar();cargado=true;
-  if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id])await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});
+  if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}};
   rolElegido=null;render();aplicarFavPend().then(aplicarAmigo)}
 async function salir(){try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
 function vLogin(){
@@ -758,7 +691,6 @@ const QRC={};function qrRol(m){if(!window.qrcode){cargarQRlib().then(()=>pedirRe
 function cargarQRlib(){return window.qrcode?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='lib/qrcode.js';s.onload=res;s.onerror=()=>{toast('No se pudo cargar el generador de QR. Revisa la conexión.');rej()};document.head.appendChild(s)})}
 function qrImg(txt,px){const q=qrcode(0,'M');q.addData(txt);q.make();const n=q.getModuleCount();return q.createDataURL(Math.max(2,Math.floor(px/(n+4))),2)}
 const COD_ALF='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-function codFicha(n){let x=(n*2654435761+0x9E3779B9)>>>0,s='';for(let i=0;i<3;i++){s+=COD_ALF[x%COD_ALF.length];x=(Math.floor(x/COD_ALF.length)^((x<<7)>>>0))>>>0}return s}
 async function imprimir(html){const pa=document.getElementById('print');pa.innerHTML=html;await new Promise(r=>setTimeout(r,300));window.print()}
 
 /* ---- Cobro mensual por Pago Móvil ---- */
@@ -1325,7 +1257,7 @@ const bind={
     if(!ses){conexion='en línea';render();return}
     const adm=await entrar(ses.user);if(!ME){await sb.auth.signOut();render();return}
     if(MODULO==='admin'&&!adm){otroModulo=ME.rol;cargado=true;render();return}if(MODULO!=='admin'&&ME.rol!==MODULO){otroModulo=ME.rol;cargado=true;render();return}
-    await cargar();cargado=true;if(ME.rol==='vendedor'&&!S.vendedor[ME.id])await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()})}
+    await cargar();cargado=true;if(ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}}}
   else{render();await cargar();cargado=true}
   if(kURL&&!fichaURL){const k=ONLINE?await buscarCarr(kURL.id):carrPorId(kURL.id);
     const d=ME&&ME.rol==='comprador'&&k?L('despacho').filter(x=>x.placa===ME.id&&x.estado==='en_ruta'&&x.carretillero===k.id).sort((a,b)=>a.t.creado-b.t.creado)[0]:null;

@@ -2,7 +2,8 @@ import psycopg,json,uuid
 DB='dbname=cy2 user=postgres password=pg host=127.0.0.1'
 U={k:str(uuid.uuid5(uuid.NAMESPACE_DNS,k)) for k in ['V1','V2','C1','C2','A']}
 adm=psycopg.connect(DB,autocommit=True)
-for k,u in U.items():adm.execute("insert into auth.users(id,email,encrypted_password) values(%s,%s,crypt('123456',gen_salt('bf'))) on conflict do nothing",(u,k.lower()+'@cargaya.app'))
+TEL={'V1':'584120000001','V2':'584120000002','C1':'584140000001','C2':'584140000002','A':'584141111111'}
+for k,u in U.items():adm.execute("insert into auth.users(id,email,encrypted_password) values(%s,%s,crypt('123456',gen_salt('bf'))) on conflict do nothing",(u,TEL[k]+'@cargaya.app'))
 for t in ['despachos','pagos','compradores','carretilleros','vendedores','zonas','config','actividad','admins']:adm.execute(f'delete from {t}')
 adm.execute("insert into admins values(%s)",(U['A'],))
 ok=0;bad=[]
@@ -69,10 +70,16 @@ adm.execute("update vendedores set data=data||'{\"pagadoHasta\":1000}' where id=
 esp('vencido no despacha',como('V1',*ins('despachos',{**D,'id':'D4'})),False)
 esp('V1 carga pago',como('V1',*ins('pagos',{'id':'P1','vendedor':U['V1'],'estado':'pendiente','referencia':'123'})),True)
 esp('con pago pendiente sí despacha',como('V1',*ins('pagos' if False else 'despachos',{**D,'id':'D5'})),True)
-esp('pago entra siempre pendiente',como('V1',*ins('pagos',{'id':'P2','vendedor':U['V1'],'estado':'aprobado'}))[0] and get('pagos','P2')[0]['estado']=='pendiente',True) if False else esp('pago entra siempre pendiente',(como('V1',*ins('pagos',{'id':'P2','vendedor':U['V1'],'estado':'aprobado'}))[0],get('pagos','P2')),lambda r:r[0] and r[1][0]['estado']=='pendiente')
+esp('pago entra siempre pendiente',como('V1',*ins('pagos',{'id':'P2','vendedor':U['V1'],'estado':'aprobado'}))[0] and get('pagos','P2')[0]['estado']=='pendiente',True) if False else esp('no carga otro pago con uno pendiente',como('V1',*ins('pagos',{'id':'P2','vendedor':U['V1'],'estado':'aprobado'})),False)
 esp('V1 no aprueba su pago',como('V1',*upd('pagos',{'id':'P1','vendedor':U['V1'],'estado':'aprobado'})),lambda r:r[0] and r[1]==[])
+esp('segundo pago pendiente rechazado',como('V1',*ins('pagos',{'id':'P3','vendedor':U['V1'],'estado':'pendiente','referencia':'999'})),False)
+esp('C1 no ve datos de cobro',como('C1',"select id from config"),lambda r:r[0] and r[1]==[])
+esp('V1 ve datos de cobro',como('V1',"select id from config"),lambda r:r[0] and r[1]==[('cobro',)])
+esp('actividad larga rechazada',como('V1',"insert into actividad(m) values(repeat('x',500))"),False)
+esp('admin cambia PIN tel inválido',como('A',"select cambiar_pin('v2%','111111')"),False)
 esp('V2 no ve pagos de V1',como('V2',"select id from pagos"),lambda r:r[0] and r[1]==[])
 esp('admin aprueba',como('A',*upd('pagos',{'id':'P1','vendedor':U['V1'],'estado':'aprobado'})),lambda r:r[0] and r[1])
+esp('pago entra siempre pendiente',(como('V1',*ins('pagos',{'id':'P2','vendedor':U['V1'],'estado':'aprobado'}))[0],get('pagos','P2')),lambda r:r[0] and r[1][0]['estado']=='pendiente')
 esp('admin da meses',como('A',*upd('vendedores',{**get('vendedores',U['V1'])[0],'pagadoHasta':9999999999999})),lambda r:r[0] and r[1][0][0]['pagadoHasta']==9999999999999)
 esp('V1 edita su ficha y conserva meses',como('V1',*upd('vendedores',{'id':U['V1'],'nombre':'V1b','pagadoHasta':1})),lambda r:r[0] and r[1][0][0]['pagadoHasta']==9999999999999)
 # zonas, actividad, respaldo, pin
@@ -84,8 +91,8 @@ esp('V1 no lee actividad',como('V1',"select m from actividad"),lambda r:r[0] and
 esp('admin lee actividad',como('A',"select m from actividad"),lambda r:r[0] and len(r[1])==1)
 esp('V1 no saca respaldo',como('V1',"select respaldo()"),False)
 esp('admin saca respaldo',como('A',"select respaldo()->'vendedores'"),lambda r:r[0] and len(r[1][0][0])==2)
-esp('V1 no cambia PINs',como('V1',"select cambiar_pin('v2','111111')"),False)
-esp('admin cambia PIN',como('A',"select cambiar_pin('v2','111111')"),lambda r:r[1]==[('ok',)])
-esp('PIN nuevo vale',(True,adm.execute("select encrypted_password=crypt('111111',encrypted_password) from auth.users where email='v2@cargaya.app'").fetchone()),lambda r:r[1]==(True,))
+esp('V1 no cambia PINs',como('V1',"select cambiar_pin('584120000002','111111')"),False)
+esp('admin cambia PIN',como('A',"select cambiar_pin('584120000002','111111')"),lambda r:r[1]==[('ok',)])
+esp('PIN nuevo vale',(True,adm.execute("select encrypted_password=crypt('111111',encrypted_password) from auth.users where email='584120000002@cargaya.app'").fetchone()),lambda r:r[1]==(True,))
 esp('anon no ve nada',(lambda:(lambda c:(c.execute('set role anon'),c.execute('select count(*) from despachos')))(psycopg.connect(DB,autocommit=True)))() if False else (True,0),lambda r:True)
 print(f'{ok} correctas, {len(bad)} fallas');[print(' ✗',b) for b in bad]

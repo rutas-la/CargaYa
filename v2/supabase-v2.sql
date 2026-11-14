@@ -175,7 +175,8 @@ create policy editar on pagos for update to authenticated using ((select es_admi
 create policy ver    on zonas for select to authenticated using (true);
 create policy crear  on zonas for insert to authenticated with check ((select es_admin()));
 create policy editar on zonas for update to authenticated using ((select es_admin())) with check ((select es_admin()));
-create policy ver    on config for select to authenticated using (true);
+-- los datos de Pago Móvil (config 'cobro') solo los ven vendedores y administración
+create policy ver    on config for select to authenticated using (id <> 'cobro' or (select es_vendedor()) or (select es_admin()));
 create policy crear  on config for insert to authenticated with check ((select es_admin()));
 create policy editar on config for update to authenticated using ((select es_admin())) with check ((select es_admin()));
 create policy ver    on calibracion for select to authenticated using ((select es_admin()));
@@ -183,7 +184,7 @@ create policy crear  on calibracion for insert to authenticated with check ((sel
 create policy editar on calibracion for update to authenticated using ((select es_admin())) with check ((select es_admin()));
 
 create policy ver   on actividad for select to authenticated using ((select es_admin()));
-create policy crear on actividad for insert to authenticated with check (true);
+create policy crear on actividad for insert to authenticated with check (length(m) <= 400);
 
 -- ---------- Directorio de vendedores para compradores (sin datos de cobro) ----------
 create or replace view vendedores_publico as
@@ -250,6 +251,10 @@ begin
     end if;
 
   elsif tg_table_name = 'pagos' and tg_op = 'INSERT' then
+    -- un solo pago pendiente por vendedor (evita "pagos" falsos para seguir despachando)
+    if exists (select 1 from pagos where vendedor = new.data->>'vendedor' and estado = 'pendiente') then
+      raise exception 'Ya tienes un pago pendiente de revisión';
+    end if;
     new.data := new.data || jsonb_build_object('estado', 'pendiente', 't', ahora);
   end if;
 
@@ -400,8 +405,9 @@ declare n int;
 begin
   if not es_admin() then raise exception 'Solo la administración'; end if;
   if pin_nuevo !~ '^\d{6}$' then raise exception 'El PIN debe tener 6 números'; end if;
+  if tel_digitos !~ '^\d{8,15}$' then raise exception 'Teléfono inválido'; end if;
   update auth.users set encrypted_password = crypt(pin_nuevo, gen_salt('bf')), updated_at = now()
-   where email like tel_digitos || '@%';
+   where email like tel_digitos || '@%';   -- tel_digitos ya validado: solo dígitos
   get diagnostics n = row_count;
   if n = 0 then return 'No existe una cuenta con ese teléfono'; end if;
   insert into actividad (m) values ('🔑 La administración cambió el PIN del teléfono ' || tel_digitos);

@@ -17,6 +17,7 @@ Dirección: https://rutas-la.github.io/CargaYa/v2/
 - **Privacidad.** Un comprador no ve a otros compradores ni despachos ajenos. Un vendedor no ve despachos ni pagos de otros vendedores. El directorio de vendedores no muestra datos de cobro.
 - **La mensualidad la controla el servidor.** Un vendedor vencido no puede despachar aunque tenga la app vieja abierta.
 - **Fotos en Storage.** Fotos de vehículos y capturas de Pago Móvil ya no van dentro de la base de datos. Las capturas son privadas.
+- **Administradores desde la app** (Panel → Administradores): agregar por teléfono a alguien que ya tiene cuenta, o crear la cuenta con un PIN; quitar administradores.
 - **Pestaña Uso** en administración: métricas de uso real (compradores y vendedores registrados y activos, despachos por día y por semana, confirmaciones, reclamos, cobros) con detalle por comprador y por vendedor y descarga en Excel.
 - **Panel de administración con números calculados en el servidor**, botón de **respaldo** y botón para **cambiar el PIN** de un usuario.
 - Librería de Supabase incluida en la app (no depende de un CDN externo).

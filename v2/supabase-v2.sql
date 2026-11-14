@@ -508,6 +508,55 @@ end $$;
 revoke all on function cambiar_pin(text, text) from anon, public;
 grant execute on function cambiar_pin(text, text) to authenticated;
 
+-- ---------- Administradores: ver, agregar y quitar desde la app ----------
+create or replace function admins_lista() returns jsonb
+language sql stable security definer set search_path = public, auth as $$
+  select coalesce(jsonb_agg(jsonb_build_object('uid', a.uid, 'tel', split_part(u.email, '@', 1),
+           'nombre', coalesce(u.raw_user_meta_data->>'nombre', ''), 'soy', a.uid = auth.uid()) order by u.created_at), '[]')
+  from admins a join auth.users u on u.id = a.uid where es_admin() $$;
+
+-- Agrega como administrador a una cuenta que ya existe (la persona crea su cuenta en cualquier módulo).
+-- Si la cuenta no existe y se pasa un PIN, la crea.
+create or replace function agregar_admin(tel_digitos text, pin_nuevo text default null) returns text
+language plpgsql security definer set search_path = public, auth, extensions as $$
+declare u uuid; n int; email_nuevo text;
+begin
+  if not es_admin() then raise exception 'Solo la administración'; end if;
+  if tel_digitos !~ '^\d{8,15}$' then raise exception 'Teléfono inválido'; end if;
+  select count(*), (array_agg(id))[1] into n, u from auth.users where email like '%' || right(tel_digitos, 10) || '@%';
+  if n > 1 then return 'Hay varias cuentas que terminan en esos números. Escribe el teléfono completo con código de país.'; end if;
+  if n = 0 then
+    if pin_nuevo is null or pin_nuevo !~ '^\d{6}$' then return 'No existe una cuenta con ese teléfono. Escribe un PIN de 6 números para crearla.'; end if;
+    email_nuevo := tel_digitos || '@cargaya.app';
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change_token_new, email_change)
+    values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', email_nuevo, crypt(pin_nuevo, gen_salt('bf')), now(),
+            '{"provider":"email","providers":["email"]}', jsonb_build_object('rol', 'admin', 'tel', tel_digitos), now(), now(), '', '', '', '')
+    returning id into u;
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(), u, u::text, jsonb_build_object('sub', u::text, 'email', email_nuevo, 'email_verified', true), 'email', now(), now(), now());
+  end if;
+  insert into admins (uid) values (u) on conflict do nothing;
+  insert into actividad (m) values ('👤 La administración agregó un administrador: teléfono ' || tel_digitos);
+  return 'ok';
+end $$;
+
+create or replace function quitar_admin(uid_quitar uuid) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  if not es_admin() then raise exception 'Solo la administración'; end if;
+  if uid_quitar = auth.uid() then return 'No puedes quitarte a ti mismo. Pídeselo a otro administrador.'; end if;
+  if (select count(*) from admins) <= 1 then return 'Debe quedar al menos un administrador.'; end if;
+  delete from admins where uid = uid_quitar;
+  insert into actividad (m) values ('👤 La administración quitó un administrador');
+  return 'ok';
+end $$;
+revoke all on function admins_lista() from anon, public;
+revoke all on function agregar_admin(text, text) from anon, public;
+revoke all on function quitar_admin(uuid) from anon, public;
+grant execute on function admins_lista() to authenticated;
+grant execute on function agregar_admin(text, text) to authenticated;
+grant execute on function quitar_admin(uuid) to authenticated;
+
 -- ---------- Tu cuenta de administración ----------
 -- 1) Crea tu usuario en Authentication → Users → Add user (ver guía).
 -- 2) Esta línea lo marca como administrador (cambia el teléfono si hace falta):

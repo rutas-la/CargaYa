@@ -517,7 +517,13 @@ function vMercado(){
     <button class="btn o" id="admRespJ" style="width:100%;margin-top:8px">Copia técnica (.json, para restaurar datos)</button></div>
    <div class="card"><h2>Cambiar PIN de un usuario</h2><p class="sub">Para quien olvidó su PIN. Escribe su teléfono y un PIN nuevo de 6 números, y díselo por WhatsApp.</p>
     <div class="row"><div><label>Teléfono</label><input id="admPinTel" inputmode="tel" placeholder="0414-000-0000"></div><div><label>PIN nuevo</label><input id="admPinNuevo" inputmode="numeric" maxlength="6" placeholder="6 números"></div></div>
-    <button class="btn o" id="admPinOk" style="width:100%;margin-top:10px">Cambiar PIN</button></div></div>`}
+    <button class="btn o" id="admPinOk" style="width:100%;margin-top:10px">Cambiar PIN</button></div></div>
+  <div class="card"><h2>Administradores</h2><p class="sub">Tienen acceso total a este módulo. Para agregar a alguien que ya tiene cuenta (de vendedor o comprador) basta su teléfono; si no tiene cuenta, escribe también un PIN para crearla.</p>
+   <div class="list">${(ADMS||[]).map(a=>`<div class="row" style="align-items:center"><div>👤 <b>${esc(a.nombre||'Administrador')}</b> <span class="hint">· ${esc(fmtTel(a.tel))}${a.soy?' · tú':''}</span></div>${a.soy?'':`<button class="btn o" style="flex:0 0 auto" data-admdel="${esc(a.uid)}">Quitar</button>`}</div>`).join('')||'<div class="hint">Cargando…</div>'}</div>
+   <div class="row" style="margin-top:10px"><div><label>Teléfono</label><input id="admNuevoTel" inputmode="tel" placeholder="0414-000-0000"></div><div style="flex:0 0 120px"><label>PIN (si es nueva)</label><input id="admNuevoPin" inputmode="numeric" maxlength="6" placeholder="6 números"></div></div>
+   <button class="btn y" id="admNuevoOk" style="width:100%;margin-top:10px">Agregar administrador</button></div></div>`}
+let ADMS=null;async function cargarAdmins(){if(!ONLINE||!ME||ME.rol!=='admin')return;const r=await sb.rpc('admins_lista');if(!r.error){ADMS=r.data;pedirRender()}}
+const fmtTel=d=>{d=String(d||'');const m=/^58(\d{3})(\d{7})$/.exec(d);return m?`0${m[1]}-${m[2].slice(0,3)}-${m[2].slice(3)}`:'+'+d};
 
 
 /* ---- Zonas ---- */
@@ -1105,6 +1111,14 @@ const bind={
       const id=nuevoId('V');await guardar('vendedor',{id,nombre,tel,creado:Date.now()});setME({rol:'vendedor',id,nombre});log(`Se registró el vendedor ${nombre}`);rolElegido=null;render()};
   },
   mercado(){
+    if(!ADMS)cargarAdmins();
+    if($('admNuevoOk'))$('admNuevoOk').onclick=async()=>{const tel=telDigitos($('admNuevoTel').value),pin=$('admNuevoPin').value.trim();
+      if(tel.length<10){toast('Escribe el teléfono completo');return}if(pin&&!/^\d{6}$/.test(pin)){toast('El PIN debe tener 6 números');return}
+      $('admNuevoOk').disabled=true;const r=await sb.rpc('agregar_admin',{tel_digitos:tel,pin_nuevo:pin||null});if($('admNuevoOk'))$('admNuevoOk').disabled=false;
+      if(r.error){toast('No se pudo agregar: '+r.error.message);return}if(r.data!=='ok'){toast(r.data);return}
+      $('admNuevoTel').value='';$('admNuevoPin').value='';toast('Administrador agregado');ADMS=null;cargarAdmins()};
+    document.querySelectorAll('[data-admdel]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='¿Seguro? Toca otra vez';return}
+      const r=await sb.rpc('quitar_admin',{uid_quitar:b.dataset.admdel});if(r.error){toast('No se pudo quitar: '+r.error.message);return}if(r.data!=='ok'){toast(r.data);return}toast('Administrador quitado');ADMS=null;cargarAdmins()});
     if($('admResp'))$('admResp').onclick=async()=>{$('admResp').disabled=true;toast('Preparando el respaldo…');try{await respaldoExcel()}catch(e){toast('No se pudo generar el respaldo')}if($('admResp'))$('admResp').disabled=false};
     if($('admRespJ'))$('admRespJ').onclick=async()=>{const r=await sb.rpc('respaldo');if(r.error){toast('No se pudo generar la copia');return}const blob=new Blob([JSON.stringify(r.data,null,1)],{type:'application/json'});
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-copia-tecnica-${hoyLocal()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast('Copia técnica descargada')};

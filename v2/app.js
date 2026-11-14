@@ -649,12 +649,38 @@ function vComprAdm(){const ls=filtroCA();
      ${inv?`<div class="meta">${inv}</div>`:''}
      ${c.tel?`<div class="row" style="margin-top:6px">${waBtn(c.tel,'WhatsApp')}</div>`:''}</div>`}).join('')||`<div class="empty">${CA.cargando?'Cargando…':'No hay compradores'+(caBusca?' con esa búsqueda':' registrados todavía')}</div>`}</div>
    ${CA.total>ls.length&&!CA.cargando?`<button class="btn o" id="caMas" style="width:100%;margin-top:10px">Ver más (${CA.total-ls.length} restantes)</button>`:''}</div></div>`}
-function csvCompradores(ls){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';const f=t=>t?new Date(t):null;
+/* ---- Excel (.xlsx) sin librerías: hoja con encabezado en negrita, filtro y fila fija ---- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+function zipStore(files){const enc=new TextEncoder(),partes=[],dir=[];let off=0;
+  const u16=n=>[n&255,(n>>>8)&255],u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
+  files.forEach(([nombre,txt])=>{const nb=enc.encode(nombre),db=enc.encode(txt),crc=crc32(db);
+    const loc=[0x50,0x4b,3,4,...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(db.length),...u32(db.length),...u16(nb.length),...u16(0)];
+    partes.push(new Uint8Array(loc),nb,db);
+    dir.push(new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(db.length),...u32(db.length),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nb);
+    off+=loc.length+nb.length+db.length});
+  const tam=dir.reduce((a,x)=>a+x.length,0);
+  return new Blob([...partes,...dir,new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(tam),...u32(off),0,0])],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+function descargarXLSX(archivo,hoja,cab,filas){const x=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'');
+  const col=i=>{let s='';i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s};
+  const celda=(v,r,c,est)=>{const ref=col(c)+r;if(v==null||v==='')return '';if(typeof v==='number'&&isFinite(v))return `<c r="${ref}"${est?` s="${est}"`:''}><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr"${est?` s="${est}"`:''}><is><t xml:space="preserve">${x(v)}</t></is></c>`};
+  const todas=[cab,...filas];const anchos=cab.map((_,i)=>Math.min(45,Math.max(8,...todas.map(f=>String(f[i]==null?'':f[i]).length+2))));
+  const ult=col(cab.length-1)+(filas.length+1);
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${anchos.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${todas.map((f,ri)=>`<row r="${ri+1}">${f.map((v,ci)=>celda(v,ri+1,ci,ri===0?1:0)).join('')}</row>`).join('')}</sheetData><autoFilter ref="A1:${ult}"/></worksheet>`;
+  const blob=zipStore([
+    ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(hoja.slice(0,31))}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${x(hoja.slice(0,31))}'!$A$1:$${col(cab.length-1)}$${filas.length+1}</definedName></definedNames></workbook>`],
+    ['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC400"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+    ['xl/worksheets/sheet1.xml',sheet]]);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=archivo.replace(/[^\w.-]+/g,'-')+'.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+
+function csvCompradores(ls){const f=t=>t?new Date(t):null;
   const cab=['Placa','Nombre','Teléfono','Vehículo','Zona','Referencia','Estado','Última llegada','Registrado','Vendedores favoritos','Invitado por'];
-  const filas=ls.map(c=>{const ll=f(c.llegada),cr=f(c.creado);return [c.id,c.nombre,c.tel,c.vehiculo,c.zona,c.ref,c.activo!==false?'En el mercado':'Se fue',ll?ll.toLocaleDateString('es-VE')+' '+hhmm(ll):'',cr?cr.toLocaleDateString('es-VE'):'',(c.favoritos||[]).length,
-    c.invitadoPor?(vend(c.invitadoPor)?.nombre||'Vendedor'):c.referidoPor?'Amigo':''].map(q).join(';')});
-  const blob=new Blob(['﻿'+[cab.map(q).join(';'),...filas].join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-compradores-${hoyLocal()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+  const filas=ls.map(c=>{const ll=f(c.llegada),cr=f(c.creado);return [c.id,c.nombre,c.tel,c.vehiculo,c.zona,c.ref,c.activo!==false?'En el mercado':'Se fue',ll?ll.toLocaleDateString('es-VE')+' '+hhmm(ll):'',cr?cr.toLocaleDateString('es-VE'):'',(c.favoritos||[]).length||0,
+    c.invitadoPor?(vend(c.invitadoPor)?.nombre||'Vendedor'):c.referidoPor?'Amigo':'']});
+  descargarXLSX(`CargaYa-compradores-${hoyLocal()}`,'Compradores',cab,filas)}
 
 /* ---- Carretilleros ---- */
 // Índices por pantalla: evitan recorrer todos los despachos por cada carretillero o vendedor
@@ -853,14 +879,13 @@ function vHistVend(){const v=vendActual();if(!v)return '<div class="card empty">
    <button class="btn y" id="hCsv" style="width:100%;margin-top:12px" ${ds.length&&!histC.cargando?'':'disabled'}>⬇ Descargar en Excel (${ds.length})</button>${histC.cargando?'<p class="hint" style="margin-top:8px">Cargando historial…</p>':''}${histC.error?`<p class="bad" style="margin-top:8px">${esc(histC.error)}</p>`:''}</div>
   <div class="kpis"><div class="kpi"><b>${ds.length}</b><span>Despachos</span></div><div class="kpi"><b>${bultos}</b><span>Bultos</span></div><div class="kpi"><b>${n('entregado')}</b><span>Recibidos</span></div><div class="kpi"><b>${n('en_ruta')}</b><span>En camino</span></div><div class="kpi"><b>${n('reclamo')}</b><span>Reclamos</span></div>${(()=>{const t={};ds.filter(d=>d.pagoK).forEach(d=>{t[d.pagoK.moneda]=(t[d.pagoK.moneda]||0)+(+d.pagoK.monto||0)});return `<div class="kpi"><b style="font-size:24px">${Object.entries(t).map(([m,x])=>fmtMon(x,m)).join(' + ')||'—'}</b><span>Pagado a carretilleros</span></div>`})()}</div>
   <div class="card">${ds.length>300?`<p class="hint">Se muestran los 300 más recientes de ${ds.length}. El Excel trae todos.</p>`:''}<div class="list">${ds.slice(0,300).map(d=>`${itemDesp(d,'vendedor')}${d.pagoK?`<div class="hint" style="margin-top:-4px">${txtPagoK(d)}</div>`:d.estado!=='en_ruta'&&d.carretillero?'<div class="hint bad" style="margin-top:-4px">Carretillero sin pagar</div>':''}${d.archivado?`<div class="row"><span class="hint">Quitado de la lista</span><button class="btn o" style="flex:0 0 auto" data-desarch="${esc(d.id)}">Volver a la lista</button></div>`:''}`).join('')||(histC.cargando?'<div class="empty">Cargando…</div>':'<div class="empty">No hay despac')+'hos en este período</div>'}</div></div></div>`}
-function csvHist(v,ds){const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';const f=t=>t?new Date(t):null;
+function csvHist(v,ds){const f=t=>t?new Date(t):null;
   const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago','Referencia','Hora de pago'];
   const filas=ds.map(d=>{const c=comp(d.placa),k=carr(d.carretillero),s=f(d.t.creado),r=f(d.t.entregado);
-    return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',resumenItems(d),d.bultos,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
+    return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',resumenItems(d),+d.bultos||0,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||'',
-      d.pagoK?String(d.pagoK.monto).replace('.',','):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':''),d.pagoK?.ref||'',d.pagoK?hhmm(d.pagoK.t):''].map(q).join(';')});
-  const blob=new Blob(['﻿'+[cab.map(q).join(';'),...filas].join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CargaYa-${(v.nombre||'despachos').replace(/[^\w]+/g,'-')}-${hoyLocal()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+      d.pagoK?(+d.pagoK.monto||0):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':''),d.pagoK?.ref||'',d.pagoK?hhmm(d.pagoK.t):'']});
+  descargarXLSX(`CargaYa-${(v.nombre||'despachos')}-${hoyLocal()}`,'Despachos',cab,filas)}
 
 /* ---- Vendedor ---- */
 let desp={},fichaVista=null,ubicandoCamion=false,editPuesto=false;

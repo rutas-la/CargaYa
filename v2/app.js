@@ -477,6 +477,7 @@ function planoSVG(o={}){
   let vb=VB0;const ruta=o.ruta&&o.dest?rutaXY(o.ruta,o.dest):null;if(ruta&&o.zoom)o={...o,zoom:[...o.zoom.filter(Boolean),...ruta]};
   if(o.zoom&&o.zoom.length){const xs=o.zoom.map(q=>q[0]),ys=o.zoom.map(q=>q[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
     let w=Math.max(x1-x0+160,o.minW||380),h=Math.max(y1-y0+160,260);if(w/h<1.35)w=h*1.35;else h=w/1.35;vb=`${f1((x0+x1)/2-w/2)} ${f1((y0+y1)/2-h/2)} ${f1(w)} ${f1(h)}`}
+  if(o.vb)vb=o.vb;
   let s=`<svg class="map" ${o.id?`id="${o.id}"`:''} viewBox="${vb}" role="img" aria-label="Plano del Mercado Mayor de Coche" ${o.pick?'style="cursor:crosshair;touch-action:manipulation"':''}>${baseSVG()}`;
   zonasActivas().filter(zEn).forEach(z=>{const hl=o.zonaHL&&z.nombre===o.zonaHL,w=Math.max(30,12+z.nombre.length*6.2);
     s+=`<g transform="translate(${z.x} ${z.y})" opacity="${o.zonaHL&&!hl?.55:1}"><rect x="${-w/2}" y="-10" width="${w}" height="20" rx="5" fill="${hl?'#16181c':'#12a150'}" stroke="#fff" stroke-width="2"/><text y="4.5" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="${hl?'#ffc400':'#fff'}">${esc(z.nombre)}</text></g>`});
@@ -738,6 +739,26 @@ async function imprimirCredenciales(ks,dorso,vNombre){await cargarQRlib();
   let html='';for(let i=0;i<ks.length;i+=4){const g=[0,1,2,3].map(j=>ks[i+j]||null);html+=`<div class="hoja-cred">${g.map(cred).join('')}</div>`;if(dorso)html+=`<div class="hoja-cred">${[g[1],g[0],g[3],g[2]].map(cred).join('')}</div>`}
   await imprimir(html)}
 
+/* ---- Papeleta de entrega en papel (para carretilleros sin teléfono): A6, 4 por hoja ---- */
+function papeleta(d,v){const c=d?comp(d.placa):null;const vv=v||(d?vend(d.vendedor):null);const k=d&&d.carretillero?carr(d.carretillero):null;
+  const q=c?posComp(c):null;const pv=vv?posVend(vv):null;
+  const mapa=planoSVG({vb:'245 35 585 725',zonaHL:c?c.zona:null,dest:q,destTxt:q?c.id:'',camion:pv,camionTxt:'CAMIÓN',ruta:q&&pv?pv:null});
+  const linea=(t,val,w)=>`<div class="pl" style="${w?`flex:0 0 ${w}`:''}"><span>${t}</span><b>${val!=null&&val!==''?esc(String(val)):''}</b></div>`;
+  const its=d?itemsDe(d):[];const filas=[0,1,2].map(i=>its[i]?`<div class="pi"><b>${its[i].bultos}</b><span>${esc(its[i].desc)}</span></div>`:'<div class="pi"><b></b><span></span></div>').join('');
+  return `<div class="pap"><div class="in">
+   <div class="ph"><b>CargaYa</b><span>PAPELETA DE ENTREGA</span><em>${d?esc(nro(d)):'N° ______'}</em></div>
+   <div class="pr">${linea('Placa',c?c.id:'', '48%')}${linea('Hora',d?hhmm(d.t.creado):'','48%')}</div>
+   <div class="pr">${linea('Zona',c?c.zona:'','48%')}${linea('Vehículo',c?c.vehiculo:'','48%')}</div>
+   <div class="pr">${linea('Referencia / color',c?c.ref:'')}</div>
+   <div class="pits"><div class="pit"><span>Bultos</span><span>Mercancía</span></div>${filas}<div class="ptot">Total bultos: <b>${d?d.bultos:''}</b></div></div>
+   <div class="pr">${linea('Vendedor',vv?vv.nombre:'','58%')}${linea('Carretillero N°',k?k.num:'','38%')}</div>
+   <div class="pmap">${mapa}<div class="pleg">${q?'● Vehículo del comprador':'Marca con una ✗ dónde está el vehículo'} · ▬ Camión del vendedor · Norte →</div></div>
+   <div class="pfirma"><span>Recibido conforme (firma del comprador)</span><span>Fecha ${d?fmtFecha(d.t.creado):'___/___/_____'}</span></div>
+  </div></div>`}
+async function imprimirPapeletas(ds,v){const cells=ds.length?ds:[null,null,null,null];let html='';
+  for(let i=0;i<cells.length;i+=4){const g=[0,1,2,3].map(j=>i+j<cells.length?cells[i+j]:undefined);html+=`<div class="hoja-cred">${g.map(x=>x===undefined?'<div class="pap vacia"></div>':papeleta(x,v)).join('')}</div>`}
+  await imprimir(html)}
+
 /* ---- Imprimir ---- */
 const MSJ_QR={vendedor:'Hola 👋 Te invito a usar *CargaYa* en el Mercado Mayor de Coche: despacha a la placa del comprador y controla cada entrega con tus carretilleros. Crea tu cuenta aquí (1 minuto): ',
   comprador:'Hola 👋 Con *CargaYa* tus compras del Mercado Mayor de Coche llegan directo a tu vehículo y confirmas cada entrega. Crea tu cuenta aquí (1 minuto): '};
@@ -923,7 +944,7 @@ function vVendedor(){
      ${c.foto?`<img class="photo" style="margin-top:10px;max-height:320px" src="${c.foto}" alt="">`:''}
      ${posComp(c)?`<div style="margin-top:12px">${planoSVG({zoom:[posComp(c),...(posVend(vend(d.vendedor))?[posVend(vend(d.vendedor))]:[])],minW:420,zonaHL:c.zona,dest:posComp(c),destTxt:c.id,camion:posVend(vend(d.vendedor)),camionTxt:'TÚ ESTÁS AQUÍ',ruta:posVend(vend(d.vendedor))})}</div>
        <p class="hint" style="margin-top:4px">${tienePos(c)?'El punto rojo es donde el comprador marcó su vehículo.':'El punto rojo es la zona; el comprador no marcó el lugar exacto.'}${posVend(vend(d.vendedor))?'':' Ubica tu camión en el plano para ver el camino.'}</p>`:''}
-     <button class="btn y big" id="fvListo" style="margin-top:12px">Listo, salió</button></div>`}
+     <button class="btn y big" id="fvListo" style="margin-top:12px">Listo, salió</button><button class="btn o" id="fvPap" style="width:100%;margin-top:8px">🖨 Imprimir papeleta en papel</button></div>`}
   const mis=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado).sort((a,b)=>b.t.creado-a.t.creado);
   const cerrados=mis.filter(d=>d.estado==='entregado').length;
   const k=desp.k?carr(desp.k):null;
@@ -946,7 +967,7 @@ function vVendedor(){
     ${desp.k&&ajeno(carr(desp.k),v.id)?`<div class="found" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px"><span>✓ <b>${esc(etqCarr(carr(desp.k),v.id))}</b> · credencial escaneada</span><a href="#" id="kQuitar">quitar</a></div>`:''}
     <button type="button" class="btn o" id="dScanK" style="width:100%;margin-top:8px">📷 Escanear credencial${misCarr(v.id).length?' (también de otro vendedor)':''}</button>
     <div style="margin-top:14px"><button class="btn y big" type="submit">Despachar</button></div></form></div>
-  <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
+  <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2><button class="btn o" id="papBlanco" style="flex:0 0 auto;font-size:13px;padding:6px 10px" title="Papeletas en blanco para llenar a mano">🖨 Papeletas</button>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
    <p class="hint">Lo que quitas de la lista queda guardado en <a href="#" id="irHist">Historial</a>.</p>
    <div class="list">${mis.map(d=>`${itemDesp(d,'vendedor')}<div class="row">${d.estado==='en_ruta'?`<button class="btn o" data-ver="${esc(d.id)}">Ver destino</button><button class="btn o" data-vok="${esc(d.id)}">El comprador confirmó de palabra</button>`:''}${d.estado==='reclamo'&&comp(d.placa)?.tel?waBtn(comp(d.placa).tel,'Escribir al comprador'):''}<button class="btn o" style="flex:0 0 auto" data-arch="${esc(d.id)}">🗂 Quitar</button></div>
      ${d.pagoK?`<div class="found" style="font-size:14px">${txtPagoK(d)}</div>`:pagandoK===d.id?formPagoK(d,v):d.carretillero?`<button class="btn ${d.estado==='en_ruta'?'o':'y'}" data-pagk="${esc(d.id)}">💵 Pagar al carretillero</button>`:''}`).join('')||'<div class="empty">No hay despachos en la lista</div>'}</div></div></div>`}
@@ -1257,8 +1278,9 @@ const bind={
   },
   vendedor(){
     const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
-    if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};return}
+    if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};if($('fvPap'))$('fvPap').onclick=()=>imprimirPapeletas([S.despacho[fichaVista]],v);return}
     document.querySelectorAll('[data-irv]').forEach(a=>a.onclick=e=>{e.preventDefault();view=a.dataset.irv;render()});
+    if($('papBlanco'))$('papBlanco').onclick=()=>imprimirPapeletas([],v);
     const keep=()=>{desp.placa=$('placa').value;desp.items=leerItems()};
     const tot=()=>{const it=leerItems()||[];if($('itTot'))$('itTot').innerHTML=`Total: ${((n)=>`<b>${n}</b> bulto${n==1?'':'s'}`)(it.reduce((a,x)=>a+(parseInt(x.bultos)||0),0))}`};
     document.querySelectorAll('.it-bul').forEach(x=>x.oninput=tot);

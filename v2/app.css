@@ -155,3 +155,28 @@ footer{max-width:1180px;margin:0 auto;padding:0 18px 30px;color:var(--mute);font
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:600px){.kpis{grid-template-columns:repeat(2,1fr)}}
 .tz th{white-space:nowrap}
+/* Papeleta de entrega (impresión A6, 4 por hoja A4) */
+@media print{
+  .pap{position:relative;width:105mm;height:148mm;padding:4mm;box-sizing:border-box;outline:.2mm dashed #bbb;outline-offset:-.1mm;font-family:Barlow,Arial,sans-serif;color:#16181c;font-size:9pt}
+  .pap.vacia{outline:none}
+  .pap .in{height:100%;box-sizing:border-box;border:.6mm solid #16181c;border-radius:3mm;padding:3mm;display:flex;flex-direction:column;gap:1.6mm;overflow:hidden;background:#fff}
+  .pap .ph{display:flex;align-items:baseline;gap:2mm;border-bottom:.5mm solid #ffc400;padding-bottom:1mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pap .ph b{font-family:'Barlow Condensed',Arial;font-weight:800;font-size:16pt}
+  .pap .ph span{font-size:7.5pt;letter-spacing:.8pt;color:#555;flex:1}
+  .pap .ph em{font-style:normal;font-family:'Share Tech Mono',monospace;font-size:8pt}
+  .pap .pr{display:flex;gap:3%;justify-content:space-between}
+  .pap .pl{flex:1;display:flex;align-items:flex-end;gap:1.5mm;border-bottom:.3mm solid #16181c;min-height:6.2mm}
+  .pap .pl span{font-size:7pt;color:#555;white-space:nowrap}
+  .pap .pl b{font-family:'Barlow Condensed',Arial;font-weight:800;font-size:13pt;line-height:1;flex:1;min-height:5mm}
+  .pap .pits{border:.3mm solid #16181c;border-radius:1.5mm;padding:1mm 1.5mm}
+  .pap .pit{display:grid;grid-template-columns:14mm 1fr;font-size:6.5pt;color:#555;border-bottom:.2mm solid #999}
+  .pap .pi{display:grid;grid-template-columns:14mm 1fr;min-height:5.2mm;border-bottom:.2mm dotted #999;font-size:10pt;align-items:end}
+  .pap .pi b{font-family:'Barlow Condensed',Arial;font-size:13pt;text-align:center}
+  .pap .ptot{text-align:right;font-size:8pt;padding-top:.8mm}
+  .pap .pmap{flex:1;min-height:0;display:flex;flex-direction:column}
+  .pap .pmap .mapwrap{border:.3mm solid #16181c;border-radius:1.5mm;padding:0;flex:1;min-height:0;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}
+  .pap .pmap svg{width:57mm;height:90mm;display:block;transform:rotate(90deg);flex:none}
+  .pap .pl b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .pap .pleg{font-size:6.5pt;color:#555;text-align:center;padding-top:.6mm}
+  .pap .pfirma{display:flex;justify-content:space-between;align-items:flex-end;border-top:.3mm solid #16181c;padding-top:1mm;min-height:9mm;font-size:7pt;color:#555}
+}

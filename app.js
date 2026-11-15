@@ -32,8 +32,9 @@ const EDIF=[
   {n:'INMERCA',p:'603,312 661,343 516,613 458,582',l:[560,465],r:-62},
 ];
 const PUESTOS=[[665,345],[775,335],[700,650],[600,692],[516,613]];
+const EDIF0=EDIF.map((e,i)=>({id:'G'+(i+1),nombre:e.n,pts:e.p.split(' ').map(q=>q.split(',').map(Number)),rot:e.r}));
 // Entradas y pasillos iniciales (aproximados desde la imagen satelital). La administración los corrige en Zonas → Plano.
-const PLANO0={id:'plano',v:PV,
+const PLANO0={id:'plano',v:PV,galpones:EDIF0,filas:[],
   entradas:[{id:'E1',nombre:'Calle Zea (oeste)',x:372,y:66},{id:'E2',nombre:'Calle Zea (Galpón Calle Zea)',x:512,y:70},{id:'E3',nombre:'Calle Zea (hospital)',x:800,y:66},{id:'E4',nombre:'Puerta 1 (Intercomunal)',x:780,y:745}],
   pasillos:[
     {id:'P1',nombre:'Calle interna oeste',sentido:'doble',pts:[[372,66],[300,330],[285,420],[275,525]]},
@@ -43,7 +44,9 @@ const PLANO0={id:'plano',v:PV,
     {id:'P5',nombre:'Avenida de los puestos',sentido:'doble',pts:[[800,66],[745,230],[705,340],[650,500],[600,662]]},
     {id:'P6',nombre:'Frente al Galpón Calle Zea',sentido:'doble',pts:[[507,106],[512,160],[560,168],[740,172],[745,230]]},
     {id:'P7',nombre:'Pasillo Barco Pesca',sentido:'doble',pts:[[560,168],[590,250],[560,305],[525,300]]}]};
-const planoCfg=()=>{const c=S.config&&S.config.plano;return c&&c.v===PV?c:PLANO0};
+const planoCfg=()=>{const c=S.config&&S.config.plano;return c&&c.v===PV?{...c,galpones:c.galpones||EDIF0,filas:c.filas||[]}:PLANO0};
+const centroPts=ps=>[ps.reduce((a,q)=>a+q[0],0)/ps.length,ps.reduce((a,q)=>a+q[1],0)/ps.length];
+function rotLargo(ps){const c=centroPts(ps);let sxx=0,syy=0,sxy=0;ps.forEach(q=>{const dx=q[0]-c[0],dy=q[1]-c[1];sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy});let a=Math.atan2(2*sxy,sxx-syy)/2*180/Math.PI;if(a>90)a-=180;if(a<-90)a+=180;return Math.round(a)}
 function pip(x,y,poly){let a=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)a=!a}return a}
 const areaOf=(x,y)=>zonasActivas().find(z=>z.pv===PV&&z.poly&&z.poly.length>2&&pip(x,y,z.poly))||null;
 function zonasActivas(){return Object.values(S.zona).filter(z=>!z.baja)}
@@ -126,7 +129,7 @@ function avisar(tipo,antes,d){if(tipo==='pago'&&ME&&ME.rol==='vendedor'&&d.vende
 /* ===================== Rutas y mapa ===================== */
 function routePts(d){const c=comp(d.placa);if(!c||!enPlano(c))return null;const v=vend(d.vendedor);return rutaXY(v&&enPlano(v)?XY(v):null,XY(c))}
 const COL_ZONA={compradores:['#e0ecff','#1f6feb'],vendedores:['#fff3c4','#b08a1a'],puestos:['#f2dfc2','#a0784a'],otro:['#e6e6e6','#6b7078']};
-function baseSVG(){const pl=planoCfg();
+function baseSVG(ocultar){baseSVG.ocultar=ocultar||null;const pl=planoCfg();
   let s=`<rect x="-300" y="-300" width="1700" height="1400" fill="#e9e6dc"/>
   <polygon points="${GEO.map(p=>p.join(',')).join(' ')}" fill="#efede6" stroke="#3ddc84" stroke-width="2" stroke-dasharray="6 6"/>
   <g fill="none" stroke="#d3cfc2" stroke-linecap="round" stroke-linejoin="round"><polyline points="120,62 1063,58" stroke-width="18"/><polyline points="1015,70 962,300 905,560 868,780" stroke-width="22"/></g>
@@ -140,7 +143,11 @@ function baseSVG(){const pl=planoCfg();
     ${(pl.pasillos||[]).map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#fff" stroke-width="1.6" stroke-dasharray="6 6" opacity=".9"/>`).join('')}</g>`;
   (pl.pasillos||[]).filter(p=>p.sentido==='uno'&&p.pts.length>1).forEach(p=>{for(let i=0;i+1<p.pts.length;i++){const [a,b]=[p.pts[i],p.pts[i+1]],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
     s+=`<path d="M-5,-4 L5,0 L-5,4Z" fill="#7c8089" transform="translate(${f1(mx)} ${f1(my)}) rotate(${f1(g)})"/>`}});
-  EDIF.forEach(e=>{s+=`<polygon points="${e.p}" fill="#cbc7bb" stroke="#b8b3a5"/><text x="${e.l[0]}" y="${e.l[1]}" font-family="Barlow Condensed" font-weight="700" font-size="14" fill="#5d6169" text-anchor="middle" transform="rotate(${e.r} ${e.l[0]} ${e.l[1]})">${e.n.toUpperCase()}</text>`});
+  (pl.galpones||[]).forEach(e=>{if(!e.pts||e.pts.length<3||e.id===baseSVG.ocultar)return;const c=centroPts(e.pts),r=e.rot!=null?e.rot:rotLargo(e.pts);s+=`<polygon points="${e.pts.map(q=>q.join(',')).join(' ')}" fill="#cbc7bb" stroke="#b8b3a5"/><text x="${f1(c[0])}" y="${f1(c[1]+5)}" font-family="Barlow Condensed" font-weight="700" font-size="14" fill="#5d6169" text-anchor="middle" transform="rotate(${r} ${f1(c[0])} ${f1(c[1])})">${esc((e.nombre||'').toUpperCase())}</text>`});
+  // filas de estacionamiento: cajones de 4 × 7 unidades (≈ 2,5 × 4,5 m) a lo largo de cada línea
+  (pl.filas||[]).forEach(fl=>{for(let i=0;i+1<(fl.pts||[]).length;i++){const [a,b]=[fl.pts[i],fl.pts[i+1]],L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.floor(L/4.4),g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
+    for(let k=0;k<n;k++){const t=(k+.5)/n,x=a[0]+t*(b[0]-a[0]),y=a[1]+t*(b[1]-a[1]);s+=`<rect x="-2" y="${fl.lado==='doble'?-7:0}" width="4" height="${fl.lado==='doble'?14:7}" fill="#f4f2ea" stroke="#9fa3ab" stroke-width=".6" transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(g)})"/>`}
+    if(fl.nombre&&i===0){const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;s+=`<text x="${f1(mx)}" y="${f1(my-10)}" font-family="Barlow Condensed" font-size="10" fill="#7c8089" text-anchor="middle" transform="rotate(${f1(g>90||g<-90?g+180:g)} ${f1(mx)} ${f1(my-10)})">${esc(fl.nombre)}</text>`}}});
   (pl.entradas||[]).forEach(e=>{s+=`<g transform="translate(${e.x} ${e.y})"><rect x="-9" y="-9" width="18" height="18" rx="4" fill="#7b3fe4" stroke="#fff" stroke-width="2"/><path d="M-4,-4 L4,0 L-4,4Z" fill="#fff" transform="rotate(90)"/><text y="22" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="#7b3fe4" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(e.nombre)}</text></g>`});
   s+=`<text x="620" y="50" font-size="13" font-weight="600" fill="#7c8089">Calle Zea</text>
   <text x="940" y="620" font-size="13" font-weight="600" fill="#7c8089" transform="rotate(-77 940 620)">Av. Intercomunal de El Valle</text>
@@ -387,7 +394,7 @@ function planoSVG(o={}){
   if(o.zoom&&o.zoom.length){const xs=o.zoom.map(q=>q[0]),ys=o.zoom.map(q=>q[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
     let w=Math.max(x1-x0+160,o.minW||380),h=Math.max(y1-y0+160,260);if(w/h<1.35)w=h*1.35;else h=w/1.35;vb=`${f1((x0+x1)/2-w/2)} ${f1((y0+y1)/2-h/2)} ${f1(w)} ${f1(h)}`}
   if(o.vb)vb=o.vb;
-  let s=`<svg class="map" ${o.id?`id="${o.id}"`:''} viewBox="${vb}" role="img" aria-label="Plano del Mercado Mayor de Coche" ${o.pick?'style="cursor:crosshair;touch-action:manipulation"':''}>${baseSVG()}`;
+  let s=`<svg class="map" ${o.id?`id="${o.id}"`:''} viewBox="${vb}" role="img" aria-label="Plano del Mercado Mayor de Coche" ${o.pick?'style="cursor:crosshair;touch-action:manipulation"':''}>${baseSVG(o.ocultar)}`;
   zonasActivas().filter(zEn).forEach(z=>{const hl=o.zonaHL&&z.nombre===o.zonaHL,w=Math.max(30,12+z.nombre.length*6.2);
     s+=`<g transform="translate(${z.x} ${z.y})" opacity="${o.zonaHL&&!hl?.55:1}"><rect x="${-w/2}" y="-10" width="${w}" height="20" rx="5" fill="${hl?'#16181c':'#12a150'}" stroke="#fff" stroke-width="2"/><text y="4.5" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="12" fill="${hl?'#ffc400':'#fff'}">${esc(z.nombre)}</text></g>`});
   if(o.todos){compradoresActivos().forEach(c=>{const q=posComp(c);if(!q)return;const enc=L('despacho').some(d=>d.placa===c.id&&d.estado==='en_ruta');
@@ -434,10 +441,12 @@ function vZonas(){const ns=nombresZona();const pl=planoCfg();
   if(zonaDib){const z=S.zona[zonaDib];return `<div class="card"><h2>Área de "${esc(z.nombre)}"</h2><p class="sub">Toca las esquinas de la zona una por una, siguiendo el borde. Con 3 o más puntos queda cerrada.</p>
     ${planoSVG({id:'zDib',pick:true,extra:trazoSVG(dibPts,true,'#1f6feb')})}
     <div class="row" style="margin-top:10px"><button class="btn o" id="dDeshacer" ${dibPts.length?'':'disabled'}>↶ Deshacer punto</button><button class="btn o" id="dCancelar">Cancelar</button><button class="btn y" id="dListo" ${dibPts.length>2?'':'disabled'}>Guardar área (${dibPts.length} puntos)</button></div></div>`}
-  if(plEdit){const ent=plEdit.tipo==='entrada';return `<div class="card"><h2>${ent?'Marcar entrada':'Dibujar pasillo'}: "${esc(plEdit.nombre)}"</h2>
-    <p class="sub">${ent?'Toca en el plano dónde está la entrada o portón.':`Toca los puntos del recorrido en orden${plEdit.sentido==='uno'?' (en el sentido en que se circula)':''}. Para que se conecte con otro pasillo, empieza o termina encima de él.`}</p>
-    ${planoSVG({id:'plPick',pick:true,extra:trazoSVG(plEdit.pts,false,ent?'#7b3fe4':'#e0362c')})}
-    <div class="row" style="margin-top:10px">${ent?'':`<button class="btn o" id="plDeshacer" ${plEdit.pts.length?'':'disabled'}>↶ Deshacer punto</button>`}<button class="btn o" id="plCancelar">Cancelar</button><button class="btn y" id="plListo" ${(ent?plEdit.pts.length===1:plEdit.pts.length>1)?'':'disabled'}>Guardar</button></div></div>`}
+  if(plEdit){const ent=plEdit.tipo==='entrada',gal=plEdit.tipo==='galpon',fila=plEdit.tipo==='fila';const tit={entrada:'Marcar entrada',pasillo:'Dibujar pasillo',galpon:'Dibujar galpón',fila:'Dibujar fila de estacionamiento'}[plEdit.tipo];
+    const ayuda=ent?'Toca en el plano dónde está la entrada o portón.':gal?'Toca las esquinas del galpón una por una, siguiendo el borde (3 o más puntos). El galpón que estás redibujando se muestra atenuado.':fila?'Toca el inicio y el final de la fila de autos (puedes agregar puntos intermedios si la fila dobla). Los cajones se dibujan solos.':`Toca los puntos del recorrido en orden${plEdit.sentido==='uno'?' (en el sentido en que se circula)':''}. Para que se conecte con otro pasillo, empieza o termina encima de él.`;
+    const listo=ent?plEdit.pts.length===1:gal?plEdit.pts.length>2:plEdit.pts.length>1;
+    return `<div class="card"><h2>${tit}: "${esc(plEdit.nombre)}"</h2><p class="sub">${ayuda}</p>
+    ${planoSVG({id:'plPick',pick:true,ocultar:gal?plEdit.id:null,extra:trazoSVG(plEdit.pts,gal,ent?'#7b3fe4':gal?'#6b7078':fila?'#1f6feb':'#e0362c')})}
+    <div class="row" style="margin-top:10px">${ent?'':`<button class="btn o" id="plDeshacer" ${plEdit.pts.length?'':'disabled'}>↶ Deshacer punto</button>`}<button class="btn o" id="plCancelar">Cancelar</button><button class="btn y" id="plListo" ${listo?'':'disabled'}>Guardar${gal||fila?` (${plEdit.pts.length} puntos)`:''}</button></div></div>`}
   return `<div class="grid g2"><div class="card"><h2>Zonas y sectores</h2>
    <p class="sub">Escribe los nombres que usa la gente para cada parte del mercado: dónde estacionan los compradores (ej: "Detrás del Barco", "La bomba"), dónde se ponen los camiones y dónde están los puestos (ej: "Zona de la cebolla"). Dibuja el área de cada una en el plano y marca su centro.</p>
    <div class="row"><div><label>Nombre de la zona</label><input id="zNombre" placeholder="Ej: Detrás del Barco" autocomplete="off"></div><button class="btn y" style="flex:0 0 auto;align-self:flex-end" id="zGuardar">Agregar</button></div></div>
@@ -452,7 +461,14 @@ function vZonas(){const ns=nombresZona();const pl=planoCfg();
     <div class="list">${(pl.pasillos||[]).map(q=>`<div class="row" style="align-items:center"><div>🛣 <b>${esc(q.nombre)}</b>${q.sentido==='uno'?' <span class="hint">· un solo sentido</span>':''}</div><button class="btn o" style="flex:0 0 auto" data-pedit="${esc(q.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-pdel="${esc(q.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin pasillos: las rutas se muestran en línea recta</div>'}</div>
     <div class="row" style="margin-top:8px"><div><label>Nuevo pasillo</label><input id="pNombre" placeholder="Ej: Pasillo de la cebolla" autocomplete="off"></div><div style="flex:0 0 140px"><label>Sentido</label><select id="pSentido"><option value="doble">Doble sentido</option><option value="uno">Un solo sentido</option></select></div></div>
     <button class="btn y" id="pAgregar" style="width:100%;margin-top:8px">Dibujar en el plano</button>
-    ${S.config.plano?`<button class="btn o" id="plReset" style="width:100%;margin-top:8px">Volver a las entradas y pasillos iniciales</button>`:''}</div>
+    ${S.config.plano?`<button class="btn o" id="plReset" style="width:100%;margin-top:8px">Volver al plano inicial (entradas, pasillos, galpones y filas)</button>`:''}</div>
+   <div class="card"><h2>Galpones y naves</h2><p class="sub">Los edificios del mercado. Redibújalos si cambian o si quedaron corridos.</p>
+    <div class="list">${(pl.galpones||[]).map(g=>`<div class="row" style="align-items:center"><div>🏭 <b>${esc(g.nombre)}</b></div><button class="btn o" style="flex:0 0 auto" data-gedit="${esc(g.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-gren="${esc(g.id)}">Nombre</button><button class="btn o" style="flex:0 0 auto" data-gdel="${esc(g.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin galpones</div>'}</div>
+    <div class="row" style="margin-top:8px"><div><label>Nuevo galpón</label><input id="gNombre" placeholder="Ej: Galpón 4" autocomplete="off"></div><button class="btn y" style="flex:0 0 auto;align-self:flex-end" id="gAgregar">Dibujar en el plano</button></div></div>
+   <div class="card"><h2>Filas de estacionamiento</h2><p class="sub">Líneas donde se estacionan los autos; los cajones se dibujan solos sobre la línea. Sirven de referencia para marcar el vehículo.</p>
+    <div class="list">${(pl.filas||[]).map(fl=>`<div class="row" style="align-items:center"><div>🚗 <b>${esc(fl.nombre||'Fila')}</b> <span class="hint">· ${fl.lado==='doble'?'doble (autos a ambos lados)':'simple'}</span></div><button class="btn o" style="flex:0 0 auto" data-fedit="${esc(fl.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-fdel="${esc(fl.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin filas dibujadas</div>'}</div>
+    <div class="row" style="margin-top:8px"><div><label>Nombre (opcional)</label><input id="fNombre" placeholder="Ej: Fila frente a INMERCA" autocomplete="off"></div><div style="flex:0 0 150px"><label>Autos</label><select id="fLado"><option value="simple">De un lado</option><option value="doble">De los dos lados</option></select></div></div>
+    <button class="btn y" id="fAgregar" style="width:100%;margin-top:8px">Dibujar en el plano</button></div>
    <div style="grid-column:1/-1">${planoSVG({nota:'<span><i style="background:#7b3fe4"></i>Entrada</span><span><i style="background:#d3cfc2"></i>Pasillo</span><span><i style="background:#e0ecff"></i>Compradores</span><span><i style="background:#fff3c4"></i>Camiones</span><span><i style="background:#f2dfc2"></i>Puestos</span><span><i style="background:#12a150"></i>Centro de zona</span>'})}</div></div>`}
 async function guardarPlano(cambio,msg){const pl=JSON.parse(JSON.stringify(planoCfg()));cambio(pl);pl.id='plano';pl.v=PV;await guardar('config',pl);if(msg)log(msg);render()}
 
@@ -958,9 +974,11 @@ const bind={
     if(plEdit){const svg=$('plPick');const ent=plEdit.tipo==='entrada';
       svg.onclick=ev=>{const q=svgXY(svg,ev);if(ent)plEdit.pts=[[q.x,q.y]];else plEdit.pts.push([q.x,q.y]);render()};
       if($('plDeshacer'))$('plDeshacer').onclick=()=>{plEdit.pts.pop();render()};$('plCancelar').onclick=()=>{plEdit=null;render()};
-      $('plListo').onclick=async()=>{const e=plEdit;plEdit=null;
-        if(ent)await guardarPlano(pl=>{const o={id:e.id,nombre:e.nombre,x:e.pts[0][0],y:e.pts[0][1]};const i=pl.entradas.findIndex(x=>x.id===e.id);i>=0?pl.entradas[i]=o:pl.entradas.push(o)},`Entrada "${e.nombre}" marcada en el plano`);
-        else await guardarPlano(pl=>{const o={id:e.id,nombre:e.nombre,sentido:e.sentido,pts:e.pts};const i=pl.pasillos.findIndex(x=>x.id===e.id);i>=0?pl.pasillos[i]=o:pl.pasillos.push(o)},`Pasillo "${e.nombre}" dibujado en el plano`)};return}
+      $('plListo').onclick=async()=>{const e=plEdit;plEdit=null;const poner=(lista,o)=>{const i=lista.findIndex(x=>x.id===o.id);i>=0?lista[i]=o:lista.push(o)};
+        if(ent)await guardarPlano(pl=>poner(pl.entradas,{id:e.id,nombre:e.nombre,x:e.pts[0][0],y:e.pts[0][1]}),`Entrada "${e.nombre}" marcada en el plano`);
+        else if(e.tipo==='galpon')await guardarPlano(pl=>{pl.galpones=pl.galpones||[];poner(pl.galpones,{id:e.id,nombre:e.nombre,pts:e.pts,rot:rotLargo(e.pts)})},`Galpón "${e.nombre}" dibujado en el plano`);
+        else if(e.tipo==='fila')await guardarPlano(pl=>{pl.filas=pl.filas||[];poner(pl.filas,{id:e.id,nombre:e.nombre,lado:e.lado,pts:e.pts})},`Fila de estacionamiento dibujada en el plano`);
+        else await guardarPlano(pl=>poner(pl.pasillos,{id:e.id,nombre:e.nombre,sentido:e.sentido,pts:e.pts}),`Pasillo "${e.nombre}" dibujado en el plano`)};return}
     document.querySelectorAll('[data-zmap]').forEach(b=>b.onclick=()=>{zonaUbicando=b.dataset.zmap;render();window.scrollTo(0,0)});
     document.querySelectorAll('[data-zdib]').forEach(b=>b.onclick=()=>{zonaDib=b.dataset.zdib;dibPts=[];render();window.scrollTo(0,0)});
     document.querySelectorAll('[data-ztipo]').forEach(s=>s.onchange=async()=>{const z=S.zona[s.dataset.ztipo];await guardar('zona',{...z,tipo:s.value});render()});
@@ -974,7 +992,12 @@ const bind={
     document.querySelectorAll('[data-pedit]').forEach(b=>b.onclick=()=>{const q=pl.pasillos.find(x=>x.id===b.dataset.pedit);plEdit={tipo:'pasillo',id:q.id,nombre:q.nombre,sentido:q.sentido,pts:[]};render();window.scrollTo(0,0)});
     const quitar=(attr,campo,txt)=>document.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='¿Seguro?';return}const id=b.getAttribute(attr);const x=pl[campo].find(o=>o.id===id);
       await guardarPlano(p=>{p[campo]=p[campo].filter(o=>o.id!==id)},`${txt} quitado del plano: "${x?.nombre||id}"`)});
-    quitar('data-edel','entradas','Entrada');quitar('data-pdel','pasillos','Pasillo');
+    quitar('data-edel','entradas','Entrada');quitar('data-pdel','pasillos','Pasillo');quitar('data-gdel','galpones','Galpón');quitar('data-fdel','filas','Fila');
+    $('gAgregar').onclick=()=>{const n=$('gNombre').value.trim();if(!n){toast('Escribe el nombre del galpón');return}plEdit={tipo:'galpon',id:'G'+Date.now().toString(36),nombre:n,pts:[]};render();window.scrollTo(0,0)};
+    document.querySelectorAll('[data-gedit]').forEach(b=>b.onclick=()=>{const g=pl.galpones.find(x=>x.id===b.dataset.gedit);plEdit={tipo:'galpon',id:g.id,nombre:g.nombre,pts:[]};render();window.scrollTo(0,0)});
+    document.querySelectorAll('[data-gren]').forEach(b=>b.onclick=async()=>{const g=pl.galpones.find(x=>x.id===b.dataset.gren);const n=prompt('Nombre del galpón',g.nombre);if(n==null||!n.trim())return;await guardarPlano(p=>{const x=p.galpones.find(y=>y.id===g.id);if(x)x.nombre=n.trim()},`Galpón renombrado: "${n.trim()}"`)});
+    $('fAgregar').onclick=()=>{const n=$('fNombre').value.trim();plEdit={tipo:'fila',id:'F'+Date.now().toString(36),nombre:n,lado:$('fLado').value,pts:[]};render();window.scrollTo(0,0)};
+    document.querySelectorAll('[data-fedit]').forEach(b=>b.onclick=()=>{const f=pl.filas.find(x=>x.id===b.dataset.fedit);plEdit={tipo:'fila',id:f.id,nombre:f.nombre,lado:f.lado,pts:[]};render();window.scrollTo(0,0)});
     if($('plReset'))$('plReset').onclick=async()=>{const b=$('plReset');if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await guardar('config',{...PLANO0});log('Entradas y pasillos vueltos a los iniciales');render()};
   },
   carretilleros(){const dorso=()=>$('akDorso').checked;

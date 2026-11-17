@@ -30,7 +30,7 @@ with sync_playwright() as p:
     # ---------- VENDEDOR ----------
     cV,V=nuevo('vendedor',AND)
     V.evaluate("(()=>{const e=new Event('beforeinstallprompt');e.prompt=()=>{};e.userChoice=Promise.resolve({outcome:'accepted'});dispatchEvent(e)})()")
-    V.fill('#lNombre','Hortalizas El Andino');V.fill('#lTel','0412-555-0001');V.fill('#lPin','123456');vista(V,'v01_registro',0)
+    V.fill('#lNombre','Hortalizas El Andino');V.fill('#lTel','0412-555-0001');V.fill('#lPin','123456');V.fill('#lPal','Firulais');vista(V,'v01_registro',0)
     V.click('#lGo');V.wait_for_timeout(2000);vista(V,'v02_instalar');V.click('#instNo');V.wait_for_timeout(300);V.evaluate("document.getElementById('instBar')&&document.getElementById('instBar').remove()")
     vista(V,'v03_inicio',0)
     V.click('#nav button[data-v=miUbic]');V.wait_for_timeout(400);V.click('#mpEditar');V.wait_for_timeout(200);V.fill('#mpProd','Papa, cebolla, zanahoria');V.select_option('#mpZona',label='Patio de camiones');V.fill('#mpRef','Camión rojo, frente a INMERCA')
@@ -40,7 +40,7 @@ with sync_playwright() as p:
     for n in ['José Pérez','Luis Gómez']:V.fill('#kNom',n);V.click('#kAdd');V.wait_for_timeout(600)
     vista(V,'v06_carretilleros',0)
     # comprador para despachar
-    cC,C=nuevo('comprador',AND);C.fill('#lNombre','Bodega Rosa');C.fill('#lTel','0414-555-1020');C.fill('#lPlaca','AB123CD');C.fill('#lPin','654321');vista(C,'c01_registro',0)
+    cC,C=nuevo('comprador',AND);C.fill('#lNombre','Bodega Rosa');C.fill('#lTel','0414-555-1020');C.fill('#lPlaca','AB123CD');C.fill('#lPin','654321');C.fill('#lPal','Caracas');vista(C,'c01_registro',0)
     C.evaluate("(()=>{const e=new Event('beforeinstallprompt');e.prompt=()=>{};e.userChoice=Promise.resolve({outcome:'accepted'});dispatchEvent(e)})()")
     C.click('#lGo');C.wait_for_timeout(2000);C.click('#instNo');C.wait_for_timeout(300);C.evaluate("document.getElementById('instBar')&&document.getElementById('instBar').remove()")
     C.select_option('#rZona',label='Detrás del Barco');C.fill('#rVeh','Ford 350 blanca');C.fill('#rRef','Al lado del kiosco azul');C.click('#rGPS');C.wait_for_timeout(2500)
@@ -86,4 +86,12 @@ with sync_playwright() as p:
     # credencial impresa y papeleta (para el instructivo del vendedor)
     V.click('#nav button[data-v=misCarr]');V.wait_for_timeout(300);V.locator('[data-kprint]').first.click();V.wait_for_timeout(1500);V.emulate_media(media='print');V.wait_for_timeout(300)
     V.locator('#print .cred').first.screenshot(path=OUT+'v17_credencial.png');V.emulate_media(media='screen')
+    # palabra secreta: cambiarla desde el encabezado y recuperar el PIN sin entrar
+    for pg,m,tel,pal,pre in [(V,'vendedor','0412-555-0001','Firulais','v'),(C,'comprador','0414-555-1020','Caracas','c')]:
+        pg.goto(URL+m+'.html');pg.wait_for_timeout(2500)
+        if pg.locator('#palModal').count():pg.click('#pNo')
+        pg.evaluate('window.scrollTo(0,0)');pg.click('#miPalabra');pg.wait_for_timeout(300);pg.fill('#pPal',pal);vista(pg,pre+('18' if pre=='v' else '12')+'_palabra');pg.click('#pNo')
+        cR,R=nuevo(m,AND);R.click('[data-modo=entrar]');R.fill('#lTel',tel);R.wait_for_timeout(200);vista(R,pre+('19' if pre=='v' else '13')+'_olvide',0)
+        R.click('#lOlvide');R.wait_for_timeout(300);R.fill('#rPal',pal.lower());R.fill('#rPin','112233');R.fill('#rPin2','112233');vista(R,pre+('20' if pre=='v' else '14')+'_recuperar',0)
+        R.click('#rGo');R.wait_for_timeout(2500);P(m,'recuperado:',R.inner_text('#estado').replace('\n',' '))
     P('ERRORES:',errs)

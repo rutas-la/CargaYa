@@ -1,3 +1,23 @@
+# CargaYa · Mercado Mayor de Coche
+
+**La app en uso es la v2:** https://rutas-la.github.io/CargaYa/v2/
+
+| Módulo | Enlace |
+|---|---|
+| Vendedor | https://rutas-la.github.io/CargaYa/v2/vendedor.html |
+| Comprador | https://rutas-la.github.io/CargaYa/v2/comprador.html |
+| Administración | https://rutas-la.github.io/CargaYa/v2/admin.html |
+
+- Código, instalación en Supabase y capacidad: ver [`v2/README.md`](v2/README.md).
+- Las direcciones viejas (sin `/v2/`) redirigen solas a la v2, conservando los datos del enlace
+  (credenciales `?k=`, invitaciones `?v=` y `?a=`), así que los QR ya impresos siguen sirviendo.
+- `piloto/`: código de la primera versión, archivado.
+- `pruebas/`: entorno local y pruebas automáticas de la v2.
+
+---
+
+## Historial: README de la versión piloto
+
 # CargaYa · prueba piloto
 
 Tres módulos, cada uno con su link: **comprador.html**, **vendedor.html** y **admin.html** (la portada `index.html` lleva a los tres).

@@ -1,16 +1,12 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CargaYa · Códigos QR para imprimir</title>
-<style>
-body{margin:0;font-family:system-ui,sans-serif;background:#f6f4ee;color:#16181c}
-.bar{padding:16px;text-align:center}
-button{font:inherit;font-weight:700;padding:12px 20px;border:0;border-radius:10px;background:#ffc400;cursor:pointer}
-.hojas{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;padding:0 16px 30px}
-.hojas img{width:min(100%,360px);border:1px solid #e2e0d8;border-radius:12px;background:#fff}
-@media print{.bar{display:none}body{background:#fff}.hojas{display:block;padding:0}.hojas img{display:block;width:16cm;margin:1cm auto;border:0;page-break-after:always}}
-</style></head><body>
-<div class="bar"><p>Un código por módulo: vendedores y compradores. Las credenciales de los carretilleros las imprime cada vendedor desde su módulo.</p><button onclick="print()">Imprimir</button></div>
-<div class="hojas">
-<img src="qr/cargaya-qr-vendedor.png" alt="QR para vendedores">
-<img src="qr/cargaya-qr-comprador.png" alt="QR para compradores">
-</div></body></html>
+<title>CargaYa</title><meta name="robots" content="noindex">
+<script>
+// CargaYa se mudó a /v2/. Se conservan los datos del enlace (?k= credencial, ?v= invitación, ?a= amigo).
+location.replace('v2/qr.html'+location.search+location.hash);
+</script>
+<meta http-equiv="refresh" content="0; url=v2/qr.html">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+</head><body style="font-family:system-ui,sans-serif;text-align:center;padding:40px">
+<p>CargaYa se actualizó. Si no se abre sola, <a href="v2/qr.html">toca aquí</a>.</p>
+</body></html>

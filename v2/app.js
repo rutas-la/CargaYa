@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.11',VERSION_FECHA='17/11/2026';
+const VERSION='2.12',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -304,7 +304,8 @@ document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(documen
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
 const ocupado=()=>!!otroModulo||!!yoBuscando||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!zonaDib||!!plEdit||!!ubicandoCamion||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
-  el.innerHTML=`<span><i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" class="btn-salir">${ONLINE?'salir':'cambiar'}</a>`:''}</span>`;
+  el.innerHTML=`<span><i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)}${ME.rol!=='admin'&&ONLINE?' <a href="#" id="miPalabra" class="btn-palabra">🔑 palabra</a>':''} <a href="#" id="salir" class="btn-salir">${ONLINE?'salir':'cambiar'}</a>`:''}</span>`;
+  const mp=document.getElementById('miPalabra');if(mp)mp.onclick=e=>{e.preventDefault();pedirPalabra(true)};
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();if(ONLINE){salir();return}setME(null);view=null;render()}}
 function render(){IDX.t=0;
   const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
@@ -356,52 +357,61 @@ async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=
   return admin}
 async function trasEntrar(){await cargar();cargado=true;
   if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}};
-  rolElegido=null;render();aplicarFavPend().then(aplicarAmigo)}
+  rolElegido=null;render();aplicarFavPend().then(aplicarAmigo);revisarPalabra()}
 async function salir(){try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
-/* ---- Recuperar el PIN por SMS (autogestión, Edge Function "recuperar-pin" + Twilio Verify) ---- */
-let RECUP={paso:1,tel:'',espera:0};
-async function llamarRecuperar(datos){
-  const r=await fetch(CFG.SUPABASE_URL.replace(/\/$/,'')+'/functions/v1/recuperar-pin',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.SUPABASE_KEY},body:JSON.stringify(datos)});
-  if(r.status===404)return {error:'La recuperación por SMS todavía no está activa. Pide a la administración que cambie tu PIN.'};
-  try{return await r.json()}catch(e){return {error:'Error del servidor. Prueba de nuevo en unos minutos.'}}}
-const telBonito=d=>'+'+d.slice(0,d.length-10)+' '+d.slice(-10,-7)+' '+d.slice(-7,-4)+' '+d.slice(-4);
-function vRecuperar(){const p=RECUP.paso;
+/* ---- Recuperar el PIN con la PALABRA SECRETA (autogestión) ---- */
+const palabraNormal=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const AYUDA_PALABRA='Una palabra que no vayas a olvidar, por ejemplo el nombre de tu primera mascota o de tu pueblo. No importan las mayúsculas ni los acentos.';
+let RECUP_TEL='';
+function vRecuperar(){
   return `<div class="card" style="max-width:520px;margin:0 auto"><h2>🔑 Recuperar mi PIN</h2>
-   ${p===1?`<p class="hint" style="margin-top:0">Escribe el teléfono de tu cuenta. Te mandamos un código por SMS para que elijas un PIN nuevo.</p>
-    <form id="fRec1"><label>Teléfono</label><input id="rTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username" value="${esc(RECUP.tel?('+'+RECUP.tel):'')}">
-     <div id="rErr"></div><button class="btn y big" type="submit" id="rGo" style="margin-top:14px">Enviarme el código por SMS</button></form>`
-   :`<div class="found" style="margin:4px 0 8px">📩 Te enviamos un código por SMS al <b>${telBonito(RECUP.tel)}</b>. Puede tardar un minuto.</div>
-    <form id="fRec2"><label>Código del SMS</label><input id="rCod" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required placeholder="123456">
-     <label>PIN nuevo (6 números)</label><input id="rPin" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
-     <label>Repite el PIN nuevo</label><input id="rPin2" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
-     <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="rVer" style="width:auto"> Mostrar PIN</label>
-     <div id="rErr"></div><button class="btn y big" type="submit" id="rGo" style="margin-top:14px">Cambiar PIN y entrar</button></form>
-    <button class="btn o" type="button" id="rOtra" style="margin-top:10px;width:100%">No me llegó: enviar otro código</button>`}
-   <button class="btn o" type="button" id="rAtras" style="margin-top:10px;width:100%">← Volver a entrar</button></div>`}
+   <p class="hint" style="margin-top:0">Escribe tu teléfono y la <b>palabra secreta</b> que elegiste al crear tu cuenta. Luego inventa un PIN nuevo.</p>
+   <form id="fRec"><label>Teléfono</label><input id="rTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username" value="${esc(RECUP_TEL?('+'+RECUP_TEL):'')}">
+    <label>Tu palabra secreta</label><input id="rPal" required autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label>PIN nuevo (6 números)</label><input id="rPin" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
+    <label>Repite el PIN nuevo</label><input id="rPin2" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
+    <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="rVer" style="width:auto"> Mostrar PIN</label>
+    <div id="rErr"></div><button class="btn y big" type="submit" id="rGo" style="margin-top:14px">Cambiar PIN y entrar</button></form>
+   <p class="hint" style="margin-top:10px">¿No recuerdas la palabra o no creaste una? Pide a la administración que te cambie el PIN.</p>
+   <button class="btn o" type="button" id="rAtras" style="margin-top:6px;width:100%">← Volver a entrar</button></div>`}
 function bindRecuperar(){
   const err=m=>{$('rErr').innerHTML=`<div class="notfound" style="margin-top:10px">${m}</div>`};
-  const ocupado=(b,t)=>{const x=$('rGo');if(x){x.disabled=b;if(t)x.textContent=t}};
-  $('rAtras').onclick=()=>{modoCuenta='entrar';RECUP={paso:1,tel:'',espera:0};render()};
-  const enviar=async tel=>{
-    const r=await llamarRecuperar({accion:'enviar',tel}).catch(()=>({error:'No hay conexión con el servidor. Revisa los datos móviles o el WiFi.'}));
-    if(r.error){err(r.error);return false}RECUP={paso:2,tel,espera:Date.now()+60000};render();return true};
-  if(RECUP.paso===1){$('fRec1').onsubmit=async e=>{e.preventDefault();const tel=telDigitos($('rTel').value);
-    if(tel.length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');ocupado(true,'Enviando…');
-    if(!await enviar(tel))ocupado(false,'Enviarme el código por SMS')};return}
+  $('rAtras').onclick=()=>{modoCuenta='entrar';RECUP_TEL='';render()};
   $('rVer').onchange=()=>{$('rPin').type=$('rPin2').type=$('rVer').checked?'text':'password'};
-  $('rOtra').onclick=async()=>{const falta=Math.ceil((RECUP.espera-Date.now())/1000);
-    if(falta>0)return err(`Espera ${falta} segundos antes de pedir otro código.`);
-    $('rOtra').disabled=true;if(await enviar(RECUP.tel))toast('Código reenviado');else $('rOtra').disabled=false};
-  $('fRec2').onsubmit=async e=>{e.preventDefault();
-    const codigo=$('rCod').value.replace(/\D/g,''),pin=$('rPin').value.trim();
-    if(codigo.length<4)return err('Escribe el código que te llegó por SMS.');
+  $('fRec').onsubmit=async e=>{e.preventDefault();
+    const tel=telDigitos($('rTel').value),pal=palabraNormal($('rPal').value),pin=$('rPin').value.trim();
+    if(tel.length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');
+    if(pal.length<4)return err('Escribe tu palabra secreta.');
     if(!/^\d{6}$/.test(pin))return err('El PIN nuevo debe tener 6 números.');
     if(pin!==$('rPin2').value.trim())return err('Los dos PIN no son iguales.');
-    ocupado(true,'Un momento…');
-    const r=await llamarRecuperar({accion:'cambiar',tel:RECUP.tel,codigo,pin}).catch(()=>({error:'No hay conexión con el servidor. Prueba de nuevo.'}));
-    if(r.error){ocupado(false,'Cambiar PIN y entrar');return err(r.error)}
-    const tel=RECUP.tel;RECUP={paso:1,tel:'',espera:0};modoCuenta='entrar';render();toast('✅ PIN cambiado');
+    const b=$('rGo');b.disabled=true;b.textContent='Un momento…';const listo=()=>{b.disabled=false;b.textContent='Cambiar PIN y entrar'};
+    let r;try{r=await sb.rpc('recuperar_con_palabra',{tel_digitos:tel,palabra:pal,pin_nuevo:pin})}catch(ex){listo();return err('No hay conexión con el servidor. Revisa los datos móviles o el WiFi.')}
+    if(r.error){listo();return err(/fetch|network|Failed/i.test(r.error.message||'')?'No hay conexión con el servidor. Prueba de nuevo.':'La recuperación todavía no está activa. Pide a la administración que te cambie el PIN.')}
+    const k=String(r.data||'');
+    if(k!=='ok'){listo();
+      if(k==='no_existe')return err('No hay ninguna cuenta con ese teléfono. Revisa el número o toca "Soy nuevo".');
+      if(k==='sin_palabra')return err('Esta cuenta no tiene palabra secreta. Pide a la administración que te cambie el PIN.');
+      if(k==='bloqueado')return err('Demasiados intentos con una palabra equivocada. Espera una hora o pide ayuda a la administración.');
+      if(k.startsWith('incorrecta')){const q=+k.split(':')[1];return err(`La palabra secreta no coincide. ${q===1?'Te queda 1 intento.':`Te quedan ${q} intentos.`}`)}
+      return err('No se pudo cambiar el PIN. Pide ayuda a la administración.')}
+    RECUP_TEL='';modoCuenta='entrar';render();toast('✅ PIN cambiado');
     $('lTel').value='+'+tel;$('lPin').value=pin;$('fLogin').requestSubmit()}}
+/* Crear o cambiar la palabra secreta ya dentro de la cuenta */
+function pedirPalabra(cambiar){if(document.getElementById('palModal'))return;
+  const m=document.createElement('div');m.id='palModal';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px';
+  m.innerHTML=`<div class="card" style="max-width:440px;width:100%;margin:0"><h2>🔑 ${cambiar?'Cambiar tu palabra secreta':'Crea tu palabra secreta'}</h2>
+   <p style="margin:4px 0 8px">${cambiar?'Elige una palabra nueva.':'Si un día olvidas tu PIN, con esta palabra lo recuperas tú mismo, sin llamar a nadie.'}</p>
+   <label>Palabra secreta</label><input id="pPal" autocomplete="off" autocapitalize="off" spellcheck="false">
+   <p class="hint">${AYUDA_PALABRA} No se la digas a nadie.</p><div id="pErr"></div>
+   <div class="row" style="margin-top:12px"><button class="btn o" type="button" id="pNo">${cambiar?'Cancelar':'Ahora no'}</button><button class="btn y" type="button" id="pOk">Guardar</button></div></div>`;
+  document.body.appendChild(m);const cerrar=()=>m.remove();$('pNo').onclick=()=>{if(!cambiar)try{localStorage.setItem('cy-pal-no',Date.now())}catch(e){}cerrar()};$('pPal').focus();
+  $('pOk').onclick=async()=>{const p=palabraNormal($('pPal').value);
+    if(p.length<4){$('pErr').innerHTML='<div class="notfound" style="margin-top:8px">Usa una palabra de al menos 4 letras.</div>';return}
+    $('pOk').disabled=true;let r;try{r=await sb.rpc('fijar_palabra',{palabra:p})}catch(e){r={error:1}}$('pOk').disabled=false;
+    if(r.error||r.data!=='ok'){$('pErr').innerHTML='<div class="notfound" style="margin-top:8px">No se pudo guardar. Revisa la conexión y prueba de nuevo.</div>';return}
+    cerrar();toast('✅ Palabra secreta guardada')}}
+async function revisarPalabra(){if(!ME||ME.rol==='admin'||!ONLINE)return;try{if(Date.now()-(+localStorage.getItem('cy-pal-no')||0)<20*3600e3)return}catch(e){}
+  try{const r=await sb.rpc('tengo_palabra');if(!r.error&&r.data===false)setTimeout(()=>{if(!document.getElementById('instModal'))pedirPalabra(false)},1200)}catch(e){}}
 
 function vLogin(){
   if(modoCuenta==='recuperar'&&MODULO!=='admin')return vRecuperar();
@@ -416,19 +426,20 @@ function vLogin(){
     ${crear&&r==='comprador'?'<label>Placa de tu vehículo</label><input id="lPlaca" placeholder="Ej: AB123CD" required autocapitalize="characters">':''}
     <label>${crear?'Inventa un PIN de 6 números':'PIN'}</label><input id="lPin" type="password" inputmode="numeric" ${crear?'maxlength="6" pattern="[0-9]{6}"':''} required autocomplete="${crear?'new-password':'current-password'}">
     <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="lVer" style="width:auto"> Mostrar PIN</label>
+    ${crear?`<label>Palabra secreta (para recuperar tu PIN si lo olvidas)</label><input id="lPal" required autocomplete="off" autocapitalize="off" spellcheck="false"><p class="hint">${AYUDA_PALABRA}</p>`:''}
     ${crear?'<p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':(r==='admin'?'<p class="hint">¿Olvidaste tu PIN? Pídele a otro administrador que te lo cambie.</p>':'<button type="button" class="btn-olvide" id="lOlvide">🔑 ¿Olvidaste tu PIN? Recupéralo aquí</button>')}
     <div id="lErr"></div>
     <button class="btn y big" type="submit" id="lGo" style="margin-top:14px">${crear?'Crear cuenta':'Entrar'}</button></form>
    <p class="hint" style="margin-top:6px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
 function bindLogin(){
   if(modoCuenta==='recuperar'&&MODULO!=='admin')return bindRecuperar();
-  if($('lOlvide'))$('lOlvide').onclick=()=>{const t=telDigitos($('lTel').value);RECUP={paso:1,tel:t.length>=11?t:'',espera:0};modoCuenta='recuperar';render()};
+  if($('lOlvide'))$('lOlvide').onclick=()=>{const t=telDigitos($('lTel').value);RECUP_TEL=t.length>=11?t:'';modoCuenta='recuperar';render()};
   document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});
   if($('lVer'))$('lVer').onchange=()=>{$('lPin').type=$('lVer').checked?'text':'password'};
   const f=$('fLogin');if(!f)return;
   f.onsubmit=async e=>{e.preventDefault();const r=MODULO,crear=modoCuenta==='crear'&&r!=='admin';const err=m=>{$('lErr').innerHTML=`<div class="notfound" style="margin-top:10px">${m}</div>`};
     const tel=$('lTel').value.trim(),pin=$('lPin').value.trim();if(telDigitos(tel).length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');
-    if(crear&&!/^\d{6}$/.test(pin))return err('El PIN debe tener 6 números.');if(pin.length<6)return err('El PIN tiene al menos 6 caracteres.');
+    if(crear&&!/^\d{6}$/.test(pin))return err('El PIN debe tener 6 números.');const pal=crear?palabraNormal($('lPal').value):'';if(crear&&pal.length<4)return err('Escribe una palabra secreta de al menos 4 letras.');if(pin.length<6)return err('El PIN tiene al menos 6 caracteres.');
     const btn=$('lGo'),txt=btn.textContent,listo=()=>{btn.disabled=false;btn.textContent=txt};btn.disabled=true;btn.textContent='Un momento…';
     try{let user;
       if(crear){const nombre=$('lNombre').value.trim();const md={rol:r,nombre,tel};
@@ -440,7 +451,7 @@ function bindLogin(){
           if(/fetch|network|timeout|Failed/i.test(m)||!navigator.onLine)return err('No hay conexión con el servidor. Revisa los datos móviles o el WiFi y prueba de nuevo.');
           return err('No se pudo crear la cuenta: '+esc(m))}
         if(!data.session){listo();return err('La cuenta se creó, pero Supabase pide confirmar el email. Administración: en Supabase desactiva "Confirm email".')}
-        user=data.user}
+        user=data.user;try{await sb.rpc('fijar_palabra',{palabra:pal})}catch(e){}}
       else{const {data,error}=await sb.auth.signInWithPassword({email:emailDeTel(tel),password:pin});
         if(error){listo();const m=(error.message||'')+' '+(error.name||'');
           if(/fetch|network|timeout|Failed|NetworkError|AuthRetryableFetchError/i.test(m)||!navigator.onLine)return err('No hay conexión con el servidor. Revisa los datos móviles o el WiFi y prueba de nuevo.');
@@ -1483,7 +1494,7 @@ try{const u=new URL(location.href);if(u.searchParams.has('_v')){u.searchParams.d
     if(!ses){conexion='en línea';render();return}
     const adm=await entrar(ses.user);if(!ME){await sb.auth.signOut();render();return}
     if(MODULO==='admin'&&!adm){otroModulo=ME.rol;cargado=true;render();return}if(MODULO!=='admin'&&ME.rol!==MODULO){otroModulo=ME.rol;cargado=true;render();return}
-    await cargar();cargado=true;if(ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}}}
+    await cargar();cargado=true;if(ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}}revisarPalabra()}
   else{render();await cargar();cargado=true}
   if(kURL&&!fichaURL){const k=ONLINE?await buscarCarr(kURL.id):carrPorId(kURL.id);
     const d=ME&&ME.rol==='comprador'&&k?L('despacho').filter(x=>x.placa===ME.id&&x.estado==='en_ruta'&&x.carretillero===k.id).sort((a,b)=>a.t.creado-b.t.creado)[0]:null;

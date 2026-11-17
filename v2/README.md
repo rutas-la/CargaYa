@@ -48,12 +48,9 @@ Espacio: unos 1 KB por despacho (100 vendedores ≈ 4 MB por día).
 - La base pasa de ~300 MB (límite gratis: 500 MB).
 - Antes de abrir a los vendedores de forma masiva (Pro incluye copias de seguridad diarias y no se pausa).
 
-## Recuperar el PIN por SMS (autogestión) — desde v2.11
-Vendedores y compradores tocan **Ya tengo cuenta → 🔑 ¿Olvidaste tu PIN?**, reciben un código por SMS
-(Twilio Verify) y eligen un PIN nuevo. Límite: 1 código por minuto, 3 por hora por teléfono, 300 por día en total.
-Puesta en marcha (una sola vez):
-1. Supabase → SQL Editor: pegar y ejecutar `recuperar-pin.sql`.
-2. Twilio: crear cuenta (con saldo, no de prueba), Verify → Services → crear "CargaYa"; en Geo permissions de Verify habilitar Venezuela (y Argentina para pruebas).
-3. Supabase → Edge Functions → Secrets: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SID`.
-4. Supabase → Edge Functions → Deploy a new function → Via Editor: nombre `recuperar-pin`, pegar `supabase/functions/recuperar-pin/index.ts`, desplegar y **desactivar "Verify JWT"**.
-Mientras no esté configurado, la app avisa que hay que pedir el cambio de PIN a la administración.
+## Recuperar el PIN con la palabra secreta (autogestión) — desde v2.12
+Al crear la cuenta, vendedores y compradores eligen una **palabra secreta** (se guarda cifrada, nadie la puede leer).
+Si olvidan el PIN: **Ya tengo cuenta → 🔑 ¿Olvidaste tu PIN?** → teléfono + palabra secreta + PIN nuevo.
+No importan mayúsculas ni acentos. 5 intentos fallidos bloquean la recuperación de esa cuenta por 1 hora (queda en Actividad).
+Las cuentas que ya existían reciben un aviso al entrar para crear su palabra; se cambia tocando **🔑 palabra** en el encabezado.
+Puesta en marcha: Supabase → SQL Editor → pegar y ejecutar `palabra-secreta.sql` (una sola vez).

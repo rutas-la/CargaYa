@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.8',VERSION_FECHA='17/11/2026';
+const VERSION='2.9',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -304,7 +304,7 @@ document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(documen
 const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
 const ocupado=()=>!!otroModulo||!!yoBuscando||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!zonaDib||!!plEdit||!!ubicandoCamion||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
-  el.innerHTML=`<i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">${ONLINE?'salir':'cambiar'}</a>`:''} · <a href="ayuda-${MODULO}.html" target="_blank" rel="noopener" style="color:#fff;background:#2c2f36;border-radius:8px;padding:2px 8px;text-decoration:none;white-space:nowrap">📘 Ayuda</a>`;
+  el.innerHTML=`<span><i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)} <a href="#" id="salir" style="color:#ffc400">${ONLINE?'salir':'cambiar'}</a>`:''}</span><a href="ayuda-${MODULO}.html" target="_blank" rel="noopener" class="btn-ayuda">📘 CÓMO SE USA</a>`;
   const s=document.getElementById('salir');if(s)s.onclick=e=>{e.preventDefault();if(ONLINE){salir();return}setME(null);view=null;render()}}
 function render(){IDX.t=0;
   const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
@@ -373,7 +373,7 @@ function vLogin(){
     ${crear?'<p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':'<p class="hint">¿Olvidaste tu PIN? Pídele a la administración que te lo cambie.</p>'}
     <div id="lErr"></div>
     <button class="btn y big" type="submit" id="lGo" style="margin-top:14px">${crear?'Crear cuenta':'Entrar'}</button></form>
-   <p style="margin-top:14px;text-align:center"><a href="ayuda-${r}.html" target="_blank" rel="noopener">📘 ¿Cómo se usa? Ver el instructivo</a></p>
+   <a href="ayuda-${r}.html" target="_blank" rel="noopener" class="btn-ayuda grande">📘 ¿CÓMO SE USA? Ver la guía paso a paso</a>
    <p class="hint" style="margin-top:6px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
 function bindLogin(){
   document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});

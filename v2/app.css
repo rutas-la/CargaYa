@@ -180,3 +180,10 @@ footer{max-width:1180px;margin:0 auto;padding:0 18px 30px;color:var(--mute);font
   .pap .pleg{font-size:6.5pt;color:#555;text-align:center;padding-top:.6mm}
   .pap .pfirma{display:flex;justify-content:space-between;align-items:flex-end;border-top:.3mm solid #16181c;padding-top:1mm;min-height:11mm;font-size:7pt;color:#555}
 }
+/* Botón de la guía "Cómo se usa": bien visible */
+#estado{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.btn-ayuda{display:inline-flex;align-items:center;gap:6px;background:#ffc400;color:#16181c!important;font-weight:800;font-size:16px;letter-spacing:.3px;padding:7px 14px;border-radius:10px;text-decoration:none;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.btn-ayuda.grande{display:flex;justify-content:center;width:100%;box-sizing:border-box;margin-top:16px;font-size:19px;padding:14px 12px;white-space:normal;text-align:center;border:2px solid #16181c}
+footer a{font-size:17px;font-weight:700}
+#estado i{margin-right:6px}
+.btn-ayuda.grande{background:#fff3c4}

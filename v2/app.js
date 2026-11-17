@@ -69,6 +69,8 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 /* ===================== Datos ===================== */
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
+// Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
+const VERSION='2.4',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -371,7 +373,8 @@ function vLogin(){
     ${crear?'<p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':'<p class="hint">¿Olvidaste tu PIN? Pídele a la administración que te lo cambie.</p>'}
     <div id="lErr"></div>
     <button class="btn y big" type="submit" id="lGo" style="margin-top:14px">${crear?'Crear cuenta':'Entrar'}</button></form>
-   ${r!=='admin'?`<p class="hint" style="margin-top:14px;text-align:center">¿Eres ${r==='vendedor'?'comprador':'vendedor'}? <a href="${LINKS[r==='vendedor'?'comprador':'vendedor']}">Entra aquí</a></p>`:''}</div>`}
+   ${r!=='admin'?`<p class="hint" style="margin-top:14px;text-align:center">¿Eres ${r==='vendedor'?'comprador':'vendedor'}? <a href="${LINKS[r==='vendedor'?'comprador':'vendedor']}">Entra aquí</a></p>`:''}
+   <p class="hint" style="margin-top:10px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
 function bindLogin(){
   document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});
   if($('lVer'))$('lVer').onchange=()=>{$('lPin').type=$('lVer').checked?'text':'password'};
@@ -387,11 +390,14 @@ function bindLogin(){
         if(error){const m=error.message||'';listo();
           if(/already|registered|exists/i.test(m))return err('Ese teléfono ya tiene cuenta. Toca "Ya tengo cuenta" y entra con tu PIN.');
           if(/invalid/i.test(m)&&/email/i.test(m))return err('Supabase rechazó la cuenta (email inválido). Administración: cambia EMAIL_DOMINIO en config.js.');
+          if(/fetch|network|timeout|Failed/i.test(m)||!navigator.onLine)return err('No hay conexión con el servidor. Revisa los datos móviles o el WiFi y prueba de nuevo.');
           return err('No se pudo crear la cuenta: '+esc(m))}
         if(!data.session){listo();return err('La cuenta se creó, pero Supabase pide confirmar el email. Administración: en Supabase desactiva "Confirm email".')}
         user=data.user}
       else{const {data,error}=await sb.auth.signInWithPassword({email:emailDeTel(tel),password:pin});
-        if(error){listo();return err('Teléfono o PIN incorrecto.')}user=data.user}
+        if(error){listo();const m=(error.message||'')+' '+(error.name||'');
+          if(/fetch|network|timeout|Failed|NetworkError|AuthRetryableFetchError/i.test(m)||!navigator.onLine)return err('No hay conexión con el servidor. Revisa los datos móviles o el WiFi y prueba de nuevo.');
+          return err('No encontramos esa cuenta o el PIN no coincide. Si es tu primera vez en esta versión de CargaYa, toca <b>"Soy nuevo"</b> y crea tu cuenta.')}user=data.user}
       const admin=await entrar(user);
       if(!ME){await sb.auth.signOut();listo();return err('Esta cuenta no tiene un rol válido.')}
       if(r==='admin'&&!admin){await sb.auth.signOut();setME(null);listo();return err('Esta cuenta no es de administración.')}
@@ -1378,6 +1384,14 @@ const bind={
 };
 
 /* ===================== Arranque ===================== */
+// Muestra la versión en el encabezado y avisa si el teléfono tiene una copia vieja guardada
+(()=>{const sm=document.querySelector('.logo small');if(sm&&!sm.dataset.v){sm.dataset.v=1;sm.innerHTML+=` · <span style="opacity:.75">v${VERSION}</span>`}})();
+async function revisarVersion(){try{const r=await fetch('version.json?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
+  if(j.v&&j.v!==VERSION){let ya=0;try{ya=+sessionStorage.getItem('cy-recarga')||0}catch(e){}
+    if(Date.now()-ya>120000){try{sessionStorage.setItem('cy-recarga',Date.now())}catch(e){}const u=new URL(location.href);u.searchParams.set('_v',j.v);location.replace(u.toString());return}
+    toast(`Hay una versión nueva (${j.v}). Cierra y vuelve a abrir la app.`)}}catch(e){}}
+if(ONLINE){revisarVersion();setInterval(()=>{if(!document.hidden)revisarVersion()},10*60000)}
+try{const u=new URL(location.href);if(u.searchParams.has('_v')){u.searchParams.delete('_v');history.replaceState(null,'',u.pathname+(u.search||'')+u.hash)}}catch(e){}
 (async()=>{
   if(ONLINE){setME(null);render();let ses=null;try{ses=(await sb.auth.getSession()).data.session}catch(e){}
     if(!ses){conexion='en línea';render();return}

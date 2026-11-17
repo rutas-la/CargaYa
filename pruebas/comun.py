@@ -14,7 +14,7 @@ def hacer_admin(tel_dig,pin='999999'):
 def stats():return json.load(urllib.request.urlopen('http://127.0.0.1:8780/__stats'))
 def ctx(b,name,url,errs,geo=None):
     c=b.new_context(viewport={'width':420,'height':900},accept_downloads=True,**({'geolocation':geo,'permissions':['geolocation']} if geo else {}))
-    c.route('**/v2/config.js',lambda r:r.fulfill(body=CONF,content_type='application/javascript'))
+    c.route('**/v2/config.js*',lambda r:r.fulfill(body=CONF,content_type='application/javascript'))
     c.route('**/fonts.googleapis.com/**',lambda r:r.abort())
     pg=c.new_page();pg.on('pageerror',lambda e:errs.append(name+': '+str(e)))
     pg.on('console',lambda m:m.type=='error' and 'ERR_FAILED' not in m.text and errs.append(name+' console: '+m.text[:200]))

@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.4',VERSION_FECHA='17/11/2026';
+const VERSION='2.5',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -320,8 +320,8 @@ function render(){IDX.t=0;
   bind[view]&&bind[view]();firmarFotos();
 }
 let otroModulo=null;
-function vOtroModulo(){const r=otroModulo;return `<div class="card" style="max-width:520px;margin:0 auto"><h2>Este es el módulo de ${NOMBRE_MOD[MODULO]}</h2><p class="sub">Tu cuenta es de <b>${NOMBRE_MOD[r]}</b>. Ábrela en su módulo:</p>
-  <a class="btn y big" style="display:block;text-align:center;text-decoration:none" href="${LINKS[r]}">Ir al módulo de ${NOMBRE_MOD[r]}</a><button class="btn o" id="omSalir" style="width:100%;margin-top:10px">Salir y usar otra cuenta</button></div>`}
+function vOtroModulo(){const r=otroModulo;return `<div class="card" style="max-width:520px;margin:0 auto"><h2>Este es el módulo de ${NOMBRE_MOD[MODULO]}</h2><p class="sub">Esa cuenta no es de ${NOMBRE_MOD[MODULO]}. Sal y entra con tu cuenta de ${NOMBRE_MOD[MODULO]}, o toca <b>Soy nuevo</b> para crearla.</p>
+  <button class="btn y big" id="omSalir" style="width:100%;margin-top:10px">Salir y usar otra cuenta</button></div>`}
 function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
   return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${tituloItems(d)}</div>${chip(d.estado)}</div>${htmlItems(d)}
    <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(lugar(c).zona)}</span> · `:''}${k?`Carretillero <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}${ajeno(k,d.vendedor)?` <span class="hint">(de ${esc(vend(k.vendedor)?.nombre||'otro vendedor')})</span>`:''}`:'Sin carretillero'}</div>
@@ -373,7 +373,6 @@ function vLogin(){
     ${crear?'<p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':'<p class="hint">¿Olvidaste tu PIN? Pídele a la administración que te lo cambie.</p>'}
     <div id="lErr"></div>
     <button class="btn y big" type="submit" id="lGo" style="margin-top:14px">${crear?'Crear cuenta':'Entrar'}</button></form>
-   ${r!=='admin'?`<p class="hint" style="margin-top:14px;text-align:center">¿Eres ${r==='vendedor'?'comprador':'vendedor'}? <a href="${LINKS[r==='vendedor'?'comprador':'vendedor']}">Entra aquí</a></p>`:''}
    <p class="hint" style="margin-top:10px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
 function bindLogin(){
   document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});

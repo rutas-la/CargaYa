@@ -2,7 +2,7 @@
   "name": "CargaYa Administración",
   "short_name": "CargaYa Admin",
   "start_url": "./admin.html",
-  "scope": "./",
+  "scope": "./admin.html",
   "display": "standalone",
   "background_color": "#ffc400",
   "theme_color": "#16181c",
@@ -38,5 +38,8 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
-  ]
+  ],
+  "id": "./admin.html",
+  "description": "Administración de CargaYa.",
+  "orientation": "portrait"
 }

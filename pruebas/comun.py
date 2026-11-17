@@ -18,5 +18,5 @@ def ctx(b,name,url,errs,geo=None):
     c.route('**/fonts.googleapis.com/**',lambda r:r.abort())
     pg=c.new_page();pg.on('pageerror',lambda e:errs.append(name+': '+str(e)))
     pg.on('console',lambda m:m.type=='error' and 'ERR_FAILED' not in m.text and errs.append(name+' console: '+m.text[:200]))
-    pg.add_init_script("window.print=()=>{window.__printed=(window.__printed||0)+1};window.open=(u)=>{window.__opened=u;return null}")
+    pg.add_init_script("try{['vendedor','comprador','admin'].forEach(m=>localStorage.setItem('cy-inst-'+m,'ok'))}catch(e){}");pg.add_init_script("window.print=()=>{window.__printed=(window.__printed||0)+1};window.open=(u)=>{window.__opened=u;return null}")
     pg.goto(url);pg.wait_for_timeout(900);return c,pg

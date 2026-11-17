@@ -2,7 +2,7 @@
   "name": "CargaYa Vendedor",
   "short_name": "CargaYa Vend.",
   "start_url": "./vendedor.html",
-  "scope": "./",
+  "scope": "./vendedor.html",
   "display": "standalone",
   "background_color": "#ffc400",
   "theme_color": "#16181c",
@@ -38,5 +38,8 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
-  ]
+  ],
+  "id": "./vendedor.html",
+  "description": "Despacha a la placa del comprador y controla tus entregas en el Mercado Mayor de Coche.",
+  "orientation": "portrait"
 }

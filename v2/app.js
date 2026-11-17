@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.5',VERSION_FECHA='17/11/2026';
+const VERSION='2.6',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -400,9 +400,9 @@ function bindLogin(){
       const admin=await entrar(user);
       if(!ME){await sb.auth.signOut();listo();return err('Esta cuenta no tiene un rol válido.')}
       if(r==='admin'&&!admin){await sb.auth.signOut();setME(null);listo();return err('Esta cuenta no es de administración.')}
-      if(r!=='admin'&&ME.rol!==r){const rr=ME.rol;await sb.auth.signOut();setME(null);listo();return err(`Esta cuenta es de <b>${NOMBRE_MOD[rr]}</b>. <a href="${LINKS[rr]}">Ábrela en su módulo</a>.`)}
+      if(r!=='admin'&&ME.rol!==r){const rr=ME.rol;await sb.auth.signOut();setME(null);listo();return err(`Esa cuenta no es de ${NOMBRE_MOD[r]}. Entra con tu cuenta de ${NOMBRE_MOD[r]} o toca <b>Soy nuevo</b> para crearla.`)}
       if(crear)log(`Nueva cuenta de ${r}: ${ME.nombre}${r==='comprador'?' ('+ME.id+')':''}`);
-      await trasEntrar()}
+      await trasEntrar();if(crear)setTimeout(()=>ofrecerInstalar(true),700)}
     catch(ex){listo();err('No hay conexión. Prueba de nuevo.')}}}
 
 /* ---- Ficha abierta desde un QR (cámara normal del teléfono) ---- */
@@ -1383,6 +1383,41 @@ const bind={
 };
 
 /* ===================== Arranque ===================== */
+/* ---- Instalar el ícono en el teléfono o la PC ----
+   El navegador no permite crear el ícono sin que la persona lo acepte: después del registro se abre
+   la ventana para instalarlo con un toque (Android, PC) o con los pasos para iPhone. */
+let instEv=null;
+const esStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const esIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const NOMBRE_ICONO={vendedor:'CargaYa Vend.',comprador:'CargaYa Compra',admin:'CargaYa Admin'};
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEv=e;barraInstalar()});
+addEventListener('appinstalled',()=>{instEv=null;try{localStorage.setItem('cy-inst-'+MODULO,'ok')}catch(e){};cerrarInstalar();const b=$('instBar');if(b)b.remove();toast('✓ Ícono instalado en tu pantalla')});
+function instNoAhora(){try{return Date.now()-(+localStorage.getItem('cy-inst-no-'+MODULO)||0)<3*86400000||localStorage.getItem('cy-inst-'+MODULO)==='ok'}catch(e){return false}}
+function pasosInstalar(){const ua=navigator.userAgent;
+  if(esIOS())return `<ol style="text-align:left;line-height:1.6;margin:8px 0 0;padding-left:20px"><li>Abre este enlace en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> <svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align:-4px" fill="none" stroke="#1f6feb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> (el cuadrado con la flecha hacia arriba, abajo en la pantalla).</li><li>Baja y toca <b>Agregar a pantalla de inicio</b>.</li><li>Toca <b>Agregar</b>.</li></ol>`;
+  if(/samsungbrowser/i.test(ua))return `<ol style="text-align:left;line-height:1.6;margin:8px 0 0;padding-left:20px"><li>Toca el menú <b>≡</b> abajo a la derecha.</li><li>Toca <b>Agregar página a</b> → <b>Pantalla de inicio</b>.</li></ol>`;
+  if(/android/i.test(ua))return `<ol style="text-align:left;line-height:1.6;margin:8px 0 0;padding-left:20px"><li>Toca el menú <b>⋮</b> arriba a la derecha de Chrome.</li><li>Toca <b>Instalar aplicación</b> o <b>Agregar a la pantalla principal</b>.</li><li>Confirma con <b>Instalar</b>.</li></ol>`;
+  return `<ol style="text-align:left;line-height:1.6;margin:8px 0 0;padding-left:20px"><li>En Chrome o Edge, toca el ícono de instalar <b>⊕</b> a la derecha de la barra de direcciones (o el menú <b>⋮</b> → <b>Instalar CargaYa</b>).</li><li>Confirma con <b>Instalar</b>: queda un ícono en el escritorio.</li></ol>`}
+function ofrecerInstalar(trasRegistro){if(esStandalone())return;try{if(localStorage.getItem('cy-inst-'+MODULO)==='ok'&&trasRegistro)return}catch(e){}cerrarInstalar();
+  const m=document.createElement('div');m.id='instModal';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  m.innerHTML=`<div class="card" style="max-width:420px;width:100%;text-align:center"><img src="icon-${MODULO}-192.png" alt="" style="width:88px;height:88px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.25)">
+    <h2 style="margin-top:10px">${trasRegistro?'¡Listo! Ahora instala el ícono':'Instala CargaYa en tu pantalla'}</h2>
+    <p class="sub">Así abres <b>${NOMBRE_ICONO[MODULO]}</b> con un toque, como cualquier aplicación, sin buscar el enlace.</p>
+    ${instEv?`<button class="btn y big" id="instSi" style="width:100%">📲 Instalar ícono</button>`:pasosInstalar()}
+    <button class="btn o" id="instNo" style="width:100%;margin-top:10px">Ahora no</button></div>`;
+  document.body.appendChild(m);
+  if($('instSi'))$('instSi').onclick=async()=>{const ev=instEv;if(!ev)return;ev.prompt();let r=null;try{r=await ev.userChoice}catch(e){}instEv=null;cerrarInstalar();if(r&&r.outcome!=='accepted')toast('Puedes instalarlo cuando quieras desde el aviso de abajo')};
+  $('instNo').onclick=()=>{try{localStorage.setItem('cy-inst-no-'+MODULO,Date.now())}catch(e){}cerrarInstalar();barraInstalar()}}
+function cerrarInstalar(){const m=$('instModal');if(m)m.remove()}
+// aviso fijo y discreto al pie mientras la app no esté instalada
+function barraInstalar(){if(esStandalone()||!ME)return;const b0=$('instBar');if(b0)return;if(!instEv&&!esIOS()&&!/android/i.test(navigator.userAgent))return;
+  const b=document.createElement('div');b.id='instBar';b.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:900;background:#16181c;color:#fff;border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:560px;margin:0 auto';
+  b.innerHTML=`<img src="icon-${MODULO}-192.png" alt="" style="width:36px;height:36px;border-radius:8px"><span style="flex:1;font-size:14px">Instala el ícono de <b>${NOMBRE_ICONO[MODULO]}</b></span><button class="btn y" style="flex:0 0 auto;padding:8px 12px" id="instAbrir">Instalar</button><button style="background:none;border:0;color:#bbb;font-size:20px" id="instX" aria-label="Cerrar">✕</button>`;
+  document.body.appendChild(b);$('instAbrir').onclick=()=>ofrecerInstalar(false);$('instX').onclick=()=>{try{localStorage.setItem('cy-inst-no-'+MODULO,Date.now())}catch(e){}b.remove()};
+  if(instNoAhora())b.remove()}
+setInterval(()=>{if(ME)barraInstalar()},4000);
+
 // Muestra la versión en el encabezado y avisa si el teléfono tiene una copia vieja guardada
 (()=>{const sm=document.querySelector('.logo small');if(sm&&!sm.dataset.v){sm.dataset.v=1;sm.innerHTML+=` · <span style="opacity:.75">v${VERSION}</span>`}})();
 async function revisarVersion(){try{const r=await fetch('version.json?'+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();

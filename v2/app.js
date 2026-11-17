@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.6',VERSION_FECHA='17/11/2026';
+const VERSION='2.7',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -373,7 +373,8 @@ function vLogin(){
     ${crear?'<p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':'<p class="hint">¿Olvidaste tu PIN? Pídele a la administración que te lo cambie.</p>'}
     <div id="lErr"></div>
     <button class="btn y big" type="submit" id="lGo" style="margin-top:14px">${crear?'Crear cuenta':'Entrar'}</button></form>
-   <p class="hint" style="margin-top:10px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
+   <p style="margin-top:14px;text-align:center"><a href="ayuda-${r}.html" target="_blank" rel="noopener">📘 ¿Cómo se usa? Ver el instructivo</a></p>
+   <p class="hint" style="margin-top:6px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
 function bindLogin(){
   document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});
   if($('lVer'))$('lVer').onchange=()=>{$('lPin').type=$('lVer').checked?'text':'password'};
@@ -793,7 +794,11 @@ function vImprimir(){
     <p class="hint" style="margin-top:6px;word-break:break-all">${LINKS[m]}</p></div>`;
   return `<div class="grid g2">${card('vendedor','QR para vendedores','Para que los vendedores creen su cuenta.')}${card('comprador','QR para compradores','Para que los compradores creen su cuenta.')}</div>
   <div class="card" style="margin-top:16px"><h2>Imprimir</h2><p class="sub">Los dos QR en hojas A4 para pegar en el mercado.</p><a class="btn o" style="display:block;text-align:center;text-decoration:none" href="qr.html" target="_blank" rel="noopener">🖨 Abrir para imprimir</a>
-   <p class="hint" style="margin-top:10px">Las credenciales de los carretilleros las imprime cada vendedor desde su módulo.</p></div>`}
+   <p class="hint" style="margin-top:10px">Las credenciales de los carretilleros las imprime cada vendedor desde su módulo.</p></div>
+  <div class="card" style="margin-top:16px"><h2>Instructivos paso a paso</h2><p class="sub">Guías con capturas de cada pantalla. Se pueden abrir en el teléfono, enviar por WhatsApp o imprimir.</p>
+   <div class="list">${[['vendedor','Vendedor'],['comprador','Comprador'],['admin','Administración']].map(([m,t])=>`<div class="row" style="align-items:center;flex-wrap:wrap"><div style="flex:1 1 140px">📘 <b>${t}</b></div>
+     <a class="btn o" style="flex:0 0 auto;text-decoration:none" href="ayuda-${m}.html" target="_blank" rel="noopener">Abrir</a>
+     <a class="btn g" style="flex:0 0 auto;text-decoration:none;color:#fff" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Así se usa CargaYa ${t}, paso a paso: `+RAIZ+'ayuda-'+m+'.html')}">💬 WhatsApp</a></div>`).join('')}</div></div>`}
 // QR de registro generado en el momento (sirve en cualquier dirección o dominio)
 const QRC={};function qrRol(m){if(!window.qrcode){cargarQRlib().then(()=>pedirRender()).catch(()=>{});return 'data:image/gif;base64,R0lGODlhAQABAAAAACw='}return QRC[m]||(QRC[m]=qrImg(LINKS[m],600))}
 function cargarQRlib(){return window.qrcode?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='lib/qrcode.js';s.onload=res;s.onerror=()=>{toast('No se pudo cargar el generador de QR. Revisa la conexión.');rej()};document.head.appendChild(s)})}

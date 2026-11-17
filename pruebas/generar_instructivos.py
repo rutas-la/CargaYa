@@ -1,0 +1,86 @@
+import os,html
+D='/home/claude/repo-cargaya/v2/'
+CSS="""*{box-sizing:border-box}body{margin:0;font-family:Barlow,system-ui,Arial,sans-serif;background:#f6f4ee;color:#16181c;font-size:17px;line-height:1.5}
+header{background:#16181c;color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+header img{width:46px;height:46px;border-radius:10px}header h1{margin:0;font-size:21px;line-height:1.1}header small{color:#b9bcc2;font-size:13px}
+main{max-width:760px;margin:0 auto;padding:14px}
+.intro{background:#fff;border:1px solid #e2e0d8;border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.intro b{color:#16181c}.indice{columns:1;column-gap:20px;margin:8px 0 0;padding-left:20px;font-size:15px}.indice a{color:#1f6feb;text-decoration:none}
+.paso{background:#fff;border:1px solid #e2e0d8;border-radius:14px;padding:14px 16px;margin:0 0 14px;break-inside:avoid;page-break-inside:avoid}
+.paso h2{margin:0 0 6px;font-size:20px;display:flex;gap:10px;align-items:center}
+.paso h2 span{flex:0 0 34px;height:34px;border-radius:50%;background:#ffc400;display:flex;align-items:center;justify-content:center;font-size:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.paso ol,.paso ul{margin:6px 0;padding-left:22px}.paso li{margin:3px 0}
+.fotos{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;justify-content:center}
+.fotos img{width:min(100%,300px);border:1px solid #d9d6cc;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.fotos.anchas img{width:100%;max-width:720px}
+.tip{background:#fff8dc;border-left:4px solid #ffc400;padding:8px 12px;border-radius:8px;margin-top:8px;font-size:15.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.barra{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.barra a,.barra button{font:inherit;font-weight:700;font-size:15px;padding:10px 14px;border-radius:10px;border:1px solid #16181c;background:#fff;color:#16181c;text-decoration:none;cursor:pointer}
+.barra .y{background:#ffc400;border-color:#ffc400}.barra .g{background:#12a150;border-color:#12a150;color:#fff}
+@media(min-width:620px){.indice{columns:2}}
+footer{text-align:center;color:#7c8089;font-size:13px;padding:20px}
+@media print{header{position:static;-webkit-print-color-adjust:exact;print-color-adjust:exact}.barra{display:none}body{background:#fff;font-size:12pt}.paso{border-color:#bbb}.fotos img{width:46mm;box-shadow:none}.fotos.anchas img{width:100%}.indice{display:none}}"""
+def pagina(mod,titulo,color,intro,pasos):
+    nom={'vendedor':'Vendedor','comprador':'Comprador','admin':'Administración'}[mod]
+    idx=''.join(f'<li><a href="#p{i+1}">{html.escape(t)}</a></li>' for i,(t,_,_,_) in enumerate(pasos))
+    cuerpo=''
+    for i,(t,texto,fotos,ancha) in enumerate(pasos):
+        imgs=''.join(f'<img src="ayuda/{f}.jpg" alt="{html.escape(t)}" loading="lazy">' for f in fotos)
+        cuerpo+=f'<section class="paso" id="p{i+1}"><h2><span>{i+1}</span>{html.escape(t)}</h2>{texto}{f"<div class=\"fotos{" anchas" if ancha else ""}\">{imgs}</div>" if fotos else ""}</section>\n'
+    return f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CargaYa {nom} · Cómo se usa</title><meta name="theme-color" content="#16181c">
+<link rel="icon" href="icon-{mod}-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<style>{CSS}</style></head><body>
+<header><img src="icon-{mod}-192.png" alt=""><div><h1>CargaYa <span style="color:{color}">{nom}</span></h1><small>Cómo se usa, paso a paso · Mercado Mayor de Coche</small></div></header>
+<main>
+<div class="barra"><a class="y" href="{mod}.html">Abrir CargaYa {nom}</a><button onclick="print()">🖨 Imprimir</button><a class="g" id="wa" href="#">💬 Enviar por WhatsApp</a></div>
+<div class="intro">{intro}<ol class="indice">{idx}</ol></div>
+{cuerpo}
+</main>
+<footer>CargaYa · Mercado Mayor de Coche · Si algo no funciona, escribe a la administración.</footer>
+<script>document.getElementById('wa').href='https://wa.me/?text='+encodeURIComponent('Así se usa CargaYa {nom}, paso a paso: '+location.href.split('#')[0]);</script>
+</body></html>"""
+
+T=lambda *ls:'<ol>'+''.join(f'<li>{l}</li>' for l in ls)+'</ol>'
+tip=lambda s:f'<div class="tip">💡 {s}</div>'
+# ------------- VENDEDOR -------------
+V=[('Crea tu cuenta',T('Abre el enlace o escanea el QR de <b>CargaYa Vendedor</b> que te dio la administración.','Toca <b>Soy nuevo</b>.','Escribe el nombre de tu puesto, tu teléfono e <b>inventa un PIN de 6 números</b>.','Toca <b>Crear cuenta</b>.')+tip('Anota tu PIN. Si lo olvidas, la administración te lo cambia.'),['v01_registro'],0),
+ ('Instala el ícono en tu teléfono',T('Al terminar el registro aparece <b>“¡Listo! Ahora instala el ícono”</b>.','Toca <b>Instalar ícono</b> y luego <b>Instalar</b>.','Desde ahora abres CargaYa con el ícono amarillo <b>“CargaYa Vend.”</b> de tu pantalla.')+tip('En iPhone: en Safari toca Compartir → <b>Agregar a pantalla de inicio</b>. Si abriste el enlace dentro de WhatsApp, toca ⋮ → <b>Abrir en Chrome</b> primero.'),['v02_instalar'],0),
+ ('Las pestañas',T('<b>Despachar</b>: mandar mercancía a un comprador.','<b>Pago carretilleros</b>: lo que les debes a tus carretilleros.','<b>Historial</b>: todos tus despachos y el Excel.','<b>Mis carretilleros</b>: agregarlos e imprimir su credencial.','<b>Mi ubicación</b>: qué vendes y dónde está tu camión.','<b>Mensualidad</b>: el estado y el pago del mes.'),['v03_inicio'],0),
+ ('Indica qué vendes y dónde estás',T('Entra a <b>Mi ubicación</b> y toca <b>Editar</b>.','Escribe qué vendes (ej: papa, cebolla), elige tu <b>sector</b> y una referencia (ej: camión rojo).','Toca <b>Guardar</b>.','Para marcar el lugar exacto: <b>📡 Usar mi GPS</b> o <b>🗺 Marcar en el plano</b> y toca dónde está tu camión.')+tip('Así los compradores te encuentran y el carretillero ve el camino desde tu camión.'),['v04_puesto','v05_marcar'],0),
+ ('Agrega a tus carretilleros e imprime su credencial',T('Entra a <b>Mis carretilleros</b>.','Escribe el nombre o apodo y toca <b>Agregar</b>. El número se asigna solo.','Toca <b>Imprimir credenciales</b>: salen 4 por hoja A4. Recórtalas, plastifícalas y perfóralas para colgarlas al cuello.'),['v06_carretilleros','v17_credencial'],0),
+ ('Despacha la mercancía',T('En <b>Despachar</b>, escribe la <b>placa</b> del comprador. Aparece su vehículo y su zona.','Escribe cada producto y sus bultos. Para otro producto toca <b>Agregar ítem</b>.','Elige el carretillero tocando su número, o <b>Escanear credencial</b> si es de otro vendedor.','Toca <b>Despachar</b>.'),['v07_despachar'],0),
+ ('Muéstrale la ficha al carretillero',T('Aparece la ficha con la <b>zona en grande</b>, el vehículo, la placa, lo que lleva y el <b>plano con el camino</b>.','Muéstrasela al carretillero y toca <b>Listo, salió</b>.','Si el carretillero no tiene teléfono, toca <b>Imprimir papeleta en papel</b>.')+tip('En <b>Despachar</b>, el botón <b>🖨 Papeletas</b> imprime papeletas en blanco para llenar a mano y marcar la ubicación con una ✗.'),['v08_ficha','v08b_ficha_plano'],0),
+ ('Sigue tus despachos',T('En <b>Mis despachos</b> cada envío muestra su estado: <b>En camino</b> o <b>Entregado</b>.','Cuando el comprador confirma, pasa a <b>Entregado</b> solo, sin recargar.','Si el comprador no tiene la app, puedes tocar <b>El comprador confirmó de palabra</b>.','Toca <b>Quitar</b> para limpiar la lista: todo queda guardado en el Historial.'),['v09_lista','v10_recibido'],0),
+ ('Paga al carretillero',T('Toca <b>Pagar al carretillero</b> en el despacho (o en la pestaña <b>Pago carretilleros</b> para pagar varios viajes juntos).','Escribe el monto que acordaron, elige <b>Efectivo</b> o <b>Pago Móvil</b> y toca <b>Registrar pago</b>.'),['v11_pagar_carr','v12_pagos'],0),
+ ('Revisa tu historial y descárgalo en Excel',T('Entra a <b>Historial</b>.','Elige el período y el estado.','Toca <b>Descargar en Excel</b>.'),['v13_historial'],0),
+ ('Paga tu mensualidad',T('Entra a <b>Mensualidad</b> y toca <b>Pagar mes</b>.','Haz el Pago Móvil a los datos que aparecen (con <b>Copiar</b> los pasas a tu banco).','Escribe la referencia, el banco, el teléfono y el monto. Si puedes, adjunta la captura.','Toca <b>Enviar pago</b>. La administración lo revisa; mientras tanto puedes seguir despachando.'),['v14_mensualidad','v15_pago_form'],0),
+ ('Invita a tus compradores',T('En <b>Mi ubicación</b>, tarjeta <b>Invita a tus compradores</b>.','Comparte el QR o el enlace por WhatsApp.','El comprador que entra con tu invitación te tiene <b>primero en sus favoritos</b>.'),['v16_invitar'],0)]
+# ------------- COMPRADOR -------------
+C=[('Crea tu cuenta',T('Abre el enlace o escanea el QR de <b>CargaYa Comprador</b>.','Toca <b>Soy nuevo</b>.','Escribe tu nombre, tu teléfono, la <b>placa</b> de tu vehículo e <b>inventa un PIN de 6 números</b>.','Toca <b>Crear cuenta</b>.')+tip('Anota tu PIN. Si lo olvidas, la administración te lo cambia.'),['c01_registro'],0),
+ ('Instala el ícono en tu teléfono',T('Al terminar el registro aparece <b>“¡Listo! Ahora instala el ícono”</b>.','Toca <b>Instalar ícono</b> y luego <b>Instalar</b>.','Desde ahora abres CargaYa con el ícono <b>“CargaYa Compra”</b>.')+tip('En iPhone: en Safari toca Compartir → <b>Agregar a pantalla de inicio</b>.'),['c01b_instalar'],0),
+ ('Llegué y estacioné',T('Cada vez que llegas al mercado, elige la <b>zona</b> donde estacionaste.','Marca el lugar exacto con <b>📡 Usar mi GPS</b> o <b>🗺 Marcar en el plano</b> (si no es exacto, toca el plano para corregir).','Escribe tu vehículo (tipo y color) y una referencia. Una foto ayuda mucho.','Toca <b>Guardar y empezar a comprar</b>.'),['c02_llegue','c02b_llegue_abajo'],0),
+ ('Tu vehículo y tus compras',T('En <b>Mis compras</b> ves tu vehículo en el plano y la mercancía <b>Por recibir</b>.','Si te mueves, toca <b>Moví el vehículo</b> y marca el lugar nuevo.','Al irte, toca <b>Ya me fui del mercado</b>.'),['c03_inicio'],0),
+ ('Recibe y confirma la mercancía',T('Cuando el vendedor despacha, aparece <b>En camino</b> con lo que te mandó.','Al llegar el carretillero, <b>revisa la mercancía</b> y toca <b>Ya me llegó</b>.','Toca <b>Escanear el carnet del carretillero</b> (o escribe su número).','Toca <b>Recibí … bultos completos</b>. Si falta algo, escríbelo y toca <b>Reportar faltante</b>.')+tip('El vendedor ve tu confirmación al instante.'),['c04_en_camino','c05_confirmar'],0),
+ ('Encuentra a tus vendedores',T('Entra a <b>Vendedores</b>. Busca por producto (ej: tomate) o por sector.','Toca <b>Favorito</b> para tenerlos siempre arriba.','Toca <b>¿Dónde estoy? Ver distancias</b> para ver a cuántos metros y hacia dónde está cada uno.','<b>Ver en el mapa</b> muestra su puesto; <b>WhatsApp</b> le escribe.'),['c07_vendedores','c08_favorito','c09_distancia'],0),
+ ('Invita a un amigo o vecino',T('En <b>Vendedores</b>, al final, tarjeta <b>Invita a un amigo o vecino</b>.','Envíale el enlace por WhatsApp o muéstrale el QR.','Tu amigo recibe tus vendedores favoritos.'),['c10_amigo'],0)]
+# ------------- ADMIN -------------
+A=[('Entra',T('Abre <b>CargaYa Administración</b> en la PC o el teléfono.','Escribe tu teléfono y tu PIN y toca <b>Entrar</b>.'),['a01_entrar'],1),
+ ('Panel',T('Números del día y el plano con los vehículos y camiones.','Al final: <b>Respaldo</b>, <b>Cambiar PIN de un usuario</b> y <b>Administradores</b>.'),['a02_panel'],1),
+ ('Respaldo semanal',T('En <b>Panel → Respaldo</b> toca <b>Descargar respaldo en Excel</b> (una hoja por tema).','Toca también <b>Copia técnica (.json)</b>: sirve para restaurar los datos.','Guarda los dos archivos en tu computadora una vez por semana.'),['a03_respaldo'],1),
+ ('Cambiar el PIN de alguien',T('En <b>Panel → Cambiar PIN de un usuario</b>, escribe su teléfono y un PIN nuevo de 6 números.','Toca <b>Cambiar PIN</b> y díselo por WhatsApp.'),['a04_pin'],1),
+ ('Agregar otro administrador',T('En <b>Panel → Administradores</b>, escribe su teléfono.','Si todavía no tiene cuenta, escribe también un PIN para crearla.','Toca <b>Agregar administrador</b>. Para quitarlo, toca <b>Quitar</b> dos veces.'),['a05_admins'],1),
+ ('Uso de la app',T('La pestaña <b>Uso</b> muestra compradores y vendedores registrados y activos, despachos por día y por semana, confirmaciones y reclamos.','Abajo, el detalle por comprador y por vendedor.','<b>⬇ Excel</b> descarga todo.'),['a06_uso'],1),
+ ('Cobros: datos de Pago Móvil',T('En <b>Cobros → Ajustes</b>, carga el precio mensual, la tasa del día y tus datos de Pago Móvil.','Elige los días de prueba gratis y de gracia.','Toca <b>Guardar ajustes</b>. Actualiza la tasa cuando cambie.'),['a08_ajustes'],1),
+ ('Cobros: aprobar pagos',T('En <b>Cobros → Por revisar</b> aparecen los pagos que cargan los vendedores.','Verifica en tu banco la referencia y el monto.','Toca <b>Aprobar (+1 mes)</b>, o <b>Rechazar</b> escribiendo el motivo.'),['a07_cobros'],1),
+ ('Compradores registrados',T('La pestaña <b>Compradores</b> lista a todos, con buscador por placa, nombre o teléfono.','Filtra por <b>En el mercado ahora</b> o <b>Se fueron</b>.','<b>⬇ Excel</b> descarga la lista.'),['a09_compradores'],1),
+ ('Plano y zonas',T('<b>Zonas</b>: escribe el nombre que usa la gente, dibuja el área tocando sus esquinas y marca el centro.','<b>Entradas</b>, <b>pasillos</b>, <b>galpones</b> y <b>filas de estacionamiento</b>: se agregan, redibujan o quitan tocando el plano.','Los pasillos se usan para calcular el camino que ve el carretillero.'),['a10_zonas'],1),
+ ('Carretilleros y credenciales',T('La pestaña <b>Carretilleros</b> muestra los de todos los vendedores.','Puedes agregar a cualquier vendedor e <b>imprimir credenciales</b> (4 por hoja A4, con dorso).'),['a11_carretilleros'],1),
+ ('Compartir los QR de registro',T('En <b>Compartir</b> están los QR para vendedores y compradores.','<b>Compartir imagen</b> o <b>Enviar link por WhatsApp</b>.','<b>Abrir para imprimir</b> saca carteles para pegar en el mercado.')+tip('Desde aquí también puedes mandar estos instructivos: los enlaces están al final de la pestaña.'),['a12_compartir'],1)]
+for mod,t,col,intro,pasos in [
+ ('vendedor','Vendedor','#ffc400','<p style="margin:0">Con <b>CargaYa Vendedor</b> despachas tu mercancía a la placa del comprador, el carretillero sabe adónde ir y ves cuándo la recibió. Sigue estos pasos:</p>',V),
+ ('comprador','Comprador','#1f6feb','<p style="margin:0">Con <b>CargaYa Comprador</b> tus compras llegan a tu vehículo, ubicas a tus vendedores y confirmas cada entrega. Sigue estos pasos:</p>',C),
+ ('admin','Administración','#12a150','<p style="margin:0">Guía del módulo de <b>Administración</b> de CargaYa.</p>',A)]:
+    open(D+f'ayuda-{mod}.html','w').write(pagina(mod,t,col,intro,pasos))
+print('ok')

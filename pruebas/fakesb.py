@@ -212,6 +212,11 @@ async def reset_stats(req):
     for k in STATS: STATS[k] = len(SOCKS) if k in ("rt_conns", "rt_peak") else 0
     return cors(web.json_response(STATS))
 
+async def functions_proxy(req):
+    body = await req.read()
+    async with ClientSession() as s:
+        async with s.post("http://127.0.0.1:8000/", data=body, headers={"Content-Type": "application/json"}) as r:
+            return cors(web.Response(body=await r.read(), status=r.status, content_type="application/json"))
 async def start(app): app["l"] = asyncio.create_task(escuchar())
 
 app = web.Application(client_max_size=20 * 1024 * 1024)
@@ -226,6 +231,7 @@ r.add_post("/storage/v1/object/sign/{bucket}/{path:.*}", storage_sign)
 r.add_get("/storage/v1/object/sign/{bucket}/{path:.*}", storage_signed_get)
 r.add_post("/storage/v1/object/{bucket}/{path:.*}", storage_upload)
 r.add_get("/realtime/v1/websocket", realtime)
+r.add_post("/functions/v1/recuperar-pin", functions_proxy)
 r.add_get("/__stats", stats); r.add_post("/__stats/reset", reset_stats)
 r.add_static("/", ROOT, show_index=True)
 web.run_app(app, port=PORT, print=None)

@@ -191,3 +191,4 @@ footer a{font-size:17px;font-weight:700}
 footer .btn-ayuda.grande{max-width:420px;margin:6px auto 0}
 footer{display:flex;flex-direction:column;align-items:center;gap:4px}
 .btn-salir{color:#ffc400;font-size:17px;font-weight:800;margin-left:4px}
+.btn-olvide{display:block;width:100%;margin-top:12px;background:none;border:0;color:#b26a00;font-weight:800;font-size:16px;text-decoration:underline;cursor:pointer;padding:6px 0}

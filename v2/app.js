@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.10',VERSION_FECHA='17/11/2026';
+const VERSION='2.11',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -358,7 +358,53 @@ async function trasEntrar(){await cargar();cargado=true;
   if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}};
   rolElegido=null;render();aplicarFavPend().then(aplicarAmigo)}
 async function salir(){try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
+/* ---- Recuperar el PIN por SMS (autogestión, Edge Function "recuperar-pin" + Twilio Verify) ---- */
+let RECUP={paso:1,tel:'',espera:0};
+async function llamarRecuperar(datos){
+  const r=await fetch(CFG.SUPABASE_URL.replace(/\/$/,'')+'/functions/v1/recuperar-pin',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.SUPABASE_KEY},body:JSON.stringify(datos)});
+  if(r.status===404)return {error:'La recuperación por SMS todavía no está activa. Pide a la administración que cambie tu PIN.'};
+  try{return await r.json()}catch(e){return {error:'Error del servidor. Prueba de nuevo en unos minutos.'}}}
+const telBonito=d=>'+'+d.slice(0,d.length-10)+' '+d.slice(-10,-7)+' '+d.slice(-7,-4)+' '+d.slice(-4);
+function vRecuperar(){const p=RECUP.paso;
+  return `<div class="card" style="max-width:520px;margin:0 auto"><h2>🔑 Recuperar mi PIN</h2>
+   ${p===1?`<p class="hint" style="margin-top:0">Escribe el teléfono de tu cuenta. Te mandamos un código por SMS para que elijas un PIN nuevo.</p>
+    <form id="fRec1"><label>Teléfono</label><input id="rTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username" value="${esc(RECUP.tel?('+'+RECUP.tel):'')}">
+     <div id="rErr"></div><button class="btn y big" type="submit" id="rGo" style="margin-top:14px">Enviarme el código por SMS</button></form>`
+   :`<div class="found" style="margin:4px 0 8px">📩 Te enviamos un código por SMS al <b>${telBonito(RECUP.tel)}</b>. Puede tardar un minuto.</div>
+    <form id="fRec2"><label>Código del SMS</label><input id="rCod" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required placeholder="123456">
+     <label>PIN nuevo (6 números)</label><input id="rPin" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
+     <label>Repite el PIN nuevo</label><input id="rPin2" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
+     <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="rVer" style="width:auto"> Mostrar PIN</label>
+     <div id="rErr"></div><button class="btn y big" type="submit" id="rGo" style="margin-top:14px">Cambiar PIN y entrar</button></form>
+    <button class="btn o" type="button" id="rOtra" style="margin-top:10px;width:100%">No me llegó: enviar otro código</button>`}
+   <button class="btn o" type="button" id="rAtras" style="margin-top:10px;width:100%">← Volver a entrar</button></div>`}
+function bindRecuperar(){
+  const err=m=>{$('rErr').innerHTML=`<div class="notfound" style="margin-top:10px">${m}</div>`};
+  const ocupado=(b,t)=>{const x=$('rGo');if(x){x.disabled=b;if(t)x.textContent=t}};
+  $('rAtras').onclick=()=>{modoCuenta='entrar';RECUP={paso:1,tel:'',espera:0};render()};
+  const enviar=async tel=>{
+    const r=await llamarRecuperar({accion:'enviar',tel}).catch(()=>({error:'No hay conexión con el servidor. Revisa los datos móviles o el WiFi.'}));
+    if(r.error){err(r.error);return false}RECUP={paso:2,tel,espera:Date.now()+60000};render();return true};
+  if(RECUP.paso===1){$('fRec1').onsubmit=async e=>{e.preventDefault();const tel=telDigitos($('rTel').value);
+    if(tel.length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');ocupado(true,'Enviando…');
+    if(!await enviar(tel))ocupado(false,'Enviarme el código por SMS')};return}
+  $('rVer').onchange=()=>{$('rPin').type=$('rPin2').type=$('rVer').checked?'text':'password'};
+  $('rOtra').onclick=async()=>{const falta=Math.ceil((RECUP.espera-Date.now())/1000);
+    if(falta>0)return err(`Espera ${falta} segundos antes de pedir otro código.`);
+    $('rOtra').disabled=true;if(await enviar(RECUP.tel))toast('Código reenviado');else $('rOtra').disabled=false};
+  $('fRec2').onsubmit=async e=>{e.preventDefault();
+    const codigo=$('rCod').value.replace(/\D/g,''),pin=$('rPin').value.trim();
+    if(codigo.length<4)return err('Escribe el código que te llegó por SMS.');
+    if(!/^\d{6}$/.test(pin))return err('El PIN nuevo debe tener 6 números.');
+    if(pin!==$('rPin2').value.trim())return err('Los dos PIN no son iguales.');
+    ocupado(true,'Un momento…');
+    const r=await llamarRecuperar({accion:'cambiar',tel:RECUP.tel,codigo,pin}).catch(()=>({error:'No hay conexión con el servidor. Prueba de nuevo.'}));
+    if(r.error){ocupado(false,'Cambiar PIN y entrar');return err(r.error)}
+    const tel=RECUP.tel;RECUP={paso:1,tel:'',espera:0};modoCuenta='entrar';render();toast('✅ PIN cambiado');
+    $('lTel').value='+'+tel;$('lPin').value=pin;$('fLogin').requestSubmit()}}
+
 function vLogin(){
+  if(modoCuenta==='recuperar'&&MODULO!=='admin')return vRecuperar();
   const r=MODULO,crear=modoCuenta==='crear'&&r!=='admin';
   return `<div class="card" style="max-width:520px;margin:0 auto"><h2>${r==='admin'?'Administración':crear?(r==='vendedor'?'Crea tu cuenta de vendedor':'Crea tu cuenta de comprador'):'Entra a tu cuenta'}</h2>
    ${r!=='admin'?`<div class="seg" style="margin:8px 0 4px">${[['crear','Soy nuevo'],['entrar','Ya tengo cuenta']].map(([k,t])=>`<button type="button" class="${modoCuenta===k?'on':''}" data-modo="${k}">${t}</button>`).join('')}</div>`:''}
@@ -370,11 +416,13 @@ function vLogin(){
     ${crear&&r==='comprador'?'<label>Placa de tu vehículo</label><input id="lPlaca" placeholder="Ej: AB123CD" required autocapitalize="characters">':''}
     <label>${crear?'Inventa un PIN de 6 números':'PIN'}</label><input id="lPin" type="password" inputmode="numeric" ${crear?'maxlength="6" pattern="[0-9]{6}"':''} required autocomplete="${crear?'new-password':'current-password'}">
     <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="lVer" style="width:auto"> Mostrar PIN</label>
-    ${crear?'<p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':'<p class="hint">¿Olvidaste tu PIN? Pídele a la administración que te lo cambie.</p>'}
+    ${crear?'<p class="hint">Anota tu PIN: lo necesitas si cambias de teléfono. Este teléfono queda con la sesión abierta.</p>':(r==='admin'?'<p class="hint">¿Olvidaste tu PIN? Pídele a otro administrador que te lo cambie.</p>':'<button type="button" class="btn-olvide" id="lOlvide">🔑 ¿Olvidaste tu PIN? Recupéralo aquí</button>')}
     <div id="lErr"></div>
     <button class="btn y big" type="submit" id="lGo" style="margin-top:14px">${crear?'Crear cuenta':'Entrar'}</button></form>
    <p class="hint" style="margin-top:6px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
 function bindLogin(){
+  if(modoCuenta==='recuperar'&&MODULO!=='admin')return bindRecuperar();
+  if($('lOlvide'))$('lOlvide').onclick=()=>{const t=telDigitos($('lTel').value);RECUP={paso:1,tel:t.length>=11?t:'',espera:0};modoCuenta='recuperar';render()};
   document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});
   if($('lVer'))$('lVer').onchange=()=>{$('lPin').type=$('lVer').checked?'text':'password'};
   const f=$('fLogin');if(!f)return;

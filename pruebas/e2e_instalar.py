@@ -12,9 +12,9 @@ with sync_playwright() as p:
         cdp=c.new_cdp_session(pg);ie=cdp.send('Page.getInstallabilityErrors');P(m,'instalable según Chrome:',ie.get('installabilityErrors') or 'sí')
         if m=='vendedor':
             pg.evaluate("(()=>{const e=new Event('beforeinstallprompt');e.prompt=()=>{window.__prompt=1};e.userChoice=Promise.resolve({outcome:'accepted'});dispatchEvent(e)})()")
-            pg.fill('#lNombre','Andino');pg.fill('#lTel','0412-5550001');pg.fill('#lPin','123456')
+            pg.fill('#lNombre','Andino');pg.fill('#lTel','0412-5550001');pg.fill('#lPin','123456');pg.fill('#lPal','prueba')
         else:
-            pg.fill('#lNombre','Rosa');pg.fill('#lTel','0414-5551020');pg.fill('#lPlaca','AB123CD');pg.fill('#lPin','654321')
+            pg.fill('#lNombre','Rosa');pg.fill('#lTel','0414-5551020');pg.fill('#lPlaca','AB123CD');pg.fill('#lPin','654321');pg.fill('#lPal','prueba')
         pg.click('#lGo');pg.wait_for_timeout(2000)
         P(m,'ventana tras registro:',pg.locator('#instModal h2').inner_text() if pg.locator('#instModal').count() else None,'| botón instalar:',pg.locator('#instSi').count(),'| pasos:',pg.locator('#instModal ol li').count())
         

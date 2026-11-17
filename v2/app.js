@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.12',VERSION_FECHA='17/11/2026';
+const VERSION='2.13',VERSION_FECHA='17/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -587,7 +587,7 @@ function vMercado(){
   <div class="grid g2"><div class="card"><h2>Respaldo</h2><p class="sub">Descarga un Excel con una hoja por tema: vendedores, compradores, carretilleros, pagos de mensualidad, zonas y los despachos de los últimos 7 días. Guárdalo en tu computadora una vez por semana.</p>
     <button class="btn y" id="admResp" style="width:100%">⬇ Descargar respaldo en Excel</button>
     <button class="btn o" id="admRespJ" style="width:100%;margin-top:8px">Copia técnica (.json, para restaurar datos)</button></div>
-   <div class="card"><h2>Cambiar PIN de un usuario</h2><p class="sub">Para quien olvidó su PIN. Escribe su teléfono y un PIN nuevo de 6 números, y díselo por WhatsApp.</p>
+   <div class="card"><h2>Cambiar PIN de un usuario</h2><p class="sub">Vendedores y compradores pueden recuperar su PIN solos con su <b>palabra secreta</b>. Usa esto solo si no la recuerdan o no la crearon: escribe su teléfono y un PIN nuevo de 6 números, y díselo por WhatsApp.</p>
     <div class="row"><div><label>Teléfono</label><input id="admPinTel" inputmode="tel" placeholder="0414-000-0000"></div><div><label>PIN nuevo</label><input id="admPinNuevo" inputmode="numeric" maxlength="6" placeholder="6 números"></div></div>
     <button class="btn o" id="admPinOk" style="width:100%;margin-top:10px">Cambiar PIN</button></div></div>
   <div class="card"><h2>Administradores</h2><p class="sub">Tienen acceso total a este módulo. Para agregar a alguien que ya tiene cuenta (de vendedor o comprador) basta su teléfono; si no tiene cuenta, escribe también un PIN para crearla.</p>

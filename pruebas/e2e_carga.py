@@ -24,5 +24,5 @@ with sync_playwright() as p:
     V.fill('#lTel','0412-0000001');V.fill('#lPin','123456');V.click('#lGo');V.wait_for_selector('#fDesp')
     V.click('#nav button[data-v=histVend]');V.select_option('#hPer','30');t=time.time();V.wait_for_function("()=>!histC.cargando",timeout=60000);P(f'Historial 30 días: {time.time()-t:.1f} s, {V.evaluate("histC.rows.length")} despachos')
     with V.expect_download() as dl:V.click('#hCsv')
-    P('  Excel filas:',len(open(dl.value.path(),encoding='utf-8-sig').read().splitlines())-1)
+    import openpyxl,shutil;shutil.copy(dl.value.path(),'/tmp/hist.xlsx');P('  Excel:',dl.value.suggested_filename,openpyxl.load_workbook('/tmp/hist.xlsx').active.max_row-1,'filas')
     P('ERRORES:',errs)

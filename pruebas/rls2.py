@@ -110,4 +110,25 @@ esp('cuenta nueva existe y PIN vale',(True,adm.execute("select encrypted_passwor
 esp('admin no se quita a sí mismo',como('A',"select quitar_admin('%s')"%U['A']),lambda r:r[0] and 'ti mismo' in r[1][0][0])
 esp('admin quita a V2',como('A',"select quitar_admin('%s')"%U['V2']),lambda r:r[1]==[('ok',)])
 esp('V2 ya no es admin',como('V2',"select es_admin()"),lambda r:r[1]==[(False,)])
+# palabra secreta
+adm.execute("delete from palabras_secretas")
+def anon(sql,args=()):
+    c=psycopg.connect(DB)
+    try:
+        with c.transaction():
+            c.execute("set local role anon");cur=c.execute(sql,args);return True,cur.fetchall()
+    except Exception as e:return False,str(e).split('\n')[0]
+    finally:c.close()
+esp('anon no fija palabra',anon("select fijar_palabra('perro')"),False)
+esp('anon no lee palabras',anon("select * from palabras_secretas"),False)
+esp('C1 fija su palabra',como('C1',"select fijar_palabra('Mi Perro')"),lambda r:r[1]==[('ok',)])
+esp('C1 tiene palabra',como('C1',"select tengo_palabra()"),lambda r:r[1]==[(True,)])
+esp('C2 no tiene palabra',como('C2',"select tengo_palabra()"),lambda r:r[1]==[(False,)])
+esp('C1 no lee la tabla',como('C1',"select * from palabras_secretas"),False)
+esp('palabra corta rechazada',como('C1',"select fijar_palabra('ab')"),lambda r:r[1]==[('corta',)])
+esp('anon recupera con palabra mala',anon("select recuperar_con_palabra('584140000001','gato','654321')"),lambda r:r[1]==[('incorrecta:4',)])
+esp('anon recupera sin palabra',anon("select recuperar_con_palabra('584140000002','gato','654321')"),lambda r:r[1]==[('sin_palabra',)])
+esp('anon recupera con palabra buena (mayúsc/espacios)',anon("select recuperar_con_palabra('584140000001','MI PERRO','654321')"),lambda r:r[1]==[('ok',)])
+esp('PIN recuperado vale',(True,adm.execute("select encrypted_password=crypt('654321',encrypted_password) from auth.users where email='584140000001@cargaya.app'").fetchone()),lambda r:r[1]==(True,))
+esp('PIN inválido rechazado',anon("select recuperar_con_palabra('584140000001','mi perro','12')"),lambda r:r[1]==[('pin_invalido',)])
 print(f'{ok} correctas, {len(bad)} fallas');[print(' ✗',b) for b in bad]

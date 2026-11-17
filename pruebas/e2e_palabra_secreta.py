@@ -1,4 +1,4 @@
-import sys,json,urllib.request;sys.path.insert(0,'/home/claude/v2test')
+import sys,json,urllib.request;import os;sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
 from comun import *
 from playwright.sync_api import sync_playwright
 errs=[];reset()
@@ -10,7 +10,7 @@ def txt(P,s):
     except Exception: return ''
 with sync_playwright() as p:
     b=p.chromium.launch()
-    c,V=ctx(b,'V',URL+'vendedor.html',errs);V.set_viewport_size({'width':390,'height':844})
+    c,V=ctx(b,'V',URL+'vendedor.html',errs);V.set_viewport_size({'width':390,'height':844});V.evaluate('window.__noAutoPal=1')
     V.fill('#lNombre','Hortalizas El Andino');V.fill('#lTel','0412-5550001');V.fill('#lPin','123456')
     V.click('#lGo');V.wait_for_timeout(400);print('sin palabra:',txt(V,'#lErr'))
     V.fill('#lPal',' Firuláis ');V.screenshot(path='/tmp/pal_reg.png',full_page=True);V.click('#lGo');V.wait_for_timeout(2500)

@@ -156,6 +156,8 @@ esp('K no ve pagos',como('K',"select count(*) from pagos"),lambda r:r[1]==[(0,)]
 esp('V1 ve el vínculo',como('V1',"select carr from carretilleros_movil"),lambda r:r[1]==[('KTEST1',)])
 esp('V2 no ve el vínculo',como('V2',"select carr from carretilleros_movil"),lambda r:r[1]==[])
 esp('V2 no quita el teléfono',como('V2',"select desactivar_movil('KTEST1')"),False)
+esp('V2 sabe si un carretillero ajeno tiene app',como('V2',"select con_telefono(array['KTEST1','KOTRO'])"),lambda r:r[1]==[('KTEST1',)])
+esp('anon no consulta teléfonos',anon("select con_telefono(array['KTEST1'])"),False)
 esp('V1 quita el teléfono',como('V1',"select desactivar_movil('KTEST1')"),lambda r:r[1]==[('ok',)])
 esp('K ya no ve el despacho',como('K',"select id from despachos"),lambda r:r[1]==[])
 adm.execute("delete from despachos where id in ('DK1','DK2')");adm.execute("delete from compradores where id in ('C1PLACA','C2PLACA')");adm.execute("delete from config where id='movil'")

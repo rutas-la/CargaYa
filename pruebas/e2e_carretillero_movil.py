@@ -49,7 +49,7 @@ with sync_playwright() as p:
     V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(500)
     V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(900)
     V.locator('.it-desc').first.fill('Papa');V.locator('.it-bul').first.fill('4')
-    V.locator('[data-ksel]').first.click();V.wait_for_timeout(200);V.click('#fDesp button[type=submit]');V.wait_for_timeout(1000)
+    P('chip:',V.locator('[data-ksel]').first.inner_text());V.locator('[data-ksel]').first.click();V.wait_for_timeout(200);V.click('#fDesp button[type=submit]');V.wait_for_timeout(1000);P('tras despachar:',t(V,'.trip h2').replace('\n',' '),'| botón ficha completa:',V.locator('#fvCompleta').count());V.locator('.trip').screenshot(path='/tmp/km/v_enviado.png')
     if V.locator('#fvListo').count():V.click('#fvListo')
     K.wait_for_timeout(2500);P('K recibe en vivo:',K.locator('[data-kir]').count(),'| foto en lista:',K.locator('img[data-kfoto]').count(),K.evaluate("[...document.querySelectorAll('img[data-kfoto]')].map(i=>i.naturalWidth+' '+i.src.slice(0,60))"),'| toast:',t(K,'#toast'));shot(K,'k_lista')
     K.wait_for_timeout(3200);K.locator('[data-kir]').first.click();K.wait_for_timeout(3000);P('K llévame:',t(K,'#kMapaWrap')[:80].replace('\n',' '));shot(K,'k_llevame')

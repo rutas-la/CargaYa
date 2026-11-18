@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.15',VERSION_FECHA='18/11/2026';
+const VERSION='2.16',VERSION_FECHA='18/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -1034,6 +1034,13 @@ function vVendedor(){
   const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];
   if(!v)return '<div class="card empty">Todavía no hay vendedores registrados.</div>';
   if(fichaVista){const d=S.despacho[fichaVista];const c=comp(d.placa),l=lugar(c),k=carr(d.carretillero);
+    if(k&&conTel(k.id)&&!fichaCompleta)return `<div class="trip" style="max-width:640px;margin:0 auto;text-align:center">
+     <div style="font-size:64px;line-height:1">📱</div><h2 style="margin:6px 0">Enviado al teléfono de<br><b>${esc(etqCarr(k,d.vendedor))}</b></h2>
+     <p class="sub">Le llegó con un aviso. Su app le muestra el vehículo, la foto y el camino por GPS.</p>
+     <div class="stepbox" style="margin-top:10px;border-style:solid;text-align:left"><span class="plate" style="font-size:22px">${esc(c.id)}</span> · <b>${esc(l.zona)}</b>${c.vehiculo?` · ${esc(c.vehiculo)}`:''}<div style="margin-top:6px">${itemsDe(d).map(i=>`<b>${i.bultos}</b> × ${esc(i.desc)}`).join(' · ')}</div></div>
+     <button class="btn y big" id="fvListo" style="margin-top:12px">Listo</button>
+     <button class="btn o" id="fvCompleta" style="width:100%;margin-top:8px">Ver la ficha completa</button>
+     <button class="btn o" id="fvPap" style="width:100%;margin-top:8px">🖨 Imprimir papeleta en papel</button></div>`;
     return `<div class="trip" style="max-width:640px;margin:0 auto"><div class="hint">Muéstrale esta pantalla al carretillero${k?` <b>${esc(etqCarr(k,d.vendedor))}</b>`:''}</div>
      <div class="hint" style="margin-top:8px;text-transform:uppercase;letter-spacing:1px">Zona</div><div style="font-family:'Barlow Condensed';font-weight:800;font-size:${l.zona.length<=10?72:l.zona.length<=18?54:40}px;line-height:1.02">${esc(l.zona)}</div>
      <div class="carbox" style="margin-top:12px">${c.foto?`<img class="photo" style="width:140px;height:105px" src="${c.foto}" alt="Foto del vehículo">`:''}
@@ -1060,9 +1067,9 @@ function vVendedor(){
       ${arr.length>1?`<button type="button" class="btn o" style="flex:0 0 auto;padding:8px 12px" data-itdel="${i}" aria-label="Quitar">✕</button>`:''}</div>`).join('')}
     <div class="row" style="margin-top:8px;align-items:center"><button type="button" class="btn o" id="itAdd">➕ Agregar ítem</button><div class="hint" style="text-align:right" id="itTot">Total: ${((n)=>`<b>${n}</b> bulto${n==1?'':'s'}`)((desp.items||[{bultos:1}]).reduce((a,x)=>a+(parseInt(x.bultos)||0),0))}</div></div>
     <label>3 · Carretillero</label>
-    ${misCarr(v.id).length?`<div style="display:flex;flex-wrap:wrap;gap:8px">${misCarr(v.id).map(x=>`<button type="button" class="btn ${desp.k===x.id?'y':'o'}" style="padding:10px 12px" data-ksel="${esc(x.id)}">#${esc(x.num)} ${esc(x.nombre||'')}</button>`).join('')}</div>`
+    ${misCarr(v.id).length?`<div style="display:flex;flex-wrap:wrap;gap:8px">${misCarr(v.id).map(x=>`<button type="button" class="btn ${desp.k===x.id?'y':'o'}" style="padding:10px 12px" data-ksel="${esc(x.id)}">${conTel(x.id)?'📱 ':''}#${esc(x.num)} ${esc(x.nombre||'')}</button>`).join('')}</div>${misCarr(v.id).some(x=>conTel(x.id))?'<p class="hint" style="margin-top:4px">📱 = tiene la app: la entrega le llega sola a su teléfono.</p>':''}`
       :`<p class="hint">Todavía no tienes carretilleros propios (créalos en <a href="#" id="irCarr">Mis carretilleros</a>). Puedes usar el de otro vendedor escaneando su credencial.</p>`}
-    ${desp.k&&ajeno(carr(desp.k),v.id)?`<div class="found" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px"><span>✓ <b>${esc(etqCarr(carr(desp.k),v.id))}</b> · credencial escaneada</span><a href="#" id="kQuitar">quitar</a></div>`:''}
+    ${desp.k&&ajeno(carr(desp.k),v.id)?`<div class="found" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px"><span>✓ <b>${esc(etqCarr(carr(desp.k),v.id))}</b> · credencial escaneada${conTel(desp.k)?' · 📱 tiene la app':''}</span><a href="#" id="kQuitar">quitar</a></div>`:''}
     <button type="button" class="btn o" id="dScanK" style="width:100%;margin-top:8px">📷 Escanear credencial${misCarr(v.id).length?' (también de otro vendedor)':''}</button>
     <div style="margin-top:14px"><button class="btn y big" type="submit">Despachar</button></div></form></div>
   <div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Mis despachos</h2><button class="btn o" id="papBlanco" style="flex:0 0 auto;font-size:13px;padding:6px 10px" title="Papeletas en blanco para llenar a mano">🖨 Papeletas</button>${cerrados?`<button class="btn o" style="padding:6px 10px;font-size:14px" id="archTodos">🗂 Quitar los ${cerrados} recibidos</button>`:''}</div>
@@ -1220,7 +1227,10 @@ const $=id=>document.getElementById(id);
 async function procesarScanFicha(){const t=await escanear('Escanea la ficha','El QR impreso en la ficha de entrega');if(!t)return null;const p=parseCodigo(t);if(!p||p.tipo!=='f'){toast('Ese código no es una ficha de CargaYa');return null}return p}
 /* ===================== Carretilleros con teléfono (app CargaYa Carretillero) ===================== */
 const movilOn=()=>!!(S.config.movil&&S.config.movil.activo);
-let MOVIL=new Set();
+let MOVIL=new Set(),fichaCompleta=false;
+const conTel=id=>movilOn()&&MOVIL.has(id);
+// carretilleros de otros vendedores (credencial escaneada): ¿tienen la app?
+async function revisarTel(ids){if(!ONLINE||!movilOn()||!ids.length)return;try{const r=await sb.rpc('con_telefono',{ids});if(!r.error&&r.data&&r.data.length){r.data.forEach(x=>MOVIL.add(typeof x==='string'?x:x.con_telefono));pedirRender()}}catch(e){}}
 async function cargarMovil(){if(!ONLINE)return;try{const r=await sb.from('carretilleros_movil').select('carr');if(!r.error)MOVIL=new Set(r.data.map(x=>x.carr))}catch(e){}}
 // --- Administración: interruptor ---
 function cardInterruptorMovil(){const on=movilOn();
@@ -1528,7 +1538,7 @@ const bind={
   },
   vendedor(){
     const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
-    if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;render()};if($('fvPap'))$('fvPap').onclick=()=>imprimirPapeletas([S.despacho[fichaVista]],v);return}
+    if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;fichaCompleta=false;render()};if($('fvCompleta'))$('fvCompleta').onclick=()=>{fichaCompleta=true;render()};if($('fvPap'))$('fvPap').onclick=()=>imprimirPapeletas([S.despacho[fichaVista]],v);return}
     document.querySelectorAll('[data-irv]').forEach(a=>a.onclick=e=>{e.preventDefault();view=a.dataset.irv;render()});
     if($('papBlanco'))$('papBlanco').onclick=()=>imprimirPapeletas([],v);
     const keep=()=>{desp.placa=$('placa').value;desp.items=leerItems()};
@@ -1545,14 +1555,14 @@ const bind={
     if($('irCarr'))$('irCarr').onclick=e=>{e.preventDefault();view='misCarr';render()};
     if($('dScanK'))$('dScanK').onclick=async()=>{keep();const t=await escanear('Escanea la credencial','El QR de la credencial del carretillero');if(!t)return;const p=parseCodigo(t);
       if(!p||p.tipo!=='k'){toast('Ese código no es una credencial de CargaYa');return}const k=await buscarCarr(p.id);
-      if(!k||k.baja){toast('Esa credencial no está registrada o fue dada de baja');return}desp.k=k.id;desp.kScan=k.id;if(ajeno(k,v.id))toast(`Carretillero ${etqCarr(k,v.id)}`);render()};
+      if(!k||k.baja){toast('Esa credencial no está registrada o fue dada de baja');return}desp.k=k.id;desp.kScan=k.id;if(ajeno(k,v.id))toast(`Carretillero ${etqCarr(k,v.id)}`);render();revisarTel([k.id])};
     if($('kQuitar'))$('kQuitar').onclick=e=>{e.preventDefault();keep();desp.k=null;desp.kScan=null;render()};
     $('fDesp').onsubmit=async e=>{e.preventDefault();keep();if(!suscripcion(v).puedeDespachar){toast('Tu suscripción venció. Paga para seguir despachando.');return}const p=normPlaca(desp.placa);if(ONLINE&&!S.comprador[p]){delete NOEX['comprador|'+p];await asegurar('comprador',[p])}const c=comp(p);if(!c||c.activo===false){toast('Placa no registrada');return}
       const kk=carr(desp.k);if(!kk||kk.baja||(ajeno(kk,v.id)&&desp.kScan!==kk.id)){toast('Elige el carretillero que lleva la mercancía (si es de otro vendedor, escanea su credencial)');return}
       const items=(desp.items||[]).map(x=>({desc:String(x.desc||'').trim(),bultos:Math.max(1,parseInt(x.bultos)||1)})).filter(x=>x.desc);
       if(!items.length){toast('Escribe al menos una mercancía');return}
       const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,items,desc:items.map(x=>x.desc).join(', '),bultos:items.reduce((a,x)=>a+x.bultos,0),carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
-      {const f0=$('fDesp');if(f0)f0.remove()}desp={};fichaVista=id;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${resumenItems(d)}; ${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
+      {const f0=$('fDesp');if(f0)f0.remove()}desp={};fichaVista=id;fichaCompleta=false;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${resumenItems(d)}; ${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});
     document.querySelectorAll('[data-pagk]').forEach(b=>b.onclick=()=>{pagandoK=b.dataset.pagk;pagandoLote=null;pkMetodo='efectivo';render()});
     if(pagandoK)bindPagoForm(()=>[S.despacho[pagandoK]],v,false);

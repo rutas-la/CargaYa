@@ -131,6 +131,13 @@ grant execute on function crear_activacion(text), activar_carretillero(text), de
 grant execute on function ver_activacion(text) to anon, authenticated;
 grant execute on function movil_activo(), mis_carrs(), placas_de_mis_entregas() to authenticated;
 
+-- ¿Cuáles de estos carretilleros tienen la app? (para el vendedor que escanea una credencial ajena)
+create or replace function con_telefono(ids text[]) returns setof text
+language sql stable security definer set search_path = public as $$
+  select carr from carretilleros_movil where carr = any(ids) and movil_activo() $$;
+revoke all on function con_telefono(text[]) from anon, public;
+grant execute on function con_telefono(text[]) to authenticated;
+
 -- Avisos en vivo del vínculo (para el vendedor)
 do $$ begin
   begin alter publication supabase_realtime add table carretilleros_movil; exception when others then null; end;

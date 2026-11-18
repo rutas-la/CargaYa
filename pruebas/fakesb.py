@@ -97,7 +97,11 @@ async def storage_upload(req):
         return cors(web.json_response({"error": "Unauthorized", "message": "new row violates row-level security policy", "statusCode": "403"}, status=400))
     data = await req.read()
     if req.content_type.startswith("multipart/"):
-        reader = await req.multipart() if False else None
+        bnd = b"--" + req.content_type_extra.get("boundary", "").encode() if hasattr(req, "content_type_extra") else data.split(b"\r\n", 1)[0]
+        bnd = data.split(b"\r\n", 1)[0]
+        for part in data.split(bnd):
+            if b"filename=" in part:
+                data = part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 1)[0]; break
     fp = os.path.join(STORE, bucket, path); os.makedirs(os.path.dirname(fp), exist_ok=True)
     open(fp, "wb").write(data)
     return cors(web.json_response({"Key": f"{bucket}/{path}", "Id": str(uuid.uuid4()), "path": path, "id": str(uuid.uuid4()), "fullPath": f"{bucket}/{path}"}))

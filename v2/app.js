@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.14',VERSION_FECHA='18/11/2026';
+const VERSION='2.15',VERSION_FECHA='18/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -1316,9 +1316,10 @@ function vEntregas(){const k=S.carretillero[ME.id];
   const es=misEntregas(),hechas=L('despacho').filter(d=>d.carretillero===ME.id&&d.estado!=='en_ruta'&&d.t.creado>=inicioDia(0)).sort((a,b)=>b.t.creado-a.t.creado);
   return `<div class="grid"><div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">#${esc(k?.num||'')} · ${esc(k?.nombre||ME.nombre||'')}</h2><button class="btn o" style="flex:0 0 auto" id="kCredBtn">🪪 Mi credencial</button></div></div>
    <div class="card"><h2>Por entregar (${es.length})</h2>${es.map(d=>{const c=comp(d.placa),v=vend(d.vendedor);return `<div class="item" style="border-left:6px solid #f07b14">
+     <div style="display:flex;gap:10px;align-items:flex-start">${c&&c.foto?`<img ${attrFoto(c.foto)} alt="Foto del vehículo" data-kfoto="${esc(d.id)}" style="flex:0 0 84px;width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">`:''}<div style="flex:1;min-width:0">
      <div class="top"><b style="font-size:24px;letter-spacing:1px">${esc(d.placa)}</b><span class="hint">${hhmm(d.t.creado)}</span></div>
      <div class="meta" style="font-size:16px">${c?`🚗 ${esc(c.vehiculo||'')}${c.zona?` · 📍 <b>${esc(c.zona)}</b>`:''}`:'Buscando datos del vehículo…'}</div>
-     <div class="meta">📦 ${esc(resumenItems(d))} · de <b>${esc(v?.nombre||'vendedor')}</b></div>
+     <div class="meta">📦 ${esc(resumenItems(d))} · de <b>${esc(v?.nombre||'vendedor')}</b></div></div></div>
      <button class="btn y big" data-kir="${esc(d.id)}" style="width:100%;margin-top:8px">📍 Llévame</button></div>`}).join('')||'<div class="empty">No tienes entregas pendientes 👍<br>Cuando un vendedor te asigne una carga, aparece aquí con un aviso.</div>'}</div>
    ${hechas.length?`<div class="card"><h2>Hoy (${hechas.length})</h2>${hechas.map(d=>`<div class="meta" style="padding:4px 0">${hhmm(d.t.creado)} · <b>${esc(d.placa)}</b> · ${esc(resumenItems(d))} · ${d.estado==='entregado'?'✅ Recibido':'⚠ Reclamo'}</div>`).join('')}</div>`:''}</div>`}
 function mapaK(d){const c=comp(d.placa),dest=posComp(c),v=vend(d.vendedor),pv=v?posVend(v):null;
@@ -1461,6 +1462,7 @@ const bind={
     document.querySelectorAll('[data-akn]').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector(`[data-aka="${i.dataset.akn}"]`).click()}});
   },
   entregas(){if($('kCredBtn'))$('kCredBtn').onclick=()=>{kCred=true;render();scrollTo(0,0)};if($('kCredX'))$('kCredX').onclick=()=>{kCred=false;render()};
+    document.querySelectorAll('[data-kfoto]').forEach(b=>b.onclick=()=>{kEntrega=b.dataset.kfoto;kPos=null;kErr='';seguirGPS();render();scrollTo(0,0)});
     document.querySelectorAll('[data-kir]').forEach(b=>b.onclick=()=>{kEntrega=b.dataset.kir;kPos=null;kErr='';seguirGPS();render();scrollTo(0,0)});
     if($('kVolver'))$('kVolver').onclick=()=>cerrarEntrega()},
   misCarr(){const v=vendActual();if(!v)return;

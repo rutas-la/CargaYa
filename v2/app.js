@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.16',VERSION_FECHA='18/11/2026';
+const VERSION='2.17',VERSION_FECHA='18/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -1179,6 +1179,7 @@ function selZona(id,actual){const ns=nombresZona();if(!ns.length)return `<input 
   return `<select id="${id}"><option value="">— Elige la zona —</option>${ns.map(n=>`<option ${actual===n?'selected':''}>${esc(n)}</option>`).join('')}<option value="__otra" ${otra?'selected':''}>Otra…</option></select>
    <input id="${id}T" placeholder="Escribe cómo le dicen a esa zona" value="${otra?esc(actual):''}" style="margin-top:6px;${otra?'':'display:none'}">`}
 function leerZona(id){const s=$(id),t=$(id+'T');if(!s)return t?t.value.trim():'';return s.value==='__otra'?(t?t.value.trim():''):s.value}
+let verQuitadas=false;
 function vComprador(){
   const c=ME.rol==='comprador'?comp(ME.id):compradoresActivos()[0];
   if(ME.rol==='comprador'&&(!c||!c.vehiculo||c.activo===false||reg))return vRegistro(c);
@@ -1201,8 +1202,12 @@ function vComprador(){
         <button class="btn g big" data-rok="${esc(d.id)}" style="margin-top:10px">Recibí ${d.bultos} bultos completos</button>
         <label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: llegaron 5 bultos, faltó 1"><div class="row" style="margin-top:8px"><button class="btn o" data-rmal="${esc(d.id)}">Reportar faltante</button><button class="btn o" style="flex:0 0 auto" id="rcCancel">Cancelar</button></div>`
        :`<button class="btn y" data-rabrir="${esc(d.id)}">Ya me llegó</button>`}</div>`}).join('')||'<div class="empty">No tienes mercancía en camino</div>'}</div></div>
-  <div class="card"><h2>Mis compras</h2><p class="sub">${enCamino.length} por recibir · ${mis.length-enCamino.length} cerradas</p>
-   <div class="list">${mis.map(d=>`${itemDesp(d,'comprador')}${d.estado!=='entregado'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}`).join('')||'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver aquí</div>'}</div></div></div>`}
+  <div class="card"><h2>Mis compras</h2>${(()=>{const ocu=new Set(c.ocultos||[]);
+     const oculta=d=>d.estado!=='en_ruta'&&ocu.has(d.id);const nOc=mis.filter(oculta).length;
+     const vis=verQuitadas?mis:mis.filter(d=>!oculta(d)),cerradasVis=vis.filter(d=>d.estado!=='en_ruta'&&!oculta(d)).length;
+     return `<p class="sub">${enCamino.length} por recibir · ${((n)=>`${n} cerrada${n==1?'':'s'}`)(mis.length-enCamino.length-nOc)}${nOc?` · <a href="#" id="verQuit">${verQuitadas?'ocultar las quitadas':`ver ${nOc} quitada${nOc==1?'':'s'}`}</a>`:''}</p>
+     ${ME.rol==='comprador'&&cerradasVis>1?'<button class="btn o" id="quitTodas" style="width:100%;margin-bottom:8px">🧹 Quitar todas las compras recibidas</button>':''}
+     <div class="list">${vis.map(d=>`${ME.rol==='comprador'&&oculta(d)?'<div style="opacity:.55">':''}${itemDesp(d,'comprador')}${d.estado!=='entregado'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}${ME.rol==='comprador'&&d.estado!=='en_ruta'?(oculta(d)?`<button class="btn o" data-cvolver="${esc(d.id)}" style="margin:-4px 0 8px;padding:6px 12px">↩ Volver a mostrar</button></div>`:`<button class="btn o" data-cquit="${esc(d.id)}" style="margin:-4px 0 8px;padding:6px 12px">✕ Quitar de la lista</button>`):''}`).join('')}${!vis.length&&mis.length?'<div class="empty">Lista limpia 👍 Aquí aparecerán tus próximas compras.</div>':''}`})()}${mis.length?'':'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver aquí</div>'}</div></div></div>`}
 function vRegistro(c){
   const r=reg||(reg={veh:c?.vehiculo||'',ref:c?.ref||'',foto:c?.foto||null,zona:c?.zona||'',px:c?.px??null,py:c?.py??null,pv:c?.pv,metodo:c?.ubicMetodo,acc:c?.ubicAcc});
   return `<div class="card" style="max-width:560px;margin:0 auto">
@@ -1602,6 +1607,12 @@ const bind={
     if($('cEditar'))$('cEditar').onclick=()=>{reg={veh:c.vehiculo,ref:c.ref||'',foto:c.foto||null,zona:c.zona||'',px:c.px??null,py:c.py??null,pv:c.pv,metodo:c.ubicMetodo,acc:c.ubicAcc};render()};
     if($('meVoy'))$('meVoy').onclick=async()=>{if($('meVoy').dataset.ok!=='1'){$('meVoy').dataset.ok='1';$('meVoy').textContent='Toca otra vez para confirmar';return}await guardar('comprador',{...c,activo:false});log(`${c.id} se fue del mercado`);if(!ONLINE)setME(null);render()};
     document.querySelectorAll('[data-rabrir]').forEach(b=>b.onclick=()=>{recibiendo=b.dataset.rabrir;render()});
+    {const yoC=()=>comp(ME.id);const g=async c=>{await guardar('comprador',c);render()};
+     document.querySelectorAll('[data-cquit]').forEach(b=>b.onclick=()=>{const c=yoC();if(!c)return;g({...c,ocultos:[...(c.ocultos||[]).filter(x=>x!==b.dataset.cquit),b.dataset.cquit].slice(-300)});toast('Quitada de la lista')});
+     document.querySelectorAll('[data-cvolver]').forEach(b=>b.onclick=()=>{const c=yoC();if(!c)return;g({...c,ocultos:(c.ocultos||[]).filter(x=>x!==b.dataset.cvolver)})});
+     if($('quitTodas'))$('quitTodas').onclick=()=>{const b=$('quitTodas');if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para quitarlas';return}
+       const c=yoC();if(!c)return;const ids=L('despacho').filter(x=>x.placa===c.id&&x.estado!=='en_ruta').map(x=>x.id);g({...c,ocultos:[...new Set([...(c.ocultos||[]),...ids])].slice(-300)});toast('Lista limpia')};
+     if($('verQuit'))$('verQuit').onclick=e=>{e.preventDefault();verQuitadas=!verQuitadas;render()}}
     if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;render()};
     document.querySelectorAll('[data-rok]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rok];const k=carr(d.carretillero);
       if(carnetOk[d.id]){const num=carnetOk[d.id];delete carnetOk[d.id];recibiendo=null;await confirmar(d,'carnet',{carrDicho:num,carrOk:true});return}

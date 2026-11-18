@@ -6,7 +6,7 @@ def sql(q,a=()):
     with psycopg.connect(DB,autocommit=True) as c:
         cur=c.execute(q,a);return cur.fetchall() if cur.description else None
 def reset():
-    sql("truncate despachos,pagos,compradores,carretilleros,vendedores,zonas,config,calibracion,actividad,admins; delete from auth.users")
+    sql("truncate despachos,pagos,compradores,carretilleros,vendedores,zonas,config,calibracion,actividad,admins cascade; delete from auth.users")
 def R(t):return [r[0] for r in sql(f"select data from {t}")]
 def hacer_admin(tel_dig,pin='999999'):
     req=urllib.request.Request('http://127.0.0.1:8780/auth/v1/signup',data=json.dumps({'email':tel_dig+'@cargaya.app','password':pin,'data':{}}).encode(),headers={'content-type':'application/json'})

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16181c">
+<title>CargaYa Carretillero · Mercado Mayor de Coche</title>
+<link rel="manifest" href="manifest-carretillero.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="CargaYa Carret.">
+<link rel="icon" href="icon-carretillero.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-carretillero-180.png"><link rel="icon" type="image/png" sizes="192x192" href="icon-carretillero-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=2.14">
+<script src="lib/supabase-2.119.0.js"></script>
+<script src="config.js?v=2.14"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo"><div class="logo-mark">C</div><div><h1>CargaYa <span style="color:#f07b14">Carretillero</span></h1><small>Mercado Mayor de Coche · Caracas</small></div></div>
+    <div class="geo" id="estado"></div>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main id="app"></main>
+<footer>CargaYa · Carretillero<a href="ayuda-carretillero.html" target="_blank" rel="noopener" class="btn-ayuda grande">📘 CÓMO SE USA</a></footer>
+<div class="toast" id="toast"></div>
+<div id="print"></div>
+<script>window.CARGAYA_MODULO='carretillero';</script>
+<script src="app.js?v=2.14"></script>
+</body>
+</html>

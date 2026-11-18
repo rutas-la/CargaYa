@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CargaYa Carretillero · Cómo se usa</title><meta name="theme-color" content="#16181c">
+<link rel="icon" href="icon-carretillero-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}body{margin:0;font-family:Barlow,system-ui,Arial,sans-serif;background:#f6f4ee;color:#16181c;font-size:17px;line-height:1.5}
+header{background:#16181c;color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+header img{width:46px;height:46px;border-radius:10px}header h1{margin:0;font-size:21px;line-height:1.1}header small{color:#b9bcc2;font-size:13px}
+main{max-width:760px;margin:0 auto;padding:14px}
+.intro{background:#fff;border:1px solid #e2e0d8;border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.intro b{color:#16181c}.indice{columns:1;column-gap:20px;margin:8px 0 0;padding-left:20px;font-size:15px}.indice a{color:#1f6feb;text-decoration:none}
+.paso{background:#fff;border:1px solid #e2e0d8;border-radius:14px;padding:14px 16px;margin:0 0 14px;break-inside:avoid;page-break-inside:avoid}
+.paso h2{margin:0 0 6px;font-size:20px;display:flex;gap:10px;align-items:center}
+.paso h2 span{flex:0 0 34px;height:34px;border-radius:50%;background:#ffc400;display:flex;align-items:center;justify-content:center;font-size:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.paso ol,.paso ul{margin:6px 0;padding-left:22px}.paso li{margin:3px 0}
+.fotos{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;justify-content:center}
+.fotos img{width:min(100%,300px);border:1px solid #d9d6cc;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.fotos.anchas img{width:100%;max-width:720px}
+.tip{background:#fff8dc;border-left:4px solid #ffc400;padding:8px 12px;border-radius:8px;margin-top:8px;font-size:15.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.barra{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.barra a,.barra button{font:inherit;font-weight:700;font-size:15px;padding:10px 14px;border-radius:10px;border:1px solid #16181c;background:#fff;color:#16181c;text-decoration:none;cursor:pointer}
+.barra .y{background:#ffc400;border-color:#ffc400}.barra .g{background:#12a150;border-color:#12a150;color:#fff}
+@media(min-width:620px){.indice{columns:2}}
+footer{text-align:center;color:#7c8089;font-size:13px;padding:20px}
+@media print{header{position:static;-webkit-print-color-adjust:exact;print-color-adjust:exact}.barra{display:none}body{background:#fff;font-size:12pt}.paso{border-color:#bbb}.fotos img{width:46mm;box-shadow:none}.fotos.anchas img{width:100%}.indice{display:none}}</style></head><body>
+<header><img src="icon-carretillero-192.png" alt=""><div><h1>CargaYa <span style="color:#f07b14">Carretillero</span></h1><small>Cómo se usa, paso a paso · Mercado Mayor de Coche</small></div></header>
+<main>
+<div class="barra"><a class="y" href="carretillero.html">Abrir CargaYa Carretillero</a><button onclick="print()">🖨 Imprimir</button><a class="g" id="wa" href="#">💬 Enviar por WhatsApp</a></div>
+<div class="intro"><p style="margin:0">Con <b>CargaYa Carretillero</b> ves tus entregas en el teléfono y el GPS te lleva hasta el vehículo del comprador. Tu vendedor activa tu teléfono con un código.</p><ol class="indice"><li><a href="#p1">Activa tu teléfono</a></li><li><a href="#p2">Instala el ícono</a></li><li><a href="#p3">Mis entregas</a></li><li><a href="#p4">Llévame: el GPS te guía</a></li><li><a href="#p5">Entrega y muestra tu credencial</a></li><li><a href="#p6">¿Olvidaste tu PIN?</a></li></ol></div>
+<section class="paso" id="p1"><h2><span>1</span>Activa tu teléfono</h2><ol><li>Pide a tu vendedor que te muestre el código: <b>Mis carretilleros → 📱 Activar su teléfono</b>.</li><li>Escanéalo con la <b>cámara</b> de tu teléfono y abre el enlace (o abre CargaYa Carretillero, toca <b>Activar mi teléfono</b> y escribe las letras).</li><li>Revisa que diga <b>tu número</b> de carretillero.</li><li>Escribe tu teléfono, inventa un <b>PIN de 6 números</b> y una <b>palabra secreta</b>, y toca <b>Activar</b>.</li></ol><div class="tip">💡 El código sirve una sola vez y vence en 48 horas. Si vence, pide otro.</div><div class="fotos"><img src="ayuda/k01_activar.jpg" alt="Activa tu teléfono" loading="lazy"></div></section>
+<section class="paso" id="p2"><h2><span>2</span>Instala el ícono</h2><ol><li>Al activar aparece <b>“Instala el ícono”</b>: tócalo y acepta.</li><li>Así abres CargaYa Carretillero con un toque, como cualquier aplicación.</li></ol></section>
+<section class="paso" id="p3"><h2><span>3</span>Mis entregas</h2><ol><li>Cuando un vendedor te asigna una carga, suena un aviso y aparece en <b>Por entregar</b>.</li><li>Ves la <b>placa</b>, el vehículo, la zona, lo que llevas y de qué vendedor es.</li><li>Abajo, <b>Hoy</b> muestra las que ya recibió el comprador.</li></ol><div class="fotos"><img src="ayuda/k02_lista.jpg" alt="Mis entregas" loading="lazy"></div></section>
+<section class="paso" id="p4"><h2><span>4</span>Llévame: el GPS te guía</h2><ol><li>Toca <b>📍 Llévame</b> en la entrega.</li><li>El punto <b>azul</b> eres tú; el <b>rojo</b>, el vehículo del comprador. Arriba ves cuántos metros faltan y hacia dónde.</li><li>La línea roja es el camino por los pasillos del mercado.</li><li>Mira la <b>foto del vehículo</b> y la referencia para encontrarlo rápido. Si no lo ves, toca <b>💬 Escribir al comprador</b>.</li></ol><div class="tip">💡 Acepta el permiso de ubicación. Bajo techo el GPS puede fallar unos metros: guíate también por la zona y la foto.</div><div class="fotos"><img src="ayuda/k03_llevame.jpg" alt="Llévame: el GPS te guía" loading="lazy"></div></section>
+<section class="paso" id="p5"><h2><span>5</span>Entrega y muestra tu credencial</h2><ol><li>Al llegar, toca <b>🪪 Mostrar mi credencial al comprador</b>.</li><li>El comprador la escanea con su app y confirma que recibió.</li><li>La entrega pasa sola a <b>Hoy · ✅ Recibido</b>.</li></ol><div class="tip">💡 Tu credencial impresa sigue sirviendo igual: el comprador puede escanear cualquiera de las dos.</div><div class="fotos"><img src="ayuda/k04_credencial.jpg" alt="Entrega y muestra tu credencial" loading="lazy"></div></section>
+<section class="paso" id="p6"><h2><span>6</span>¿Olvidaste tu PIN?</h2><ol><li>Abre CargaYa Carretillero y toca <b>Ya tengo cuenta</b>.</li><li>Toca <b>🔑 ¿Olvidaste tu PIN? Recupéralo aquí</b>.</li><li>Escribe tu teléfono y tu <b>palabra secreta</b>, e inventa un PIN nuevo.</li></ol><div class="tip">💡 Si no recuerdas la palabra, pide a la administración que te cambie el PIN.</div></section>
+
+</main>
+<footer>CargaYa · Mercado Mayor de Coche · Si algo no funciona, escribe a la administración.</footer>
+<script>document.getElementById('wa').href='https://wa.me/?text='+encodeURIComponent('Así se usa CargaYa Carretillero, paso a paso: '+location.href.split('#')[0]);</script>
+</body></html>

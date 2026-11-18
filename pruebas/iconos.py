@@ -1,5 +1,5 @@
 import subprocess,os
-ROLES={'':(None,None),'vendedor':('V','#16181c'),'comprador':('C','#1f6feb'),'admin':('A','#12a150')}
+ROLES={'':(None,None),'vendedor':('V','#16181c'),'comprador':('C','#1f6feb'),'admin':('A','#12a150'),'carretillero':('K','#f07b14')}
 def svg(letra,col,maskable=False):
     # Fondo amarillo CargaYa, carretilla negra con dos bultos; insignia del rol abajo a la derecha
     pad=0 if not maskable else 0  # el dibujo ya está dentro de la zona segura (80 % central)

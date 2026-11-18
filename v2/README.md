@@ -54,3 +54,13 @@ Si olvidan el PIN: **Ya tengo cuenta → 🔑 ¿Olvidaste tu PIN?** → teléfon
 No importan mayúsculas ni acentos. 5 intentos fallidos bloquean la recuperación de esa cuenta por 1 hora (queda en Actividad).
 Las cuentas que ya existían reciben un aviso al entrar para crear su palabra; se cambia tocando **🔑 palabra** en el encabezado.
 Puesta en marcha: Supabase → SQL Editor → pegar y ejecutar `palabra-secreta.sql` (una sola vez).
+
+## Carretilleros con teléfono (app CargaYa Carretillero) — desde v2.14
+Cuarto módulo: `carretillero.html`. Queda **apagado** hasta que la administración lo enciende.
+- Puesta en marcha (una sola vez): Supabase → SQL Editor → pegar y ejecutar `carretillero-movil.sql`.
+- Encender: Administración → Carretilleros → **📱 Carretilleros con teléfono → Activar**.
+- El vendedor, en Mis carretilleros, toca **📱 Activar su teléfono**: sale un QR/código de 6 letras (vence en 48 h, un solo uso).
+- El carretillero lo escanea, crea su cuenta (teléfono + PIN + palabra secreta) y queda vinculado a su número de siempre.
+- Ve sus entregas en vivo (con aviso), y **📍 Llévame** muestra su GPS y el vehículo del comprador en el plano, con la ruta por los pasillos, los metros que faltan, la foto, WhatsApp al comprador y Google Maps.
+- Muestra su credencial en pantalla para que el comprador la escanee. La credencial impresa y la papeleta siguen funcionando.
+- Permisos: el carretillero solo ve sus despachos y los vehículos a los que lleva carga en ese momento; no edita nada.

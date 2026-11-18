@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.13',VERSION_FECHA='17/11/2026';
+const VERSION='2.14',VERSION_FECHA='18/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -100,6 +100,10 @@ async function cargarDatos(){const yo=ME&&ME.id,rol=ME&&ME.rol;const q=[];
     q.push(traerTodo(()=>sel('comprador')().eq('id',yo),'comprador'),
       traerTodo(()=>sel('despacho')().eq('placa',yo).gte('creado',inicioDia(7)),'despacho'),
       cargarDirectorio());
+  }else if(rol==='carretillero'){
+    q.push(traerTodo(()=>sel('carretillero')().eq('id',yo),'carretillero'),
+      traerTodo(()=>sel('despacho')().eq('carretillero',yo).gte('creado',inicioDia(1)),'despacho'),
+      cargarDirectorio(true));
   }else if(rol==='admin'){
     q.push(traerTodo(sel('vendedor'),'vendedor'),traerTodo(sel('carretillero'),'carretillero'),traerTodo(sel('calibracion'),'calibracion'),
       traerTodo(()=>sel('comprador')().eq('activo',true),'comprador'),
@@ -110,9 +114,10 @@ async function cargarDatos(){const yo=ME&&ME.id,rol=ME&&ME.rol;const q=[];
       traerTodo(()=>sel('pago')().or(`estado.eq.pendiente,updated_at.gte.${new Date(inicioDia(120)).toISOString()}`),'pago'),
       sb.from('actividad').select('t,m').order('id',{ascending:false}).limit(80).then(a=>{if(!a.error)S.log=a.data.map(l=>({t:Date.parse(l.t),m:l.m}))}));
   }
+  if(rol==='vendedor'||rol==='admin')q.push(cargarMovil());
   await Promise.all(q);
   // nombres de carretilleros y compradores que aparecen en los despachos
-  const ds=L('despacho');ds.forEach(d=>{if(d.carretillero)pedir('carretillero',d.carretillero);if(rol!=='comprador')pedir('comprador',d.placa)});
+  const ds=L('despacho');ds.forEach(d=>{if(d.carretillero)pedir('carretillero',d.carretillero);if(rol!=='comprador'&&(rol!=='carretillero'||d.estado==='en_ruta'))pedir('comprador',d.placa)});
   if(rol==='vendedor')L('carretillero').forEach(k=>k.vendedor!==yo&&pedir('vendedor',k.vendedor));
 }
 // Resumen del día (administración): lo calcula el servidor para no descargar miles de despachos
@@ -154,6 +159,7 @@ function suscribir(){const yo=ME.id,rol=ME.rol;
   on('zona');
   if(rol==='vendedor'){on('despacho','vendedor=eq.'+yo);on('carretillero','vendedor=eq.'+yo);on('vendedor','id=eq.'+yo);on('pago','vendedor=eq.'+yo);on('config')}
   else if(rol==='comprador'){on('despacho','placa=eq.'+yo);on('comprador','id=eq.'+yo)}
+  else if(rol==='carretillero'){on('despacho','carretillero=eq.'+yo);on('config')}
   else{['despacho','vendedor','comprador','carretillero','pago','config'].forEach(t=>on(t));
     ch.on('postgres_changes',{event:'INSERT',schema:'public',table:'actividad'},p=>{S.log.unshift({t:Date.parse(p.new.t),m:p.new.m});S.log=S.log.slice(0,80);pedirRender()})}
   let caido=false;
@@ -203,6 +209,8 @@ function sonar(){try{const c=sonar.c||(sonar.c=new (window.AudioContext||window.
 function avisar(tipo,antes,d){if(tipo==='pago'&&ME&&ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&antes.estado!==d.estado){toast(d.estado==='aprobado'?'✓ Tu pago fue aprobado':'✗ Tu pago fue rechazado: '+(d.motivo||''));sonar();return}
   if(tipo!=='despacho'||!ME)return;if(antes&&antes.estado===d.estado)return;let m=null;
   if(ME.rol==='comprador'&&d.placa===ME.id&&!antes)m=`${vend(d.vendedor)?.nombre||'Un vendedor'} despachó ${d.bultos} bultos a tu vehículo`;
+  else if(ME.rol==='carretillero'&&d.carretillero===ME.id&&!antes){m=`📦 Nueva entrega: ${d.bultos} bultos para ${d.placa}`;pedir('comprador',d.placa);try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+  else if(ME.rol==='carretillero'&&d.carretillero===ME.id&&antes&&d.estado==='entregado'){m=`✅ ${d.placa} confirmó que recibió la carga`;if(kEntrega===d.id)cerrarEntrega()}
   else if(ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&d.estado!=='en_ruta')m=`${nro(d)} para ${d.placa}: ${ETQ[d.estado]}`;
   if(m){toast(m);sonar()}}
 
@@ -253,8 +261,8 @@ function fotoInput(input,cb,bucket){if(!input)return;input.onchange=()=>{const f
 const RAIZ=location.origin+location.pathname.replace(/[^/]*$/,'');
 const BASE=RAIZ;
 const MODULO=window.CARGAYA_MODULO||'comprador';
-const LINKS={comprador:RAIZ+'comprador.html',vendedor:RAIZ+'vendedor.html',admin:RAIZ+'admin.html'};
-const NOMBRE_MOD={comprador:'Comprador',vendedor:'Vendedor',admin:'Administración'};
+const LINKS={comprador:RAIZ+'comprador.html',vendedor:RAIZ+'vendedor.html',admin:RAIZ+'admin.html',carretillero:RAIZ+'carretillero.html'};
+const NOMBRE_MOD={comprador:'Comprador',vendedor:'Vendedor',admin:'Administración',carretillero:'Carretillero'};
 const urlCarnet=id=>`${RAIZ}comprador.html?k=${id}`;
 const pad=(n,l)=>String(n).padStart(l,'0');
 function parseCodigo(txt){if(!txt)return null;txt=String(txt).trim();
@@ -295,13 +303,13 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 
 /* ===================== Render ===================== */
 let view=null,pendiente=false,cargado=false;
-function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','uso','cobros','comprAdm','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr','miUbic','miSusc'];return ['comprador','vendC']}
-const NOMBRES={uso:'Uso',comprAdm:'Compradores',miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Plano y zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
+function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','uso','cobros','comprAdm','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr','miUbic','miSusc'];if(ME.rol==='carretillero')return ['entregas'];return ['comprador','vendC']}
+const NOMBRES={entregas:'Mis entregas',uso:'Uso',comprAdm:'Compradores',miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Plano y zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
 function leerItems(){const f=document.getElementById('fDesp');if(!f)return null;return [...f.querySelectorAll('.it-row')].map(r=>({desc:r.querySelector('.it-desc').value,bultos:r.querySelector('.it-bul').value}))}
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;const it=leerItems();if(it)desp.items=it}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
-const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
+const formSucio=()=>[...document.querySelectorAll('#app input:not([type=file]):not([type=range]):not([type=checkbox]):not([type=radio]):not(#fDesp input),#app textarea')].some(i=>i.value!==i.defaultValue);
 const ocupado=()=>!!otroModulo||!!yoBuscando||!!editPuesto||!!vcMapa||!!pagandoK||!!pagandoLote||!!(reg&&reg.ocupado)||!!pagando||!!rechazando||!!zonaUbicando||!!zonaDib||!!plEdit||!!ubicandoCamion||!!document.querySelector('.scan')||!!fichaVista||!!recibiendo||formSucio();
 function pintarEstado(){const el=document.getElementById('estado');if(!el)return;const col={'en línea':'#3ddc84','local':'#ffc400','conectando':'#9aa0a8'}[conexion]||'#e0362c';
   el.innerHTML=`<span><i style="background:${col}"></i>${conexion==='local'?'Modo local (solo este teléfono)':conexion==='en línea'?'En línea':conexion==='conectando'?'Conectando…':'Sin conexión: se guarda y se envía al volver la señal'}${cola.length?` · ${cola.length} por enviar`:''}${ME?` · ${esc(ME.nombre)}${ME.rol!=='admin'&&ONLINE?' <a href="#" id="miPalabra" class="btn-palabra">🔑 palabra</a>':''} <a href="#" id="salir" class="btn-salir">${ONLINE?'salir':'cambiar'}</a>`:''}</span>`;
@@ -310,14 +318,14 @@ function pintarEstado(){const el=document.getElementById('estado');if(!el)return
 function render(){IDX.t=0;
   const vs=vistasDe();if(ME&&!vs.includes(view))view=vs[0];
   const nav=document.getElementById('nav');nav.innerHTML=vs.length>1?vs.map(v=>`<button data-v="${v}" class="${v===view?'on':''}">${NOMBRES[v]}</button>`).join(''):'';
-  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v!==view){gpsErr='';ubicandoCamion=false;editPuesto=false;pagando=false;pagandoK=null;pagandoLote=null;fichaVista=null}view=b.dataset.v;if(view==='comprAdm')CA.key=null;if(view==='uso')cargarMetricas();if(view==='histVend')histC.key=null;if(view==='vendC')cargarDirectorio();render();window.scrollTo(0,0)};
+  nav.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v!==view){gpsErr='';ubicandoCamion=false;editPuesto=false;pagando=false;pagandoK=null;pagandoLote=null;fichaVista=null}view=b.dataset.v;if((view==='misCarr'||view==='carretilleros')&&movilOn()){const n=[...MOVIL].join();cargarMovil().then(()=>{if([...MOVIL].join()!==n)pedirRender()})}if(view==='comprAdm')CA.key=null;if(view==='uso')cargarMetricas();if(view==='histVend')histC.key=null;if(view==='vendC')cargarDirectorio();render();window.scrollTo(0,0)};
   pintarEstado();
   const app=document.getElementById('app');
   if(fichaURL){app.innerHTML=vFichaURL();bindFichaURL();return}
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({uso:vUso,comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador})[view]();
+  app.innerHTML=({uso:vUso,comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador,entregas:vEntregas})[view]();
   bind[view]&&bind[view]();firmarFotos();
 }
 let otroModulo=null;
@@ -350,7 +358,9 @@ function telDigitos(t){let d=String(t||'').replace(/\D/g,'');if(d.startsWith('0'
 const emailDeTel=t=>telDigitos(t)+'@'+CFG.EMAIL_DOMINIO;
 async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=false;
   try{const r=await sb.from('admins').select('uid').eq('uid',user.id);admin=!r.error&&!!(r.data&&r.data.length)}catch(e){}
+  let kid=null;if(!admin&&(MODULO==='carretillero'||md.rol==='carretillero')){try{const r=await sb.rpc('mi_carretillero');if(!r.error)kid=r.data}catch(e){}}
   if(admin)setME({rol:'admin',id:'admin',nombre:md.nombre||'Administración',uid:user.id});
+  else if(kid)setME({rol:'carretillero',id:kid,nombre:md.nombre||'',tel:md.tel||'',uid:user.id});
   else if(md.rol==='vendedor')setME({rol:'vendedor',id:user.id,nombre:md.nombre||'',tel:md.tel||'',uid:user.id});
   else if(md.rol==='comprador'&&md.placa)setME({rol:'comprador',id:md.placa,nombre:md.nombre||'',tel:md.tel||'',uid:user.id});
   else setME(null);
@@ -415,9 +425,10 @@ async function revisarPalabra(){if(!ME||ME.rol==='admin'||!ONLINE)return;try{if(
 
 function vLogin(){
   if(modoCuenta==='recuperar'&&MODULO!=='admin')return vRecuperar();
+  if(MODULO==='carretillero'&&modoCuenta==='crear')return vActivar();
   const r=MODULO,crear=modoCuenta==='crear'&&r!=='admin';
   return `<div class="card" style="max-width:520px;margin:0 auto"><h2>${r==='admin'?'Administración':crear?(r==='vendedor'?'Crea tu cuenta de vendedor':'Crea tu cuenta de comprador'):'Entra a tu cuenta'}</h2>
-   ${r!=='admin'?`<div class="seg" style="margin:8px 0 4px">${[['crear','Soy nuevo'],['entrar','Ya tengo cuenta']].map(([k,t])=>`<button type="button" class="${modoCuenta===k?'on':''}" data-modo="${k}">${t}</button>`).join('')}</div>`:''}
+   ${r!=='admin'?`<div class="seg" style="margin:8px 0 4px">${[['crear',r==='carretillero'?'Activar mi teléfono':'Soy nuevo'],['entrar','Ya tengo cuenta']].map(([k,t])=>`<button type="button" class="${modoCuenta===k?'on':''}" data-modo="${k}">${t}</button>`).join('')}</div>`:''}
    ${r==='comprador'&&favPend().length?'<div class="found" style="margin:8px 0">⭐ Te invitó un vendedor: cuando entres, quedará en tus favoritos.</div>':''}
    ${r==='comprador'&&amigoPend()?'<div class="found" style="margin:8px 0">👥 Te invitó un amigo: cuando registres tu vehículo, recibirás sus vendedores favoritos.</div>':''}
    <form id="fLogin">
@@ -433,6 +444,7 @@ function vLogin(){
    <p class="hint" style="margin-top:6px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`}
 function bindLogin(){
   if(modoCuenta==='recuperar'&&MODULO!=='admin')return bindRecuperar();
+  if(MODULO==='carretillero'&&modoCuenta==='crear')return bindActivar();
   if($('lOlvide'))$('lOlvide').onclick=()=>{const t=telDigitos($('lTel').value);RECUP_TEL=t.length>=11?t:'';modoCuenta='recuperar';render()};
   document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});
   if($('lVer'))$('lVer').onchange=()=>{$('lPin').type=$('lVer').checked?'text':'password'};
@@ -457,7 +469,7 @@ function bindLogin(){
           if(/fetch|network|timeout|Failed|NetworkError|AuthRetryableFetchError/i.test(m)||!navigator.onLine)return err('No hay conexión con el servidor. Revisa los datos móviles o el WiFi y prueba de nuevo.');
           return err('No encontramos esa cuenta o el PIN no coincide. Si es tu primera vez en esta versión de CargaYa, toca <b>"Soy nuevo"</b> y crea tu cuenta.')}user=data.user}
       const admin=await entrar(user);
-      if(!ME){await sb.auth.signOut();listo();return err('Esta cuenta no tiene un rol válido.')}
+      if(!ME){await sb.auth.signOut();listo();return err(r==='carretillero'?'Este teléfono no está activado como carretillero (o tu vendedor lo quitó). Pide a tu vendedor un código nuevo y toca <b>Activar mi teléfono</b>.':'Esta cuenta no tiene un rol válido.')}
       if(r==='admin'&&!admin){await sb.auth.signOut();setME(null);listo();return err('Esta cuenta no es de administración.')}
       if(r!=='admin'&&ME.rol!==r){const rr=ME.rol;await sb.auth.signOut();setME(null);listo();return err(`Esa cuenta no es de ${NOMBRE_MOD[r]}. Entra con tu cuenta de ${NOMBRE_MOD[r]} o toca <b>Soy nuevo</b> para crearla.`)}
       if(crear)log(`Nueva cuenta de ${r}: ${ME.nombre}${r==='comprador'?' ('+ME.id+')':''}`);
@@ -796,6 +808,7 @@ function vCarretilleros(){const vs=L('vendedor').sort((a,b)=>(a.nombre||'').loca
   return `<div class="grid"><div class="card"><h2>Carretilleros de todos los vendedores</h2><p class="sub">Puedes agregar carretilleros a cualquier vendedor e imprimir sus credenciales. Cada vendedor también puede hacerlo desde su módulo.</p>
    <label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="akDorso" checked style="width:auto"> Imprimir también el dorso (doble faz)</label>
    <button class="btn y" id="akTodos" style="width:100%;margin-top:8px" ${total?'':'disabled'}>🖨 Imprimir credenciales de todos (${total})</button></div>
+   ${cardInterruptorMovil()}
    ${vs.map(v=>{const ks=misCarr(v.id);return `<div class="card"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="font-size:20px">${esc(v.nombre)}</h2><span class="hint">${ks.length} carretillero${ks.length===1?'':'s'}</span></div>
      <div class="list">${ks.map(k=>{const s=statsK(k);return `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:6px 0"><div><b>#${esc(k.num)} · ${esc(k.nombre||'sin nombre')}</b><div class="meta">${pl(s.hoy,'viaje')} hoy · ${pl(s.ok,'confirmado')}${s.recl?` · ⚠ ${pl(s.recl,'reclamo')}`:''}${s.porCobrar?` · 💵 ${s.porCobrar} por cobrar`:''}</div></div><button class="btn o" style="flex:0 0 auto;padding:6px 10px" data-akp="${esc(k.id)}">🖨</button></div>`}).join('')||'<div class="hint">Todavía no tiene carretilleros.</div>'}</div>
      <div class="row" style="margin-top:10px"><input placeholder="Nombre del nuevo carretillero" data-akn="${esc(v.id)}"><button class="btn o" style="flex:0 0 auto" data-aka="${esc(v.id)}">Agregar</button></div>
@@ -811,7 +824,7 @@ function vMisCarr(){const v=vendActual();if(!v)return '<div class="card empty">C
      <button class="btn o" id="kPrintAll" style="width:100%;margin-top:8px" ${ks.length?'':'disabled'}>🖨 Imprimir credenciales de todos (${ks.length})</button></div></div>
    <div class="card"><h2>Mis carretilleros</h2><div class="list">${ks.map(k=>{const s=statsK(k);return `<div class="item"><div class="top"><b style="font-size:20px">#${esc(k.num)} · ${esc(k.nombre||'sin nombre')}</b><span class="hint">${pl(s.hoy,'viaje')} hoy</span></div>
      <div class="meta">${pl(s.ok,'confirmado')} hoy${s.recl?` · ⚠ ${pl(s.recl,'reclamo')}`:''}</div>
-     <div class="row"><button class="btn o" data-kprint="${esc(k.id)}">🖨 Credencial</button><button class="btn o" style="flex:0 0 auto" data-kbaja="${esc(k.id)}">Dar de baja</button></div></div>`}).join('')||'<div class="empty">Todavía no tienes carretilleros. Agrega el primero.</div>'}</div></div></div>`}
+     <div class="row"><button class="btn o" data-kprint="${esc(k.id)}">🖨 Credencial</button><button class="btn o" style="flex:0 0 auto" data-kbaja="${esc(k.id)}">Dar de baja</button></div>${filaMovil(k)}</div>`}).join('')||'<div class="empty">Todavía no tienes carretilleros. Agrega el primero.</div>'}</div></div></div>`}
 async function imprimirCredenciales(ks,dorso,vNombre){await cargarQRlib();
   const cred=k=>!k?'<div class="cred vacia"></div>':`<div class="cred"><div class="in"><div class="top"><i class="hole l"></i><i class="hole r"></i><span>perforar</span></div><div class="band">CARRETILLERO</div>
     <div class="num"><small>N°</small>${esc(k.num)}</div><img src="${qrImg(urlCarnet(k.id),400)}" alt=""><div class="esc">Comprador: escanea este código<br>al recibir tu mercancía</div>
@@ -1205,6 +1218,145 @@ function vRegistro(c){
 /* ===================== Acciones ===================== */
 const $=id=>document.getElementById(id);
 async function procesarScanFicha(){const t=await escanear('Escanea la ficha','El QR impreso en la ficha de entrega');if(!t)return null;const p=parseCodigo(t);if(!p||p.tipo!=='f'){toast('Ese código no es una ficha de CargaYa');return null}return p}
+/* ===================== Carretilleros con teléfono (app CargaYa Carretillero) ===================== */
+const movilOn=()=>!!(S.config.movil&&S.config.movil.activo);
+let MOVIL=new Set();
+async function cargarMovil(){if(!ONLINE)return;try{const r=await sb.from('carretilleros_movil').select('carr');if(!r.error)MOVIL=new Set(r.data.map(x=>x.carr))}catch(e){}}
+// --- Administración: interruptor ---
+function cardInterruptorMovil(){const on=movilOn();
+  return `<div class="card"><h2>📱 Carretilleros con teléfono</h2><p class="sub">Permite que cada vendedor active la app <b>CargaYa Carretillero</b> en el teléfono de sus carretilleros: ven sus entregas y el GPS los lleva hasta el vehículo del comprador. Los que no tienen teléfono siguen con su credencial y la papeleta.</p>
+   <div class="row" style="align-items:center"><span style="flex:1;font-weight:800;font-size:18px;color:${on?'#12a150':'#e0362c'}">● ${on?'Activado':'Desactivado'}</span><button class="btn ${on?'o':'y'}" id="movilSw" style="flex:0 0 auto">${on?'Desactivar':'Activar'}</button></div>
+   ${on?`<p class="hint" style="margin-top:8px">${pl(MOVIL.size,'carretillero')} con teléfono. Enlace de la app: <b>${esc(LINKS.carretillero)}</b></p>`:''}</div>`}
+function bindInterruptorMovil(){const b=$('movilSw');if(!b)return;b.onclick=async()=>{const on=!movilOn();
+  if(!on&&b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para desactivar';return}
+  await guardar('config',{...(S.config.movil||{}),id:'movil',activo:on});log(on?'📱 Se activaron los carretilleros con teléfono':'📱 Se desactivaron los carretilleros con teléfono');toast(on?'✓ Activado':'Desactivado');render()}}
+// --- Vendedor: activar / quitar el teléfono de un carretillero ---
+function filaMovil(k){if(!movilOn()||!ONLINE)return '';
+  return MOVIL.has(k.id)?`<div class="row" style="align-items:center;margin-top:6px"><span style="flex:1;font-weight:700;color:#12a150">📱 Usa la app en su teléfono</span><button class="btn o" style="flex:0 0 auto" data-kmovq="${esc(k.id)}">Quitar teléfono</button></div>`
+    :`<button class="btn o" style="width:100%;margin-top:6px" data-kmov="${esc(k.id)}">📱 Activar su teléfono</button>`}
+function bindMovil(){
+  document.querySelectorAll('[data-kmov]').forEach(b=>b.onclick=async()=>{const k=S.carretillero[b.dataset.kmov];b.disabled=true;b.textContent='Un momento…';
+    let r;try{r=await sb.rpc('crear_activacion',{carr_id:k.id})}catch(e){r={error:{message:'Sin conexión'}}}
+    b.disabled=false;b.textContent='📱 Activar su teléfono';if(r.error){toast('No se pudo: '+(r.error.message||''));return}modalActivacion(k,r.data)});
+  document.querySelectorAll('[data-kmovq]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez';return}
+    const k=S.carretillero[b.dataset.kmovq];const r=await sb.rpc('desactivar_movil',{carr_id:k.id});if(r.error){toast('No se pudo: '+r.error.message);return}
+    MOVIL.delete(k.id);log(`Se quitó el teléfono del carretillero #${k.num}`);toast('Teléfono quitado');render()})}
+async function modalActivacion(k,codigo){try{await cargarQRlib()}catch(e){}const url=LINKS.carretillero+'?act='+codigo;
+  const m=document.createElement('div');m.id='actModal';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto';
+  const txt=`Hola ${k.nombre||''} 👋 Activa CargaYa en tu teléfono con este enlace (vence en 48 horas): ${url}  · Código: ${codigo}`;
+  m.innerHTML=`<div class="card" style="max-width:420px;width:100%;margin:auto;text-align:center"><h2>📱 Activa el teléfono de #${esc(k.num)} · ${esc(k.nombre||'')}</h2>
+   <p style="margin:6px 0">El carretillero abre la <b>cámara</b> de su teléfono y escanea este código.</p>
+   ${window.qrcode?`<img src="${qrImg(url,520)}" alt="QR de activación" style="width:240px;height:240px;image-rendering:pixelated">`:''}
+   <div style="font:800 34px/1.1 'Barlow Condensed',sans-serif;letter-spacing:6px;margin:6px 0" id="actCod">${esc(codigo)}</div>
+   <p class="hint">Si no puede escanear: que abra <b>${esc(LINKS.carretillero)}</b>, toque <b>Activar mi teléfono</b> y escriba el código. Vence en 48 horas y sirve una sola vez.</p>
+   <a class="btn o" style="display:block;text-decoration:none;margin-top:10px" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(txt)}">💬 Enviar por WhatsApp</a>
+   <button class="btn y" id="actOk" style="width:100%;margin-top:10px">Listo</button></div>`;
+  document.body.appendChild(m);$('actOk').onclick=()=>{m.remove();cargarMovil().then(()=>render())}}
+
+// --- Carretillero: activar su teléfono (crear cuenta con el código del vendedor) ---
+const ACT={codigo:'',info:null};
+try{const a=new URLSearchParams(location.search).get('act');if(a&&MODULO==='carretillero'){ACT.codigo=a.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);history.replaceState(null,'',location.pathname)}}catch(e){}
+const errAct=k=>k==='apagado'?'La administración todavía no activó la app de carretilleros.':'El código no existe o ya venció. Pide uno nuevo a tu vendedor (Mis carretilleros → Activar su teléfono).';
+function vActivar(){const i=ACT.info;
+  const seg=`<div class="seg" style="margin:8px 0 4px">${[['crear','Activar mi teléfono'],['entrar','Ya tengo cuenta']].map(([k,t])=>`<button type="button" class="${modoCuenta===k?'on':''}" data-modo="${k}">${t}</button>`).join('')}</div>`;
+  if(!i)return `<div class="card" style="max-width:520px;margin:0 auto"><h2>Activa tu teléfono</h2>${seg}
+   <p class="sub">Pide a tu vendedor que entre a <b>Mis carretilleros → 📱 Activar su teléfono</b>. Escanea el código con la cámara o escribe aquí las letras.</p>
+   <form id="fAct1"><label>Código de activación</label><input id="aCod" required autocapitalize="characters" autocomplete="off" maxlength="8" placeholder="Ej: K7P2QX" style="font-size:24px;letter-spacing:4px;text-transform:uppercase" value="${esc(ACT.codigo)}">
+    <div id="aErr"></div><button class="btn y big" type="submit" id="aGo" style="margin-top:14px">Continuar</button></form>
+   <p class="hint" style="margin-top:6px;text-align:center;font-size:12px">CargaYa versión ${VERSION} · ${VERSION_FECHA}</p></div>`;
+  return `<div class="card" style="max-width:520px;margin:0 auto"><h2>Activa tu teléfono</h2>
+   <div class="found" style="margin:6px 0 10px">🪪 Carretillero <b>#${esc(i.num)}</b>${i.nombre?' · '+esc(i.nombre):''}${i.vendedor?`<br><span class="hint">de ${esc(i.vendedor)}</span>`:''}</div>
+   <form id="fAct2"><label>Tu nombre o apodo</label><input id="aNom" required autocomplete="name" value="${esc(i.nombre||'')}">
+    <label>Tu teléfono</label><input id="aTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username">
+    <label>Inventa un PIN de 6 números</label><input id="aPin" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
+    <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:6px"><input type="checkbox" id="aVer" style="width:auto"> Mostrar PIN</label>
+    <label>Palabra secreta (para recuperar tu PIN si lo olvidas)</label><input id="aPal" required autocomplete="off" autocapitalize="off" spellcheck="false"><p class="hint">${AYUDA_PALABRA}</p>
+    <div id="aErr"></div><button class="btn y big" type="submit" id="aGo" style="margin-top:14px">Activar</button></form>
+   <button class="btn o" type="button" id="aOtro" style="width:100%;margin-top:10px">← Usar otro código</button></div>`}
+function bindActivar(){const err=m=>{$('aErr').innerHTML=`<div class="notfound" style="margin-top:10px">${m}</div>`};
+  document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modoCuenta=b.dataset.modo;render()});
+  const ocup=(t)=>{const b=$('aGo');b.disabled=!!t;b.textContent=t||(ACT.info?'Activar':'Continuar')};
+  if(!ACT.info){$('fAct1').onsubmit=async e=>{e.preventDefault();const c=$('aCod').value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(c.length<6)return err('El código tiene 6 letras o números.');
+      ocup('Buscando…');let r;try{r=await sb.rpc('ver_activacion',{codigo_in:c})}catch(ex){r={error:1}}ocup('');
+      if(r.error)return err('No hay conexión con el servidor, o la app de carretilleros todavía no está instalada.');
+      if(r.data&&r.data.error)return err(errAct(r.data.error));ACT.codigo=c;ACT.info=r.data;render()};
+    if(ACT.codigo&&ACT.codigo.length>=6&&!bindActivar.auto){bindActivar.auto=1;$('fAct1').requestSubmit()}return}
+  $('aOtro').onclick=()=>{ACT.info=null;ACT.codigo='';render()};
+  $('aVer').onchange=()=>{$('aPin').type=$('aVer').checked?'text':'password'};
+  $('fAct2').onsubmit=async e=>{e.preventDefault();const nombre=$('aNom').value.trim(),tel=$('aTel').value.trim(),pin=$('aPin').value.trim(),pal=palabraNormal($('aPal').value);
+    if(!nombre)return err('Escribe tu nombre.');if(telDigitos(tel).length<11)return err('Revisa el teléfono (ej: 0414-123-4567).');
+    if(!/^\d{6}$/.test(pin))return err('El PIN debe tener 6 números.');if(pal.length<4)return err('Escribe una palabra secreta de al menos 4 letras.');
+    ocup('Activando…');
+    try{let user,nueva=true;
+      const su=await sb.auth.signUp({email:emailDeTel(tel),password:pin,options:{data:{rol:'carretillero',nombre,tel}}});
+      if(su.error){if(!/already|registered|exists/i.test(su.error.message||'')){ocup('');return err(/fetch|network|Failed/i.test(su.error.message||'')?'No hay conexión con el servidor. Prueba de nuevo.':'No se pudo crear la cuenta: '+esc(su.error.message))}
+        const si=await sb.auth.signInWithPassword({email:emailDeTel(tel),password:pin});
+        if(si.error){ocup('');return err('Ese teléfono ya tiene una cuenta de CargaYa y el PIN no coincide. Escribe el PIN de esa cuenta.')}user=si.data.user;nueva=false}
+      else{if(!su.data.session){ocup('');return err('Supabase pide confirmar el email. Administración: desactiva "Confirm email".')}user=su.data.user}
+      const a=await sb.rpc('activar_carretillero',{codigo_in:ACT.codigo});
+      if(a.error){await sb.auth.signOut();ocup('');return err(esc(a.error.message||'No se pudo activar'))}
+      try{if(nueva)await sb.rpc('fijar_palabra',{palabra:pal});else{const t=await sb.rpc('tengo_palabra');if(t.data===false)await sb.rpc('fijar_palabra',{palabra:pal})}}catch(ex){}
+      await entrar(user);if(!ME||ME.rol!=='carretillero'){ocup('');return err('No se pudo activar. Prueba de nuevo.')}
+      ME.nombre=ME.nombre||nombre;ACT.info=null;ACT.codigo='';modoCuenta='entrar';toast('✅ Teléfono activado');
+      await trasEntrar();setTimeout(()=>ofrecerInstalar(true),700)}
+    catch(ex){ocup('');err('No hay conexión. Prueba de nuevo.')}}}
+
+// --- Carretillero: mis entregas y "Llévame" con GPS ---
+let kEntrega=null,kCred=false,kPos=null,kErr='',kWatch=null,kT=0;
+const misEntregas=()=>L('despacho').filter(d=>d.carretillero===ME.id&&d.estado==='en_ruta').sort((a,b)=>a.t.creado-b.t.creado);
+function credencialK(k){return `<div class="card" style="max-width:440px;margin:0 auto;text-align:center"><div class="band" style="background:#ffc400;font:800 22px 'Barlow Condensed',sans-serif;padding:6px;border-radius:8px">CARRETILLERO</div>
+   <div style="font:800 64px/1 'Barlow Condensed',sans-serif;margin:8px 0">#${esc(k?.num||'')}</div>
+   ${window.qrcode?`<img src="${qrImg(urlCarnet(ME.id),600)}" alt="Mi credencial" style="width:min(300px,80vw);height:auto;image-rendering:pixelated">`:'<div class="empty">Cargando…</div>'}
+   <p style="font-size:18px;margin:8px 0"><b>${esc(k?.nombre||ME.nombre||'')}</b></p><p class="sub">Muéstrale esta pantalla al comprador: la escanea con su app para confirmar que recibió.</p>
+   <button class="btn y big" id="kCredX" style="width:100%;margin-top:8px">Cerrar</button></div>`}
+function vEntregas(){const k=S.carretillero[ME.id];
+  if(!movilOn())return `<div class="card" style="max-width:520px;margin:0 auto"><h2>📱 Todavía no está activa</h2><p class="sub">La administración del mercado activará pronto la app de carretilleros. Mientras tanto, trabaja como siempre con tu credencial y la papeleta.</p></div>`;
+  if(kCred){if(!window.qrcode)cargarQRlib().then(()=>pedirRender()).catch(()=>{});return credencialK(k)}
+  if(kEntrega){const d=S.despacho[kEntrega];if(d&&d.estado==='en_ruta')return vLlevame(d);cerrarEntrega(true)}
+  const es=misEntregas(),hechas=L('despacho').filter(d=>d.carretillero===ME.id&&d.estado!=='en_ruta'&&d.t.creado>=inicioDia(0)).sort((a,b)=>b.t.creado-a.t.creado);
+  return `<div class="grid"><div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">#${esc(k?.num||'')} · ${esc(k?.nombre||ME.nombre||'')}</h2><button class="btn o" style="flex:0 0 auto" id="kCredBtn">🪪 Mi credencial</button></div></div>
+   <div class="card"><h2>Por entregar (${es.length})</h2>${es.map(d=>{const c=comp(d.placa),v=vend(d.vendedor);return `<div class="item" style="border-left:6px solid #f07b14">
+     <div class="top"><b style="font-size:24px;letter-spacing:1px">${esc(d.placa)}</b><span class="hint">${hhmm(d.t.creado)}</span></div>
+     <div class="meta" style="font-size:16px">${c?`🚗 ${esc(c.vehiculo||'')}${c.zona?` · 📍 <b>${esc(c.zona)}</b>`:''}`:'Buscando datos del vehículo…'}</div>
+     <div class="meta">📦 ${esc(resumenItems(d))} · de <b>${esc(v?.nombre||'vendedor')}</b></div>
+     <button class="btn y big" data-kir="${esc(d.id)}" style="width:100%;margin-top:8px">📍 Llévame</button></div>`}).join('')||'<div class="empty">No tienes entregas pendientes 👍<br>Cuando un vendedor te asigne una carga, aparece aquí con un aviso.</div>'}</div>
+   ${hechas.length?`<div class="card"><h2>Hoy (${hechas.length})</h2>${hechas.map(d=>`<div class="meta" style="padding:4px 0">${hhmm(d.t.creado)} · <b>${esc(d.placa)}</b> · ${esc(resumenItems(d))} · ${d.estado==='entregado'?'✅ Recibido':'⚠ Reclamo'}</div>`).join('')}</div>`:''}</div>`}
+function mapaK(d){const c=comp(d.placa),dest=posComp(c),v=vend(d.vendedor),pv=v?posVend(v):null;
+  if(!dest)return `<div class="notfound">El comprador no marcó dónde está su vehículo. Guíate por la zona y la referencia, o escríbele por WhatsApp.</div>`;
+  const yo=kPos&&enPlano(kPos)?XY(kPos):null;let info='';
+  if(kPos&&!yo){const km=distM(kPos,toLatLng(dest[0],dest[1]))/1000;info=`<div class="notfound">Estás fuera del mercado (a ${km<10?km.toFixed(1):Math.round(km)} km). Usa <b>Google Maps</b> para llegar.</div>`}
+  else if(yo){const r=rutaXY(yo,dest);let m=0;for(let i=1;i<r.length;i++)m+=Math.hypot(r[i][0]-r[i-1][0],r[i][1]-r[i-1][1]);m=Math.round(m*M_PX);
+    const rb=rumbo(kPos,toLatLng(dest[0],dest[1])),recta=Math.round(Math.hypot(dest[0]-yo[0],dest[1]-yo[1])*M_PX);
+    info=recta<=15?`<div class="found" style="font-size:20px">🎯 <b>¡Llegaste!</b> El vehículo está aquí cerca. Busca la placa <b>${esc(c.id)}</b>.</div>`
+      :`<div class="found" style="font-size:20px">🚶 A <b>${recta} m</b> · hacia el <b>${rb.txt}</b>${m>recta*1.3?`<div class="hint" style="font-size:14px">Por los pasillos marcados en rojo: unos ${m} m</div>`:''}</div>`}
+  else info=`<div class="hint" style="margin:4px 0 6px">${kErr?'⚠ '+esc(kErr):'📡 Buscando tu GPS… (al aire libre funciona mejor)'}</div>`;
+  const mapa=yo?planoSVG({yo,dest,destTxt:c.id,ruta:yo,zoom:[yo,dest],minW:300,zonaHL:c.zona})
+    :planoSVG({dest,destTxt:c.id,camion:pv,camionTxt:'CAMIÓN',ruta:pv,zoom:[dest,pv].filter(Boolean),minW:300,zonaHL:c.zona});
+  return info+mapa+(kPos&&yo?`<p class="hint" style="margin-top:4px">Tu GPS: ±${kPos.acc} m. Bajo techo puede fallar; guíate también por la zona y la foto.</p>`:'')}
+function vLlevame(d){const c=comp(d.placa),v=vend(d.vendedor),dest=c?posComp(c):null;const ll=dest?toLatLng(dest[0],dest[1]):null;
+  return `<div class="grid"><div class="card"><button class="btn o" id="kVolver" style="margin-bottom:10px">← Mis entregas</button>
+    <div class="top" style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:30px;letter-spacing:1px">${esc(d.placa)}</b><span class="hint">${hhmm(d.t.creado)}</span></div>
+    <div style="font-size:17px;margin:4px 0">${c?`🚗 <b>${esc(c.vehiculo||'')}</b>${c.zona?` · 📍 ${esc(c.zona)}`:''}`:'Cargando…'}</div>
+    ${c&&c.ref?`<div class="meta" style="font-size:16px">👉 ${esc(c.ref)}</div>`:''}
+    <div class="meta">📦 ${esc(resumenItems(d))} · de <b>${esc(v?.nombre||'vendedor')}</b></div>
+    <div id="kMapaWrap" style="margin-top:10px">${mapaK(d)}</div>
+    ${c&&c.foto?`<img ${attrFoto(c.foto)} alt="Foto del vehículo" style="width:100%;border-radius:10px;margin-top:10px">`:''}
+    <div class="grid" style="gap:8px;margin-top:12px">
+     <button class="btn y big" id="kCredBtn">🪪 Mostrar mi credencial al comprador</button>
+     ${c&&wa(c.tel)?`<a class="btn o" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="${wa(c.tel)}?text=${encodeURIComponent(`Hola, soy el carretillero #${S.carretillero[ME.id]?.num||''} de CargaYa. Llevo tu mercancía de ${v?.nombre||'tu vendedor'}. ¿Dónde estás exactamente?`)}">💬 Escribir al comprador</a>`:''}
+     ${ll?`<a class="btn o" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}&travelmode=walking">🗺 Abrir en Google Maps</a>`:''}</div></div></div>`}
+function seguirGPS(){if(kWatch!=null||!navigator.geolocation)return;
+  kWatch=navigator.geolocation.watchPosition(p=>{kPos={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy)};kErr='';refrescarMapaK()},
+    e=>{kErr=errGPS(e);refrescarMapaK()},{enableHighAccuracy:true,maximumAge:3000,timeout:20000})}
+function refrescarMapaK(){const w=document.getElementById('kMapaWrap');if(!w||!kEntrega)return;if(Date.now()-kT<1500){clearTimeout(refrescarMapaK.t);refrescarMapaK.t=setTimeout(refrescarMapaK,1600);return}
+  kT=Date.now();const d=S.despacho[kEntrega];if(d)w.innerHTML=mapaK(d)}
+function cerrarEntrega(sinRender){if(kWatch!=null){try{navigator.geolocation.clearWatch(kWatch)}catch(e){}kWatch=null}kEntrega=null;if(!sinRender)render()}
+// datos frescos del comprador (si movió el vehículo) mientras hay entregas
+setInterval(async()=>{if(!ONLINE||!ME||ME.rol!=='carretillero'||document.hidden)return;const ps=[...new Set(misEntregas().map(d=>d.placa))];if(!ps.length)return;
+  const r=await sb.from('compradores').select('data').in('id',ps);if(r.error)return;let cambio=false;
+  r.data.forEach(x=>{const a=S.comprador[x.data.id];if(!a||a.px!==x.data.px||a.py!==x.data.py||a.zona!==x.data.zona||a.vehiculo!==x.data.vehiculo)cambio=true;S.comprador[x.data.id]=x.data});
+  if(cambio){if(kEntrega)refrescarMapaK();else pedirRender()}},30000);
+
 const bind={
   inicio(){
     document.querySelectorAll('[data-rol]').forEach(b=>b.onclick=()=>{rolElegido=b.dataset.rol;render()});
@@ -1301,13 +1453,16 @@ const bind={
     document.querySelectorAll('[data-fedit]').forEach(b=>b.onclick=()=>{const f=pl.filas.find(x=>x.id===b.dataset.fedit);plEdit={tipo:'fila',id:f.id,nombre:f.nombre,lado:f.lado,pts:[]};render();window.scrollTo(0,0)});
     if($('plReset'))$('plReset').onclick=async()=>{const b=$('plReset');if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para confirmar';return}await guardar('config',{...PLANO0});log('Entradas y pasillos vueltos a los iniciales');render()};
   },
-  carretilleros(){const dorso=()=>$('akDorso').checked;
+  carretilleros(){const dorso=()=>$('akDorso').checked;bindInterruptorMovil();
     $('akTodos').onclick=()=>{const ks=L('vendedor').sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).flatMap(v=>misCarr(v.id));imprimirCredenciales(ks,dorso(),null)};
     document.querySelectorAll('[data-akv]').forEach(b=>b.onclick=()=>{const v=vend(b.dataset.akv);imprimirCredenciales(misCarr(v.id),dorso(),v.nombre)});
     document.querySelectorAll('[data-akp]').forEach(b=>b.onclick=()=>{const k=S.carretillero[b.dataset.akp];imprimirCredenciales([k],dorso(),vend(k.vendedor)?.nombre)});
     document.querySelectorAll('[data-aka]').forEach(b=>b.onclick=async()=>{const v=vend(b.dataset.aka);const inp=document.querySelector(`[data-akn="${b.dataset.aka}"]`);const n=inp.value.trim();inp.value='';await agregarCarretillero(v,n);render()});
     document.querySelectorAll('[data-akn]').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector(`[data-aka="${i.dataset.akn}"]`).click()}});
   },
+  entregas(){if($('kCredBtn'))$('kCredBtn').onclick=()=>{kCred=true;render();scrollTo(0,0)};if($('kCredX'))$('kCredX').onclick=()=>{kCred=false;render()};
+    document.querySelectorAll('[data-kir]').forEach(b=>b.onclick=()=>{kEntrega=b.dataset.kir;kPos=null;kErr='';seguirGPS();render();scrollTo(0,0)});
+    if($('kVolver'))$('kVolver').onclick=()=>cerrarEntrega()},
   misCarr(){const v=vendActual();if(!v)return;
     const add=async()=>{const n=$('kNom').value.trim();$('kNom').value='';await agregarCarretillero(v,n);render()};
     $('kAdd').onclick=add;$('kNom').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add()}};
@@ -1315,6 +1470,7 @@ const bind={
     $('kPrintAll').onclick=()=>imprimirCredenciales(misCarr(v.id),$('kDorso').checked,v.nombre);
     document.querySelectorAll('[data-kbaja]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez';return}const k=S.carretillero[b.dataset.kbaja];
       await guardar('carretillero',{...k,baja:true});log(`${v.nombre} dio de baja al carretillero #${k.num}`);render()});
+    bindMovil();
   },
   imprimir(){document.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copiar);toast('Link copiado')}catch(e){toast('No se pudo copiar')}});
     document.querySelectorAll('[data-qshare]').forEach(b=>b.onclick=async()=>{const m=b.dataset.qshare;const txt=MSJ_QR[m]+LINKS[m];
@@ -1452,7 +1608,7 @@ const bind={
 let instEv=null;
 const esStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 const esIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-const NOMBRE_ICONO={vendedor:'CargaYa Vend.',comprador:'CargaYa Compra',admin:'CargaYa Admin'};
+const NOMBRE_ICONO={vendedor:'CargaYa Vend.',comprador:'CargaYa Compra',admin:'CargaYa Admin',carretillero:'CargaYa Carret.'};
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEv=e;barraInstalar()});
 addEventListener('appinstalled',()=>{instEv=null;try{localStorage.setItem('cy-inst-'+MODULO,'ok')}catch(e){};cerrarInstalar();const b=$('instBar');if(b)b.remove();toast('✓ Ícono instalado en tu pantalla')});

@@ -811,7 +811,7 @@ notify pgrst, 'reload schema';
 -- ============================================================
 -- CargaYa v2 · Avisos push (suenan aunque la app esté cerrada)
 -- 1) Pegar este archivo en Supabase → SQL Editor → Run (se puede repetir).
--- 2) Después, ejecutar la línea con la dirección y el secreto que te pasaron (push_configurar).
+-- 2) Después, ejecutar la línea con la dirección, el secreto y la clave pública (push_configurar).
 -- ============================================================
 create extension if not exists pg_net;
 
@@ -834,12 +834,15 @@ alter table push_subs enable row level security;
 alter table push_conf enable row level security;
 revoke all on push_subs, push_conf from anon, authenticated;
 
-create or replace function push_configurar(url_in text, secreto_in text) returns text
+-- Supabase ahora pide la clave pública (publishable) para llamar a las funciones
+alter table push_conf add column if not exists apikey text;
+drop function if exists push_configurar(text, text);
+create or replace function push_configurar(url_in text, secreto_in text, apikey_in text default null) returns text
 language sql security definer set search_path = public as $$
-  insert into push_conf (id, url, secreto) values (1, url_in, secreto_in)
-  on conflict (id) do update set url = excluded.url, secreto = excluded.secreto
+  insert into push_conf (id, url, secreto, apikey) values (1, url_in, secreto_in, apikey_in)
+  on conflict (id) do update set url = excluded.url, secreto = excluded.secreto, apikey = excluded.apikey
   returning 'ok' $$;
-revoke all on function push_configurar(text, text) from anon, authenticated, public;
+revoke all on function push_configurar(text, text, text) from anon, authenticated, public;
 
 -- ¿Están configurados los avisos? (la app muestra el botón solo si es así)
 create or replace function push_listo() returns boolean
@@ -896,7 +899,8 @@ begin
   select * into c from push_conf where id = 1;
   if not found then return; end if;
   perform net.http_post(url := c.url, body := jsonb_build_object('msgs', msgs),
-    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cargaya-secreto', c.secreto),
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cargaya-secreto', c.secreto)
+               || case when c.apikey is not null then jsonb_build_object('apikey', c.apikey) else '{}'::jsonb end,
     timeout_milliseconds := 8000);
 exception when others then
   raise warning 'push_enviar: %', sqlerrm;

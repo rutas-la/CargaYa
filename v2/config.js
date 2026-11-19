@@ -6,4 +6,7 @@ window.CARGAYA_CONFIG = {
   // Las cuentas se crean con teléfono + PIN. Por dentro, Supabase necesita un
   // "email": se arma como <teléfono>@EMAIL_DOMINIO. No se envían correos.
   EMAIL_DOMINIO: 'cargaya.app',
+
+  // Clave PÚBLICA para los avisos push (la privada va solo en los secretos de Supabase).
+  VAPID_PUBLIC: 'BPwaveTAEuIo6jz3s0esoNslzqI1NCnnFsgOMtavN2JPTct6PoSM4jeOqlrCezgnINy2qObiNyHaiPjcnL-ut7U',
 };

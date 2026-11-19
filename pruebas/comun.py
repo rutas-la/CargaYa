@@ -1,7 +1,7 @@
 import json,urllib.request,psycopg,time
 URL='http://127.0.0.1:8780/v2/'
 DB='dbname=cy2 user=postgres password=pg host=127.0.0.1'
-CONF="window.CARGAYA_CONFIG={SUPABASE_URL:'http://127.0.0.1:8780',SUPABASE_KEY:'sb_publishable_test',EMAIL_DOMINIO:'cargaya.app'};"
+CONF="window.CARGAYA_CONFIG={SUPABASE_URL:'http://127.0.0.1:8780',SUPABASE_KEY:'sb_publishable_test',EMAIL_DOMINIO:'cargaya.app',VAPID_PUBLIC:'BKIHNqBCiPLm0nWvV75sJvTMEm-Joi0lMSiV9ZxlALGzWETRMn-M_KODPFQZpHmNSbCMjl-xjAH2-GjJMenXwck'};"
 def sql(q,a=()):
     with psycopg.connect(DB,autocommit=True) as c:
         cur=c.execute(q,a);return cur.fetchall() if cur.description else None

@@ -71,3 +71,11 @@ Cuarto módulo: `carretillero.html`. Queda **apagado** hasta que la administraci
 - Administración → Panel: reclamos de 30 días, sin resolver, tiempo promedio, por vendedor y por carretillero.
 - Excel: la columna Reclamo incluye la resolución.
 - Base de datos: pegar `reclamos.sql` una vez (foto del reclamo, el vendedor no puede cambiar lo que escribió el comprador, un reclamo nuevo se reabre).
+
+## Avisos push — desde v2.19
+Suenan aunque la app esté cerrada (Android; iPhone con iOS 16.4+ y la app instalada en inicio).
+- App: tarjeta "🔔 Activa los avisos" (vendedor, comprador, carretillero); al salir de la cuenta el teléfono se da de baja.
+- Base de datos: `push.sql` (tabla push_subs, disparadores en despachos y pagos que llaman con pg_net a la función).
+- Función: `supabase/functions/enviar-push` (web-push + VAPID). Secretos: VAPID_PUBLIC, VAPID_PRIVATE, PUSH_SECRETO. Verify JWT desactivado.
+- Configurar la dirección y el secreto: `select push_configurar('https://<proyecto>.supabase.co/functions/v1/enviar-push','<PUSH_SECRETO>');`
+- La clave pública VAPID va en config.js (VAPID_PUBLIC).

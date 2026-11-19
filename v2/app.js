@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.18',VERSION_FECHA='18/11/2026';
+const VERSION='2.19',VERSION_FECHA='18/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -347,8 +347,9 @@ function render(){IDX.t=0;
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
   const bannerR=ME.rol==='vendedor'&&view!=='vendedor'?(n=>n?`<button class="btn" id="bannerRecl" style="width:100%;margin-bottom:12px;background:#e0362c;color:#fff;font-weight:800;font-size:17px;border:0">⚠ ${n==1?'Tienes un reclamo sin atender':'Tienes '+n+' reclamos sin atender'} · Ver</button>`:'')(L('despacho').filter(d=>d.vendedor===ME.id&&reclAbierto(d)).length):'';
-  app.innerHTML=bannerR+({uso:vUso,comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador,entregas:vEntregas})[view]();
+  app.innerHTML=bannerR+(['vendedor','comprador','entregas'].includes(view)?cardPush():'')+({uso:vUso,comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador,entregas:vEntregas})[view]();
   bind[view]&&bind[view]();firmarFotos();
+  bindPush();
   if($('bannerRecl'))$('bannerRecl').onclick=()=>{view='vendedor';render();setTimeout(()=>{const c=$('cardRecl');if(c)c.scrollIntoView({behavior:'smooth'})},50)};
   document.querySelectorAll('img[data-zoom]').forEach(i=>i.onclick=()=>{const m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center';m.innerHTML=`<img src="${i.src}" style="max-width:96vw;max-height:90vh;border-radius:8px">`;m.onclick=()=>m.remove();document.body.appendChild(m)});
 }
@@ -391,8 +392,8 @@ async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=
   return admin}
 async function trasEntrar(){await cargar();cargado=true;
   if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}};
-  rolElegido=null;render();aplicarFavPend().then(aplicarAmigo);revisarPalabra()}
-async function salir(){try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
+  rolElegido=null;render();aplicarFavPend().then(aplicarAmigo);revisarPalabra();revisarPush()}
+async function salir(){await bajaPush();try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
 /* ---- Recuperar el PIN con la PALABRA SECRETA (autogestión) ---- */
 const palabraNormal=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const AYUDA_PALABRA='Una palabra que no vayas a olvidar, por ejemplo el nombre de tu primera mascota o de tu pueblo. No importan las mayúsculas ni los acentos.';
@@ -444,6 +445,38 @@ function pedirPalabra(cambiar){if(document.getElementById('palModal'))return;
     $('pOk').disabled=true;let r;try{r=await sb.rpc('fijar_palabra',{palabra:p})}catch(e){r={error:1}}$('pOk').disabled=false;
     if(r.error||r.data!=='ok'){$('pErr').innerHTML='<div class="notfound" style="margin-top:8px">No se pudo guardar. Revisa la conexión y prueba de nuevo.</div>';return}
     cerrar();toast('✅ Palabra secreta guardada')}}
+/* ---- Avisos push (suenan aunque la app esté cerrada) ---- */
+const pushSoporta=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&!!CFG.VAPID_PUBLIC;
+const PUSH={listo:false,estado:'',err:''};
+const b64aU8=s=>{const b=atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function revisarPush(){if(!ME||ME.rol==='admin'||!ONLINE||!CFG.VAPID_PUBLIC)return;
+  try{const r=await sb.rpc('push_listo');PUSH.listo=!r.error&&r.data===true}catch(e){PUSH.listo=false}
+  if(PUSH.listo&&pushSoporta()&&Notification.permission==='granted')await suscribirPush(false);
+  pedirRender()}
+async function suscribirPush(preguntar){try{
+    if(preguntar){const p=await Notification.requestPermission();if(p!=='granted'){PUSH.estado=p==='denied'?'bloqueado':'';pedirRender();return false}}
+    const reg=await navigator.serviceWorker.ready;const clave=b64aU8(CFG.VAPID_PUBLIC);
+    let s=await reg.pushManager.getSubscription();
+    if(s&&s.options&&s.options.applicationServerKey&&btoa(String.fromCharCode(...new Uint8Array(s.options.applicationServerKey)))!==btoa(String.fromCharCode(...clave))){await s.unsubscribe();s=null}
+    if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:clave});
+    const r=await sb.rpc('push_alta',{sub_in:s.toJSON(),modulo_in:MODULO});if(r.error)throw r.error;
+    PUSH.estado='activo';try{localStorage.setItem('cy-push-ep',s.endpoint)}catch(e){}
+    if(preguntar)toast('🔔 Avisos activados');pedirRender();return true}
+  catch(e){PUSH.estado='error';PUSH.err=String(e&&e.message||e);if(preguntar)toast('No se pudieron activar los avisos');pedirRender();return false}}
+async function bajaPush(){try{const ep=localStorage.getItem('cy-push-ep');if(ep&&ONLINE)await sb.rpc('push_baja',{endpoint_in:ep});
+  const reg=await navigator.serviceWorker.getRegistration();const s=reg&&await reg.pushManager.getSubscription();if(s)await s.unsubscribe();localStorage.removeItem('cy-push-ep')}catch(e){}}
+function cardPush(){if(!ME||ME.rol==='admin'||!ONLINE||!PUSH.listo||PUSH.estado==='activo')return '';
+  try{if(Date.now()-(+localStorage.getItem('cy-push-no')||0)<3*864e5)return ''}catch(e){}
+  const para={vendedor:'los reclamos, las entregas confirmadas y tus pagos',comprador:'la mercancía que te despachan y las respuestas a tus reclamos',carretillero:'las nuevas entregas'}[ME.rol]||'lo importante';
+  const no='<button class="btn o" id="pushNo" style="flex:0 0 auto">Ahora no</button>';
+  let cuerpo;
+  if(pushSoporta()&&Notification.permission==='denied')cuerpo=`<p class="sub" style="margin:4px 0 8px">Los avisos están <b>bloqueados</b> en este teléfono. Para activarlos: toca el <b>candado</b> (o ⓘ) junto a la dirección → <b>Notificaciones</b> → <b>Permitir</b>, y vuelve a abrir la app.</p><div class="row">${no}</div>`;
+  else if(pushSoporta())cuerpo=`<p class="sub" style="margin:4px 0 8px">Te avisamos de ${para} <b>aunque la app esté cerrada</b>, como un WhatsApp.</p><div class="row"><button class="btn y" id="pushSi">🔔 Activar avisos</button>${no}</div>${PUSH.estado==='error'?`<p class="hint" style="margin-top:6px">No se pudo activar (${esc(PUSH.err)}). Prueba de nuevo.</p>`:''}`;
+  else if(esIOS())cuerpo=`<p class="sub" style="margin:4px 0 8px">En iPhone los avisos funcionan solo con la app <b>instalada</b>: en Safari toca <b>Compartir</b> → <b>Añadir a inicio</b>, y ábrela desde el ícono (iOS 16.4 o más nuevo).</p><div class="row">${no}</div>`;
+  else return '';
+  return `<div class="card" id="cardPush" style="border:2px solid var(--yel);margin-bottom:14px"><h2>🔔 Activa los avisos</h2>${cuerpo}</div>`}
+function bindPush(){if($('pushSi'))$('pushSi').onclick=async()=>{$('pushSi').disabled=true;$('pushSi').textContent='Un momento…';await suscribirPush(true)};
+  if($('pushNo'))$('pushNo').onclick=()=>{try{localStorage.setItem('cy-push-no',Date.now())}catch(e){}render()}}
 async function revisarPalabra(){if(!ME||ME.rol==='admin'||!ONLINE)return;try{if(Date.now()-(+localStorage.getItem('cy-pal-no')||0)<20*3600e3)return}catch(e){}
   try{const r=await sb.rpc('tengo_palabra');if(!r.error&&r.data===false)setTimeout(()=>{if(!document.getElementById('instModal'))pedirPalabra(false)},1200)}catch(e){}}
 
@@ -1730,7 +1763,7 @@ try{const u=new URL(location.href);if(u.searchParams.has('_v')){u.searchParams.d
     if(!ses){conexion='en línea';render();return}
     const adm=await entrar(ses.user);if(!ME){await sb.auth.signOut();render();return}
     if(MODULO==='admin'&&!adm){otroModulo=ME.rol;cargado=true;render();return}if(MODULO!=='admin'&&ME.rol!==MODULO){otroModulo=ME.rol;cargado=true;render();return}
-    await cargar();cargado=true;if(ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}}revisarPalabra()}
+    await cargar();cargado=true;if(ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}}revisarPalabra();revisarPush()}
   else{render();await cargar();cargado=true}
   if(kURL&&!fichaURL){const k=ONLINE?await buscarCarr(kURL.id):carrPorId(kURL.id);
     const d=ME&&ME.rol==='comprador'&&k?L('despacho').filter(x=>x.placa===ME.id&&x.estado==='en_ruta'&&x.carretillero===k.id).sort((a,b)=>a.t.creado-b.t.creado)[0]:null;

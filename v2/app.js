@@ -70,7 +70,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.17',VERSION_FECHA='18/11/2026';
+const VERSION='2.18',VERSION_FECHA='18/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -200,14 +200,35 @@ const hhmm=t=>{if(!t)return '';const d=new Date(t);if(isNaN(d))return '';let hr=
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const nuevoId=p=>p+'-'+Date.now().toString(36).slice(-4).toUpperCase()+Math.random().toString(36).slice(2,4).toUpperCase();
 function wa(tel){let d=(tel||'').replace(/\D/g,'');if(!d)return null;if(d.startsWith('0'))d='58'+d.slice(1);else if(!d.startsWith('58')&&d.length===10)d='58'+d;return 'https://wa.me/'+d}
+const RESOL={repuesto:'✅ Repuso lo que faltaba',descuento:'💲 Descuento acordado',no_corresponde:'✗ No corresponde'};
+const reclAbierto=d=>d.estado==='reclamo'&&!d.resol;
+const txtReclamo=d=>d.estado!=='reclamo'&&!d.reclamo?'':(d.reclamo||'')+(d.resol?` · Resuelto: ${RESOL[d.resol.tipo]?.replace(/^\S+ /,'')||d.resol.tipo}${d.resol.nota?' ('+d.resol.nota+')':''}`:d.estado==='reclamo'?' · SIN RESOLVER':'');
+function boxReclamo(d,who){if(d.estado!=='reclamo')return '';
+  const foto=d.reclamoFoto?`<img ${attrFoto(d.reclamoFoto)} alt="Foto del reclamo" style="width:84px;height:84px;object-fit:cover;border-radius:8px;flex:0 0 84px" data-zoom>`:'';
+  const top=`<div style="display:flex;gap:10px;align-items:flex-start">${foto}<div style="flex:1"><b>⚠ Reclamo${d.t.reclamo?' · '+hhmm(d.t.reclamo):''}:</b> ${esc(d.reclamo||'falta mercancía')}`;
+  if(d.resol)return `<div class="found" style="margin-top:6px">${top}<div style="margin-top:4px"><b>${RESOL[d.resol.tipo]||esc(d.resol.tipo)}</b>${d.resol.nota?` · ${esc(d.resol.nota)}`:''} <span class="hint">(${hhmm(d.resol.t)}${d.resol.t&&d.t.reclamo?` · ${durTxt(d.resol.t-d.t.reclamo)}`:''})</span></div></div></div></div>`;
+  return `<div class="notfound" style="margin-top:6px">${top}<div class="hint" style="margin-top:4px">${who==='vendedor'?'Sin resolver: escríbele al comprador y marca cómo lo resolviste.':who==='comprador'?'Esperando respuesta del vendedor.':'Sin resolver.'}</div></div></div></div>`}
+const durTxt=ms=>{const m=Math.max(1,Math.round(ms/60000));return m<60?`${m} min`:m<1440?`${Math.round(m/60)} h`:`${Math.round(m/1440)} d`};
+function waTxt(tel,label,txt){const u=wa(tel);return u?`<a class="btn o" style="display:inline-block;text-decoration:none;text-align:center" href="${u}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">💬 ${label}</a>`:''}
+const msjReclamo=(d,quien)=>{const k=carr(d.carretillero);return quien==='vendedor'
+  ?`Hola, soy ${vend(d.vendedor)?.nombre||'tu vendedor'} (CargaYa). Sobre tu reclamo del despacho de las ${hhmm(d.t.creado)} a ${d.placa} (${resumenItems(d)}${k?', carretillero #'+k.num:''}): "${d.reclamo||'falta mercancía'}". `
+  :`Hola, soy de la placa ${d.placa} (CargaYa). Reclamo del despacho de las ${hhmm(d.t.creado)} (${resumenItems(d)}${k?', carretillero #'+k.num:''}): ${d.reclamo||'falta mercancía'}.`};
 function waBtn(tel,txt){const u=wa(tel);return u?`<a class="btn o" style="display:inline-block;text-decoration:none;text-align:center" href="${u}" target="_blank" rel="noopener">💬 ${txt}</a> <span class="hint">${esc(tel)}</span>`:''}
 const ETQ={en_ruta:'En camino',entregado:'Entregado',reclamo:'Reclamo'};
-function chip(e){return `<span class="chip st-${e==='reclamo'?'en_ruta':e==='en_ruta'?'asignado':e}">${ETQ[e]||e}</span>`}
+function chip(e,d){if(e==='reclamo'&&d&&d.resol)return '<span class="chip st-entregado">Reclamo resuelto</span>';return `<span class="chip st-${e==='reclamo'?'en_ruta':e==='en_ruta'?'asignado':e}">${ETQ[e]||e}</span>`}
 function tl(d){return `<div class="timeline"><i class="on"></i><i class="${d.estado!=='en_ruta'?'on':''}" ${d.estado==='reclamo'?'style="background:#e0362c"':''}></i></div>`}
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),3000)}
+function alarmaReclamo(d){toast(`⚠ RECLAMO de ${d.placa}: ${d.reclamo||'falta mercancía'}`);sonar();setTimeout(sonar,700);setTimeout(sonar,1400);try{navigator.vibrate&&navigator.vibrate([400,150,400,150,400])}catch(e){}
+  try{if(document.hidden){const t0=document.title;document.title='⚠ RECLAMO · CargaYa';const f=()=>{if(!document.hidden){document.title=t0;document.removeEventListener('visibilitychange',f)}};document.addEventListener('visibilitychange',f)}}catch(e){}}
 function sonar(){try{const c=sonar.c||(sonar.c=new (window.AudioContext||window.webkitAudioContext)());[0,.18].forEach(s=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(c.destination);o.start(c.currentTime+s);o.stop(c.currentTime+s+.12)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
 function avisar(tipo,antes,d){if(tipo==='pago'&&ME&&ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&antes.estado!==d.estado){toast(d.estado==='aprobado'?'✓ Tu pago fue aprobado':'✗ Tu pago fue rechazado: '+(d.motivo||''));sonar();return}
-  if(tipo!=='despacho'||!ME)return;if(antes&&antes.estado===d.estado)return;let m=null;
+  if(tipo!=='despacho'||!ME)return;
+  if(antes&&antes.estado===d.estado){
+    if(ME.rol==='comprador'&&d.placa===ME.id&&d.resol&&!antes.resol){toast(`✓ ${vend(d.vendedor)?.nombre||'El vendedor'} respondió tu reclamo: ${RESOL[d.resol.tipo]?.replace(/^\S+ /,'')||''}`);sonar()}
+    else if(ME.rol==='vendedor'&&d.vendedor===ME.id&&d.estado==='reclamo'&&!d.resol&&antes.reclamo!==d.reclamo)alarmaReclamo(d);
+    return}
+  if(ME.rol==='vendedor'&&d.vendedor===ME.id&&d.estado==='reclamo'){alarmaReclamo(d);return}
+  let m=null;
   if(ME.rol==='comprador'&&d.placa===ME.id&&!antes)m=`${vend(d.vendedor)?.nombre||'Un vendedor'} despachó ${d.bultos} bultos a tu vehículo`;
   else if(ME.rol==='carretillero'&&d.carretillero===ME.id&&!antes){m=`📦 Nueva entrega: ${d.bultos} bultos para ${d.placa}`;pedir('comprador',d.placa);try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
   else if(ME.rol==='carretillero'&&d.carretillero===ME.id&&antes&&d.estado==='entregado'){m=`✅ ${d.placa} confirmó que recibió la carga`;if(kEntrega===d.id)cerrarEntrega()}
@@ -325,16 +346,19 @@ function render(){IDX.t=0;
   if(!ME){if(ONLINE){app.innerHTML=vLogin();bindLogin()}else{app.innerHTML=vInicio();bind.inicio()}return}
   if(!cargado){app.innerHTML='<div class="card empty">Cargando datos…</div>';return}
   if(otroModulo){app.innerHTML=vOtroModulo();if($('omSalir'))$('omSalir').onclick=()=>salir();return}
-  app.innerHTML=({uso:vUso,comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador,entregas:vEntregas})[view]();
+  const bannerR=ME.rol==='vendedor'&&view!=='vendedor'?(n=>n?`<button class="btn" id="bannerRecl" style="width:100%;margin-bottom:12px;background:#e0362c;color:#fff;font-weight:800;font-size:17px;border:0">⚠ ${n==1?'Tienes un reclamo sin atender':'Tienes '+n+' reclamos sin atender'} · Ver</button>`:'')(L('despacho').filter(d=>d.vendedor===ME.id&&reclAbierto(d)).length):'';
+  app.innerHTML=bannerR+({uso:vUso,comprAdm:vComprAdm,miUbic:vMiUbic,miSusc:vMiSusc,vendC:vVendC,pagosK:vPagosK,histVend:vHistVend,misCarr:vMisCarr,mercado:vMercado,cobros:vCobros,zonas:vZonas,carretilleros:vCarretilleros,imprimir:vImprimir,vendedor:vVendedor,comprador:vComprador,entregas:vEntregas})[view]();
   bind[view]&&bind[view]();firmarFotos();
+  if($('bannerRecl'))$('bannerRecl').onclick=()=>{view='vendedor';render();setTimeout(()=>{const c=$('cardRecl');if(c)c.scrollIntoView({behavior:'smooth'})},50)};
+  document.querySelectorAll('img[data-zoom]').forEach(i=>i.onclick=()=>{const m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center';m.innerHTML=`<img src="${i.src}" style="max-width:96vw;max-height:90vh;border-radius:8px">`;m.onclick=()=>m.remove();document.body.appendChild(m)});
 }
 let otroModulo=null;
 function vOtroModulo(){const r=otroModulo;return `<div class="card" style="max-width:520px;margin:0 auto"><h2>Este es el módulo de ${NOMBRE_MOD[MODULO]}</h2><p class="sub">Esa cuenta no es de ${NOMBRE_MOD[MODULO]}. Sal y entra con tu cuenta de ${NOMBRE_MOD[MODULO]}, o toca <b>Soy nuevo</b> para crearla.</p>
   <button class="btn y big" id="omSalir" style="width:100%;margin-top:10px">Salir y usar otra cuenta</button></div>`}
 function itemDesp(d,who){const v=vend(d.vendedor),c=comp(d.placa),k=carr(d.carretillero);
-  return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${tituloItems(d)}</div>${chip(d.estado)}</div>${htmlItems(d)}
+  return `<div class="item"><div class="top"><div><b>${esc(nro(d))}</b> · ${tituloItems(d)}</div>${chip(d.estado,d)}</div>${htmlItems(d)}
    <div class="meta">${who!=='vendedor'?`De <b>${esc(v?v.nombre:d.vendedor)}</b> · `:''}${who!=='comprador'&&c?`Para <span class="plate">${esc(d.placa)}</span> <span class="loc">${esc(lugar(c).zona)}</span> · `:''}${k?`Carretillero <b>#${esc(k.num)}</b> ${esc(k.nombre||'')}${ajeno(k,d.vendedor)?` <span class="hint">(de ${esc(vend(k.vendedor)?.nombre||'otro vendedor')})</span>`:''}`:'Sin carretillero'}</div>
-   ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${({carnet:'el comprador escaneó el carnet del carretillero',ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||'')+(d.verif?.carrOk===true&&d.verif?.metodo!=='carnet'?' · N° de carretillero verificado':d.verif?.carrOk===false?' · ⚠ dijo otro N° de carretillero ('+esc(d.verif.carrDicho)+')':'')}`:''}${d.estado==='reclamo'?` · ⚠ ${esc(d.reclamo||'falta mercancía')}`:''}</div></div>`}
+   ${tl(d)}<div class="meta">Salió ${hhmm(d.t.creado)}${d.t.entregado?` · Recibido ${hhmm(d.t.entregado)} (${Math.max(1,Math.round((d.t.entregado-d.t.creado)/60000))} min)`:''}${d.estado==='entregado'?` · ✓ ${({carnet:'el comprador escaneó el carnet del carretillero',ficha:'el comprador escaneó la ficha',boton:'confirmó el comprador',vendedor:'confirmado por el vendedor'}[d.verif?.metodo]||'')+(d.verif?.carrOk===true&&d.verif?.metodo!=='carnet'?' · N° de carretillero verificado':d.verif?.carrOk===false?' · ⚠ dijo otro N° de carretillero ('+esc(d.verif.carrDicho)+')':'')}`:''}</div>${boxReclamo(d,who)}</div>`}
 
 /* ---- Inicio ---- */
 let rolElegido=null;
@@ -524,7 +548,7 @@ function bindFichaURL(){const salir=()=>{fichaURL=null;try{history.replaceState(
   if($('fuOk'))$('fuOk').onclick=async()=>{await confirmar(d,'ficha');salir()};
   if($('fuMal'))$('fuMal').onclick=async()=>{await reclamar(d,$('fuRecl').value.trim());salir()}}
 async function confirmar(d,metodo,extra){await guardar('despacho',{...d,estado:'entregado',t:{...d.t,entregado:Date.now()},verif:{metodo,...(extra||{})}});log(`${nro(d)} recibido en ${d.placa} (${metodo==='vendedor'?'lo confirmó el vendedor':metodo==='carnet'?'el comprador escaneó el carnet #'+extra.carrDicho:'confirmó el comprador'}${extra?.carrOk===true&&metodo!=='carnet'?', N° de carretillero correcto':extra?.carrOk===false?', ⚠ N° de carretillero distinto':''})`);toast('Recepción confirmada ✓')}
-async function reclamar(d,txt){await guardar('despacho',{...d,estado:'reclamo',reclamo:txt||'falta mercancía',t:{...d.t,reclamo:Date.now()}});log(`⚠ ${d.placa} reportó un faltante en ${nro(d)}: ${txt||'sin detalle'}`);toast('Se avisó al vendedor')}
+async function reclamar(d,txt,foto){const n={...d,estado:'reclamo',reclamo:txt||'falta mercancía',t:{...d.t,reclamo:Date.now()}};delete n.resol;if(foto)n.reclamoFoto=foto;else delete n.reclamoFoto;await guardar('despacho',n);log(`⚠ ${d.placa} reportó un faltante en ${nro(d)}: ${txt||'sin detalle'}`);toast('Se avisó al vendedor')}
 
 /* ---- Plano sin GPS: posiciones marcadas tocando el mapa ---- */
 const zonaPorNombre=n=>zonasActivas().find(z=>z.nombre===n);
@@ -576,6 +600,24 @@ function planoSVG(o={}){
   return `<div class="mapwrap">${s}${o.nota?`<div class="legend">${o.nota}</div>`:''}</div>`}
 
 /* ---- Panel ---- */
+let RECL=null;
+async function cargarReclamosAdmin(){if(!ONLINE)return;RECL={cargando:true};
+  const r=await sb.from('despachos').select('data').eq('estado','reclamo').gte('creado',inicioDia(30)).limit(2000);
+  RECL=r.error?{error:r.error.message,t:Date.now()}:{t:Date.now(),ds:r.data.map(x=>x.data)};
+  [...new Set((RECL.ds||[]).map(d=>d.carretillero).filter(Boolean))].forEach(k=>pedir('carretillero',k));pedirRender()}
+function cardReclamosAdmin(){if(ME.rol!=='admin')return '';
+  if(!RECL||RECL.cargando)return `<div class="card"><h2>⚠ Reclamos por faltantes (30 días)</h2><div class="empty">Cargando…</div></div>`;
+  if(RECL.error)return `<div class="card"><h2>⚠ Reclamos por faltantes (30 días)</h2><div class="notfound">No se pudieron cargar: ${esc(RECL.error)}</div></div>`;
+  const ds=RECL.ds,ab=ds.filter(d=>!d.resol),res=ds.filter(d=>d.resol&&d.t.reclamo),prom=res.length?res.reduce((a,d)=>a+(d.resol.t-d.t.reclamo),0)/res.length:0;
+  const por=(f)=>{const m={};ds.forEach(d=>{const k=f(d);if(k)m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5)};
+  const tipos=Object.keys(RESOL).map(k=>[RESOL[k],res.filter(d=>d.resol.tipo===k).length]);
+  return `<div class="card"><h2>⚠ Reclamos por faltantes (30 días)</h2>
+   <div class="kpis"><div class="kpi"><b>${ds.length}</b><span>Reclamos</span></div><div class="kpi" style="${ab.length?'border-color:#e0362c':''}"><b style="${ab.length?'color:#e0362c':''}">${ab.length}</b><span>Sin resolver</span></div><div class="kpi"><b>${res.length?durTxt(prom):'—'}</b><span>Tiempo promedio para resolver</span></div></div>
+   ${ds.length?`<div class="grid g2" style="margin-top:10px"><div><b>Cómo se resolvieron</b>${tipos.map(([t,n])=>`<div class="meta">${t}: <b>${n}</b></div>`).join('')}</div>
+    <div><b>Más reclamos por vendedor</b>${por(d=>d.vendedor).map(([k,n])=>`<div class="meta">${esc(vend(k)?.nombre||k)}: <b>${n}</b></div>`).join('')}
+    <b style="display:block;margin-top:6px">Por carretillero</b>${por(d=>d.carretillero).map(([k,n])=>{const x=carr(k);return `<div class="meta">${x?esc(etqCarr(x,x.vendedor)):'#?'}: <b>${n}</b></div>`}).join('')||'<div class="meta">—</div>'}</div></div>
+    ${ab.length?`<details style="margin-top:8px"><summary><b>Ver los ${ab.length} sin resolver</b></summary>${ab.sort((a,b)=>a.t.reclamo-b.t.reclamo).map(d=>`<div class="meta" style="padding:4px 0;border-bottom:1px solid var(--line)">${fmtFecha(d.t.reclamo||d.t.creado)} · <b>${esc(vend(d.vendedor)?.nombre||'')}</b> → ${esc(d.placa)} · ${esc(d.reclamo||'')} <span class="bad">(hace ${durTxt(Date.now()-(d.t.reclamo||d.t.creado))})</span></div>`).join('')}</details>`:''}`:'<p class="hint">No hubo reclamos en los últimos 30 días 👍</p>'}
+   <button class="btn o" id="reclRef" style="margin-top:8px">↻ Actualizar</button></div>`}
 function vMercado(){
   const ds=L('despacho').filter(d=>d.t&&d.t.creado>=inicioDia(0)),ent=ds.filter(d=>d.estado==='entregado'&&d.t.entregado);
   const prom=ent.length?Math.round(ent.reduce((a,d)=>a+(d.t.entregado-d.t.creado),0)/ent.length/60000):0;
@@ -583,7 +625,7 @@ function vMercado(){
   const zonaDe={};compradoresActivos().forEach(c=>zonaDe[c.id]=c.zona||'Sin zona');const porZona={};ds.forEach(d=>{const z=zonaDe[d.placa]||S.comprador[d.placa]?.zona||'Sin zona';(porZona[z]=porZona[z]||[]).push(d)});
   const fila=z=>{const cs=compradoresActivos().filter(c=>(c.zona||'Sin zona')===z).map(c=>c.id);const dz=porZona[z]||[];
     return `<tr><td><b>${esc(z)}</b></td><td>${cs.length}</td>${(()=>{const r=RES&&ME.rol==='admin'?(RES.zonas[z]||{}):null;return r?`<td>${r.en_ruta||0}</td><td>${r.entregados||0}</td><td>${r.reclamos||0}</td>`:`<td>${dz.filter(d=>d.estado==='en_ruta').length}</td><td>${dz.filter(d=>d.estado==='entregado').length}</td><td>${dz.filter(d=>d.estado==='reclamo').length}</td>`})()}</tr>`};
-  return `<div class="grid"><div class="kpis">
+  return `<div class="grid">${cardReclamosAdmin()}<div class="kpis">
    <div class="kpi"><b>${RES?RES.total:ds.length}</b><span>Despachos hoy</span></div>
    <div class="kpi"><b>${RES?RES.entregados:ent.length}</b><span>Recibidos y confirmados</span></div>
    <div class="kpi"><b>${RES?RES.en_ruta:ds.filter(d=>d.estado==='en_ruta').length}</b><span>En camino o sin confirmar</span></div>
@@ -795,7 +837,7 @@ async function respaldoExcel(){const r=await sb.rpc('respaldo');if(r.error)throw
      filas:(R.zonas||[]).map(z=>[z.nombre,(TIPOS_ZONA.find(t=>t[0]===(z.tipo||'compradores'))||['',''])[1],z.pv===PV&&z.poly&&z.poly.length>2?'Sí':'No',zEn(z)?'Sí':'No',z.baja?'Quitada':'Activa'])},
     {nombre:'Despachos 7 días',cab:['Fecha','Salida','Recibido','Vendedor','Despacho','Placa','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago'],
      filas:ds.map(d=>{const k=kn[d.carretillero];return [fe(d.t.creado),hhmm(d.t.creado),d.t.entregado?hhmm(d.t.entregado):'',vn[d.vendedor]||'',nro(d),d.placa,resumenItems(d),+d.bultos||0,k?'#'+k.num+' '+(k.nombre||''):'',ETQ[d.estado]||d.estado,
-       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||'',d.pagoK?(+d.pagoK.monto||0):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':'')]})}];
+       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',txtReclamo(d),d.pagoK?(+d.pagoK.monto||0):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':'')]})}];
   descargarLibro(`CargaYa-respaldo-${hoyLocal()}`,hojas);toast('Respaldo descargado')}
 
 /* ---- Carretilleros ---- */
@@ -1024,12 +1066,19 @@ function csvHist(v,ds){const f=t=>t?new Date(t):null;
   const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago','Referencia','Hora de pago'];
   const filas=ds.map(d=>{const c=comp(d.placa),k=carr(d.carretillero),s=f(d.t.creado),r=f(d.t.entregado);
     return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',resumenItems(d),+d.bultos||0,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
-      ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',d.reclamo||'',
+      ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',txtReclamo(d),
       d.pagoK?(+d.pagoK.monto||0):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':''),d.pagoK?.ref||'',d.pagoK?hhmm(d.pagoK.t):'']});
   descargarXLSX(`CargaYa-${(v.nombre||'despachos')}-${hoyLocal()}`,'Despachos',cab,filas)}
 
 /* ---- Vendedor ---- */
 let desp={},fichaVista=null,ubicandoCamion=false,editPuesto=false;
+function cardReclamosVend(v){const rs=L('despacho').filter(d=>d.vendedor===v.id&&reclAbierto(d)).sort((a,b)=>(a.t.reclamo||0)-(b.t.reclamo||0));if(!rs.length)return '';
+  return `<div class="card" id="cardRecl" style="border:3px solid #e0362c;margin-bottom:14px"><h2 style="color:#e0362c">⚠ ${rs.length==1?'Un reclamo por atender':rs.length+' reclamos por atender'}</h2>
+   <p class="sub">Habla con el comprador por WhatsApp y marca cómo lo resolviste. El aviso sigue aquí hasta que lo marques.</p>
+   ${rs.map(d=>{const c=comp(d.placa);return `<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px">${itemDesp(d,'vendedor')}
+     ${c&&c.tel?waTxt(c.tel,'Escribir al comprador',msjReclamo(d,'vendedor')):'<p class="hint">El comprador no tiene teléfono registrado.</p>'}
+     <label>Nota (opcional)</label><input id="rsN-${esc(d.id)}" placeholder="Ej: le llevé el bulto que faltaba">
+     <div class="grid" style="gap:6px;margin-top:8px">${Object.entries(RESOL).map(([k,t])=>`<button class="btn ${k==='repuesto'?'g':'o'}" data-resol="${esc(d.id)}" data-tipo="${k}">${t}</button>`).join('')}</div></div>`}).join('')}</div>`}
 function vVendedor(){
   const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];
   if(!v)return '<div class="card empty">Todavía no hay vendedores registrados.</div>';
@@ -1053,7 +1102,7 @@ function vVendedor(){
   const mis=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado).sort((a,b)=>b.t.creado-a.t.creado);
   const cerrados=mis.filter(d=>d.estado==='entregado').length;
   const k=desp.k?carr(desp.k):null;
-  return `<div class="grid g2"><div class="grid" style="align-content:start">
+  return `${cardReclamosVend(v)}<div class="grid g2"><div class="grid" style="align-content:start">
    ${avisoSusc(v)||`<div class="hint" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:10px"><span>💳 Mensualidad: <b>${(ETQS[suscripcion(v).estado]||[''])[0]}</b>${suscripcion(v).hasta?' hasta el '+fmtFecha(suscripcion(v).hasta):''}</span><a href="#" data-irv="miSusc" style="white-space:nowrap">Ver / Pagar</a></div>`}
    <div class="card" style="${suscripcion(v).puedeDespachar?'':'opacity:.45;pointer-events:none'}"><h2>Nuevo despacho</h2>
    <form id="fDesp"><label>1 · Placa del comprador</label>
@@ -1179,7 +1228,10 @@ function selZona(id,actual){const ns=nombresZona();if(!ns.length)return `<input 
   return `<select id="${id}"><option value="">— Elige la zona —</option>${ns.map(n=>`<option ${actual===n?'selected':''}>${esc(n)}</option>`).join('')}<option value="__otra" ${otra?'selected':''}>Otra…</option></select>
    <input id="${id}T" placeholder="Escribe cómo le dicen a esa zona" value="${otra?esc(actual):''}" style="margin-top:6px;${otra?'':'display:none'}">`}
 function leerZona(id){const s=$(id),t=$(id+'T');if(!s)return t?t.value.trim():'';return s.value==='__otra'?(t?t.value.trim():''):s.value}
-let verQuitadas=false;
+let verQuitadas=false,recFoto=null,recTarde=null;
+function formReclamo(d){return `<label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: llegaron 5 bultos, faltó 1">
+   <div class="row" style="margin-top:6px;align-items:center"><label class="btn o" style="margin:0;text-align:center">📷 Foto (opcional)<input type="file" accept="image/*" capture="environment" id="rcFoto" class="hidden"></label><img id="rcFotoPrev" class="photo sm" style="flex:0 0 72px;${recFoto?'':'display:none'}" ${recFoto?`src="${esc(recFoto)}"`:''} alt=""></div>
+   <div class="row" style="margin-top:8px"><button class="btn r" data-rmal="${esc(d.id)}" style="background:#e0362c;color:#fff;border-color:#e0362c">⚠ Reportar faltante</button><button class="btn o" style="flex:0 0 auto" id="rcCancel">Cancelar</button></div>`}
 function vComprador(){
   const c=ME.rol==='comprador'?comp(ME.id):compradoresActivos()[0];
   if(ME.rol==='comprador'&&(!c||!c.vehiculo||c.activo===false||reg))return vRegistro(c);
@@ -1200,14 +1252,14 @@ function vComprador(){
         :`<button class="btn y big" data-rscan="${esc(d.id)}" style="margin-top:8px">📷 Escanear el carnet del carretillero</button>
         <label>¿No puedes escanearlo? Escribe su número (si lo viste)</label><input id="rcN" inputmode="numeric" placeholder="Ej: 07">`}
         <button class="btn g big" data-rok="${esc(d.id)}" style="margin-top:10px">Recibí ${d.bultos} bultos completos</button>
-        <label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: llegaron 5 bultos, faltó 1"><div class="row" style="margin-top:8px"><button class="btn o" data-rmal="${esc(d.id)}">Reportar faltante</button><button class="btn o" style="flex:0 0 auto" id="rcCancel">Cancelar</button></div>`
+        ${formReclamo(d)}`
        :`<button class="btn y" data-rabrir="${esc(d.id)}">Ya me llegó</button>`}</div>`}).join('')||'<div class="empty">No tienes mercancía en camino</div>'}</div></div>
   <div class="card"><h2>Mis compras</h2>${(()=>{const ocu=new Set(c.ocultos||[]);
      const oculta=d=>d.estado!=='en_ruta'&&ocu.has(d.id);const nOc=mis.filter(oculta).length;
      const vis=verQuitadas?mis:mis.filter(d=>!oculta(d)),cerradasVis=vis.filter(d=>d.estado!=='en_ruta'&&!oculta(d)).length;
      return `<p class="sub">${enCamino.length} por recibir · ${((n)=>`${n} cerrada${n==1?'':'s'}`)(mis.length-enCamino.length-nOc)}${nOc?` · <a href="#" id="verQuit">${verQuitadas?'ocultar las quitadas':`ver ${nOc} quitada${nOc==1?'':'s'}`}</a>`:''}</p>
      ${ME.rol==='comprador'&&cerradasVis>1?'<button class="btn o" id="quitTodas" style="width:100%;margin-bottom:8px">🧹 Quitar todas las compras recibidas</button>':''}
-     <div class="list">${vis.map(d=>`${ME.rol==='comprador'&&oculta(d)?'<div style="opacity:.55">':''}${itemDesp(d,'comprador')}${d.estado!=='entregado'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}${ME.rol==='comprador'&&d.estado!=='en_ruta'?(oculta(d)?`<button class="btn o" data-cvolver="${esc(d.id)}" style="margin:-4px 0 8px;padding:6px 12px">↩ Volver a mostrar</button></div>`:`<button class="btn o" data-cquit="${esc(d.id)}" style="margin:-4px 0 8px;padding:6px 12px">✕ Quitar de la lista</button>`):''}`).join('')}${!vis.length&&mis.length?'<div class="empty">Lista limpia 👍 Aquí aparecerán tus próximas compras.</div>':''}`})()}${mis.length?'':'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver aquí</div>'}</div></div></div>`}
+     <div class="list">${vis.map(d=>`${ME.rol==='comprador'&&oculta(d)?'<div style="opacity:.55">':''}${itemDesp(d,'comprador')}${d.estado==='reclamo'&&vend(d.vendedor)?.tel?waTxt(vend(d.vendedor).tel,'Escribir al vendedor sobre el reclamo',msjReclamo(d,'comprador')):d.estado==='en_ruta'&&vend(d.vendedor)?.tel?waBtn(vend(d.vendedor).tel,'Escribir al vendedor'):''}${ME.rol==='comprador'&&d.estado==='entregado'&&Date.now()-(d.t.entregado||d.t.creado)<864e5?(recTarde===d.id?`<div class="item" style="border:2px solid #e0362c">${formReclamo(d)}</div>`:`<button class="btn o" data-rtarde="${esc(d.id)}" style="margin:-4px 0 8px;padding:6px 12px">⚠ ¿Faltó algo? Reportar</button>`):''}${ME.rol==='comprador'&&d.estado!=='en_ruta'?(oculta(d)?`<button class="btn o" data-cvolver="${esc(d.id)}" style="margin:-4px 0 8px;padding:6px 12px">↩ Volver a mostrar</button></div>`:`<button class="btn o" data-cquit="${esc(d.id)}" style="margin:-4px 0 8px;padding:6px 12px">✕ Quitar de la lista</button>`):''}`).join('')}${!vis.length&&mis.length?'<div class="empty">Lista limpia 👍 Aquí aparecerán tus próximas compras.</div>':''}`})()}${mis.length?'':'<div class="empty">Cuando un vendedor despache a tu placa, lo vas a ver aquí</div>'}</div></div></div>`}
 function vRegistro(c){
   const r=reg||(reg={veh:c?.vehiculo||'',ref:c?.ref||'',foto:c?.foto||null,zona:c?.zona||'',px:c?.px??null,py:c?.py??null,pv:c?.pv,metodo:c?.ubicMetodo,acc:c?.ubicAcc});
   return `<div class="card" style="max-width:560px;margin:0 auto">
@@ -1385,6 +1437,7 @@ const bind={
       const id=nuevoId('V');await guardar('vendedor',{id,nombre,tel,creado:Date.now()});setME({rol:'vendedor',id,nombre});log(`Se registró el vendedor ${nombre}`);rolElegido=null;render()};
   },
   mercado(){
+    if(!RECL||(!RECL.cargando&&Date.now()-(RECL.t||0)>120000))cargarReclamosAdmin();if($('reclRef'))$('reclRef').onclick=()=>{RECL=null;cargarReclamosAdmin();render()};
     if(!ADMS)cargarAdmins();
     if($('admNuevoOk'))$('admNuevoOk').onclick=async()=>{const tel=telDigitos($('admNuevoTel').value),pin=$('admNuevoPin').value.trim();
       if(tel.length<10){toast('Escribe el teléfono completo');return}if(pin&&!/^\d{6}$/.test(pin)){toast('El PIN debe tener 6 números');return}
@@ -1542,6 +1595,8 @@ const bind={
           const card=document.querySelector('#app .card');card&&card.after(a)}}}}
   },
   vendedor(){
+    document.querySelectorAll('[data-resol]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.resol];if(!d)return;const nota=($('rsN-'+d.id)?.value||'').trim();
+      await guardar('despacho',{...d,resol:{tipo:b.dataset.tipo,nota,t:Date.now()}});log(`${vend(d.vendedor)?.nombre||'Vendedor'} resolvió el reclamo de ${d.placa} (${nro(d)}): ${RESOL[b.dataset.tipo].replace(/^\S+ /,'')}${nota?' · '+nota:''}`);toast('Reclamo marcado como resuelto');render()});
     const v=ME.rol==='vendedor'?vend(ME.id):L('vendedor')[0];if(!v)return;
     if(fichaVista){$('fvListo').onclick=()=>{fichaVista=null;fichaCompleta=false;render()};if($('fvCompleta'))$('fvCompleta').onclick=()=>{fichaCompleta=true;render()};if($('fvPap'))$('fvPap').onclick=()=>imprimirPapeletas([S.despacho[fichaVista]],v);return}
     document.querySelectorAll('[data-irv]').forEach(a=>a.onclick=e=>{e.preventDefault();view=a.dataset.irv;render()});
@@ -1613,14 +1668,16 @@ const bind={
      if($('quitTodas'))$('quitTodas').onclick=()=>{const b=$('quitTodas');if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para quitarlas';return}
        const c=yoC();if(!c)return;const ids=L('despacho').filter(x=>x.placa===c.id&&x.estado!=='en_ruta').map(x=>x.id);g({...c,ocultos:[...new Set([...(c.ocultos||[]),...ids])].slice(-300)});toast('Lista limpia')};
      if($('verQuit'))$('verQuit').onclick=e=>{e.preventDefault();verQuitadas=!verQuitadas;render()}}
-    if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;render()};
+    if($('rcCancel'))$('rcCancel').onclick=()=>{recibiendo=null;recTarde=null;recFoto=null;render()};
     document.querySelectorAll('[data-rok]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rok];const k=carr(d.carretillero);
       if(carnetOk[d.id]){const num=carnetOk[d.id];delete carnetOk[d.id];recibiendo=null;await confirmar(d,'carnet',{carrDicho:num,carrOk:true});return}
       const n=$('rcN')?$('rcN').value.replace(/\D/g,''):'';const extra=n?{carrDicho:pad(n,2),carrOk:!!k&&k.num===pad(n,2)}:{};recibiendo=null;await confirmar(d,'boton',extra)});
     document.querySelectorAll('[data-rscan]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rscan];const t=await escanear('Escanea el carnet','El QR del carnet del carretillero que te trajo la mercancía');if(!t)return;
       const q=parseCodigo(t);if(!q||q.tipo!=='k'){toast('Ese código no es una credencial de CargaYa');return}const k=carr(d.carretillero);const qk=await buscarCarr(q.id);
       if(k&&k.id===q.id){carnetOk[d.id]=k.num;render()}else{toast(`Esa credencial es del #${qk?.num||'?'}${qk?' de '+(vend(qk.vendedor)?.nombre||''):''}, pero este despacho lo lleva el #${k?.num||'?'}`);log(`⚠ ${d.placa} escaneó otra credencial en ${nro(d)} (asignado al #${k?.num||'?'})`)}});
-    document.querySelectorAll('[data-rmal]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rmal];const t=$('rcRecl').value.trim();recibiendo=null;await reclamar(d,t)});
+    document.querySelectorAll('[data-rmal]').forEach(b=>b.onclick=async()=>{const d=S.despacho[b.dataset.rmal];const t=$('rcRecl').value.trim();if(!t){toast('Escribe qué faltó');$('rcRecl').focus();return}const f=recFoto;recibiendo=null;recTarde=null;recFoto=null;await reclamar(d,t,f);render()});
+    fotoInput($('rcFoto'),url=>{recFoto=url;const i=$('rcFotoPrev');if(i){i.src=url;i.style.display=''}});
+    document.querySelectorAll('[data-rtarde]').forEach(b=>b.onclick=()=>{recTarde=b.dataset.rtarde;recibiendo=null;recFoto=null;render()});
   }
 };
 

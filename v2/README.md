@@ -64,3 +64,10 @@ Cuarto módulo: `carretillero.html`. Queda **apagado** hasta que la administraci
 - Ve sus entregas en vivo (con aviso), y **📍 Llévame** muestra su GPS y el vehículo del comprador en el plano, con la ruta por los pasillos, los metros que faltan, la foto, WhatsApp al comprador y Google Maps.
 - Muestra su credencial en pantalla para que el comprador la escanee. La credencial impresa y la papeleta siguen funcionando.
 - Permisos: el carretillero solo ve sus despachos y los vehículos a los que lleva carga en ese momento; no edita nada.
+
+## Reclamos por faltantes — desde v2.18
+- Comprador: al recibir (o hasta 24 h después de confirmar) reporta qué faltó, con foto opcional. WhatsApp al vendedor con el mensaje ya escrito.
+- Vendedor: alarma (sonido x3 + vibración), aviso rojo fijo en todas las pestañas y tarjeta "Reclamos por atender" en Despachar; WhatsApp al comprador ya escrito; cierra con Repuse / Descuento / No corresponde + nota. El comprador recibe el aviso.
+- Administración → Panel: reclamos de 30 días, sin resolver, tiempo promedio, por vendedor y por carretillero.
+- Excel: la columna Reclamo incluye la resolución.
+- Base de datos: pegar `reclamos.sql` una vez (foto del reclamo, el vendedor no puede cambiar lo que escribió el comprador, un reclamo nuevo se reabre).

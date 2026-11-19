@@ -232,15 +232,27 @@ begin
       if new.data->>'estado' not in ('entregado','reclamo') then
         raise exception 'El comprador solo puede confirmar o reclamar';
       end if;
-      new.data := (old.data - 'estado' - 't' - 'verif' - 'reclamo')
+      new.data := (old.data - 'estado' - 't' - 'verif' - 'reclamo' - 'reclamoFoto')
         || jsonb_strip_nulls(jsonb_build_object('estado', new.data->'estado', 't', new.data->'t',
-                                                'verif', new.data->'verif', 'reclamo', new.data->'reclamo'));
+                                                'verif', new.data->'verif', 'reclamo', new.data->'reclamo',
+                                                'reclamoFoto', new.data->'reclamoFoto'));
       -- la fecha de creación no la cambia el comprador
       if old.data->'t' ? 'creado' then
         new.data := jsonb_set(new.data, '{t,creado}', old.data->'t'->'creado');
       end if;
+      -- un reclamo nuevo (o con otro texto) vuelve a quedar abierto
+      if new.data->>'estado' = 'reclamo' and (old.data->>'estado' is distinct from 'reclamo'
+          or old.data->'reclamo' is distinct from new.data->'reclamo') then
+        new.data := new.data - 'resol';
+      end if;
     else
       new.data := jsonb_set(new.data, '{vendedor}', old.data->'vendedor');
+      -- el vendedor no cambia lo que escribió el comprador en su reclamo
+      new.data := (new.data - 'reclamo' - 'reclamoFoto')
+        || jsonb_strip_nulls(jsonb_build_object('reclamo', old.data->'reclamo', 'reclamoFoto', old.data->'reclamoFoto'));
+      if old.data->'t' ? 'reclamo' then
+        new.data := jsonb_set(new.data, '{t,reclamo}', old.data->'t'->'reclamo');
+      end if;
       if old.data->>'estado' in ('entregado','reclamo') and new.data->>'estado' = 'en_ruta' then
         new.data := new.data || jsonb_strip_nulls(jsonb_build_object('estado', old.data->'estado', 't', old.data->'t',
                                                   'verif', old.data->'verif', 'reclamo', old.data->'reclamo'));

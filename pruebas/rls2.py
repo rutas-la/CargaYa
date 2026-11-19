@@ -161,4 +161,16 @@ esp('anon no consulta teléfonos',anon("select con_telefono(array['KTEST1'])"),F
 esp('V1 quita el teléfono',como('V1',"select desactivar_movil('KTEST1')"),lambda r:r[1]==[('ok',)])
 esp('K ya no ve el despacho',como('K',"select id from despachos"),lambda r:r[1]==[])
 adm.execute("delete from despachos where id in ('DK1','DK2')");adm.execute("delete from compradores where id in ('C1PLACA','C2PLACA')");adm.execute("delete from config where id='movil'")
+# reclamos
+adm.execute("insert into compradores(id,data) values('RPLACA',%s) on conflict (id) do update set data=excluded.data",(J({'id':'RPLACA','owner':U['C1']}),))
+adm.execute("insert into despachos(id,data) values('DR1',%s) on conflict (id) do update set data=excluded.data",(J({'id':'DR1','vendedor':U['V1'],'placa':'RPLACA','estado':'en_ruta','t':{'creado':1}}),))
+D=lambda:adm.execute("select data from despachos where id='DR1'").fetchone()[0]
+esp('C1 reclama con foto',como('C1',"""update despachos set data=data||'{"estado":"reclamo","reclamo":"faltó 1","reclamoFoto":"https://x/f.jpg","resol":{"tipo":"repuesto"}}' where id='DR1'"""),lambda r:r[1]==1)
+esp('C1 no se auto-resuelve',(True,D()),lambda r:'resol' not in r[1] and r[1].get('reclamoFoto')=='https://x/f.jpg')
+esp('V1 no cambia el texto del reclamo',como('V1',"""update despachos set data=data||'{"reclamo":"todo bien","reclamoFoto":null}' where id='DR1'"""),lambda r:D().get('reclamo')=='faltó 1' and D().get('reclamoFoto')=='https://x/f.jpg')
+esp('V1 resuelve',como('V1',"""update despachos set data=data||'{"resol":{"tipo":"repuesto","t":5}}' where id='DR1'"""),lambda r:D().get('resol',{}).get('tipo')=='repuesto')
+esp('C1 no borra la resolución',como('C1',"""update despachos set data=data-'resol' where id='DR1'"""),lambda r:D().get('resol',{}).get('tipo')=='repuesto')
+esp('C1 reclama otra cosa: se reabre',como('C1',"""update despachos set data=data||'{"reclamo":"faltó otro más"}' where id='DR1'"""),lambda r:'resol' not in D())
+esp('C2 no reclama ajeno',como('C2',"""update despachos set data=data||'{"reclamo":"x"}' where id='DR1'"""),lambda r:r[1]==0)
+adm.execute("delete from despachos where id='DR1'");adm.execute("delete from compradores where id='RPLACA'")
 print(f'{ok} correctas, {len(bad)} fallas');[print(' ✗',b) for b in bad]

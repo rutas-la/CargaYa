@@ -23,34 +23,34 @@ function distM(a,b){const R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.l
 function rumbo(a,b){const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);const g=(Math.atan2(y,x)/r+360)%360;return {g,txt:['norte','noreste','este','sureste','sur','suroeste','oeste','noroeste'][Math.round(g/45)%8]}}
 const enPlano=f=>f&&f.lat!=null&&distM(f,CENTRO)<=1500;
 const ANG=-60;
-const VZ={cx:493,cy:430}; // patio entre Nave Cate e INMERCA (camiones)
-const GEO=[[376,66],[809,68],[786,136],[721,277],[721,406],[686,551],[651,712],[570,678],[439,593],[274,543],[260,361],[269,292]];
-const EDIF=[ // galpones (techos) trazados sobre la imagen satelital de nov-2026
-  {n:"Galpón norte",p:'382,74 488,80 372,354 271,311',l:[378,205],r:-64},
-  {n:"Galpón Calle Zea",p:'519,90 756,91 756,150 569,149 539,199 499,183 501,130',l:[591,142],r:0},
-  {n:"Agua Viva",p:'458,188 558,242 511,332 417,280',l:[486,260],r:28},
-  {n:"Barco Pesca",p:'657,195 696,214 640,307 601,283',l:[648,250],r:-58},
-  {n:"Nave Cate",p:'398,306 442,326 377,445 399,456 377,550 326,534 332,516 287,503',l:[367,454],r:-67},
-  {n:"INMERCA",p:'575,321 651,337 531,612 461,586',l:[554,464],r:-66},
+const VZ={cx:493,cy:450}; // patio entre Nave Cate e INMERCA (camiones)
+const GEO=[[373,69],[822,72],[783,154],[721,324],[696,480],[653,650],[628,726],[546,672],[419,592],[274,537],[261,392],[293,264]];
+const EDIF=[ // galpones (techos) trazados sobre la imagen satelital del 21-11-2026
+  {n:"Galpón Norte",p:'379,78 490,81 385,343 338,354 290,330',l:[376,237],r:-68},
+  {n:"Galpón Calle Zea",p:'518,84 755,85 755,161 552,159 537,195 502,183 507,117',l:[589,141],r:0},
+  {n:"Agua Viva",p:'454,190 551,245 517,337 418,282',l:[485,264],r:28},
+  {n:"Barco Pesca",p:'638,195 693,220 647,305 602,285',l:[645,251],r:-64},
+  {n:"Nave Cate",p:'403,298 446,322 388,452 398,495 384,525 337,513 317,509 292,496',l:[371,451],r:-66},
+  {n:"INMERCA",p:'601,313 653,335 518,611 464,589',l:[559,462],r:-64},
 ];
-const PUESTOS=[[655,335],[720,331],[720,406],[687,551],[653,697],[570,675],[534,612]];
+const PUESTOS=[[656,337],[718,338],[696,480],[660,635],[631,713],[546,666],[518,613]];
 const EDIF0=EDIF.map((e,i)=>({id:'G'+(i+1),nombre:e.n,pts:e.p.split(' ').map(q=>q.split(',').map(Number)),rot:e.r}));
 // Entradas y pasillos iniciales (aproximados desde la imagen satelital). La administración los corrige en Zonas → Plano.
-const PLANO0={id:'plano',v:PV,base:2,galpones:EDIF0,filas:[],
-  entradas:[{id:'E1',nombre:"Calle Zea (oeste)",x:362,y:70},{id:'E2',nombre:"Calle Zea (entre galpones)",x:503,y:70},{id:'E3',nombre:"Calle Zea (este)",x:774,y:73},{id:'E4',nombre:"Puerta sur",x:647,y:706}],
+const PLANO0={id:'plano',v:PV,base:3,galpones:EDIF0,
+  filas:[{id:'F1',nombre:"Patio 1",lado:'doble',pts:[[466,343],[408,478]]},{id:'F2',nombre:"Patio 2",lado:'doble',pts:[[517,344],[442,521]]},{id:'F3',nombre:"Patio 3",lado:'simple',pts:[[573,337],[484,542]]},{id:'F4',nombre:"Plaza norte 1",lado:'doble',pts:[[563,195],[622,195]]},{id:'F5',nombre:"Plaza norte 2",lado:'simple',pts:[[622,207],[591,280]]},{id:'F6',nombre:"Oeste",lado:'doble',pts:[[210,441],[246,520]]},{id:'F7',nombre:"Agua Viva",lado:'simple',pts:[[548,259],[520,330]]}],
+  entradas:[{id:'E1',nombre:"Calle Zea (oeste)",x:379,y:69},{id:'E2',nombre:"Calle Zea (entre galpones)",x:504,y:70},{id:'E3',nombre:"Calle Zea (este)",x:819,y:74},{id:'E4',nombre:"Puerta sur",x:628,y:720},{id:'E5',nombre:"Calle sur (oeste)",x:93,y:544}],
   pasillos:[
-    {id:'P1',nombre:"Calle oeste (Galpón Norte)",sentido:'doble',pts:[[362,70],[338,121],[306,198],[271,284],[266,331],[262,361],[270,447],[274,537]]},
-    {id:'P2',nombre:"Entre Galpón Norte y Galpón Calle Zea",sentido:'doble',pts:[[503,70],[484,130],[460,182],[447,207],[410,284],[393,308]]},
-    {id:'P3',nombre:"Plaza sur del Galpón Norte",sentido:'doble',pts:[[393,308],[331,331],[266,331]]},
-    {id:'P4',nombre:"Patio entre Nave Cate e INMERCA",sentido:'doble',pts:[[614,178],[584,261],[562,311],[511,379],[459,465],[428,550],[439,589]]},
-    {id:'P5',nombre:"Plaza frente al Galpón Calle Zea",sentido:'doble',pts:[[460,182],[546,212],[614,178],[700,167],[762,183]]},
-    {id:'P6',nombre:"Entrada este (Galpón Calle Zea)",sentido:'doble',pts:[[774,73],[769,157],[762,183]]},
-    {id:'P7',nombre:"Calle este (frente al hospital)",sentido:'doble',pts:[[805,76],[786,136],[762,183],[739,234],[721,277],[721,328],[721,406],[703,483],[686,551],[664,628],[647,706]]},
-    {id:'P8',nombre:"Calle sur",sentido:'doble',pts:[[193,554],[274,537],[338,559],[439,589],[510,628],[570,673],[647,706]]},
-    {id:'P9',nombre:"Calle norte de INMERCA",sentido:'doble',pts:[[562,311],[640,318],[721,328]]},
-    {id:'P10',nombre:"Pasillo de buhoneros 1",sentido:'doble',pts:[[665,320],[587,680]]},
-    {id:'P11',nombre:"Pasillo de buhoneros 2",sentido:'doble',pts:[[708,327],[629,698]]}]};
-const PLANO_BASE=2; // sube cuando se redibuja el plano inicial completo
+    {id:'P1',nombre:"Calle oeste (Galpón Norte)",sentido:'doble',pts:[[379,69],[348,123],[322,194],[293,264],[271,335],[264,392],[269,463],[274,531]]},
+    {id:'P2',nombre:"Calle entre Galpón Norte y Galpón Calle Zea",sentido:'doble',pts:[[504,70],[499,109],[475,173],[435,237],[399,308],[385,343]]},
+    {id:'P3',nombre:"Frente al Galpón Calle Zea",sentido:'doble',pts:[[475,173],[552,175],[662,178],[762,173],[783,154]]},
+    {id:'P4',nombre:"Calle este (hospital)",sentido:'doble',pts:[[819,74],[783,154],[750,239],[721,324],[704,409],[696,480],[677,565],[653,650],[628,720]]},
+    {id:'P5',nombre:"Calle norte de INMERCA",sentido:'doble',pts:[[385,343],[446,322],[520,322],[601,309],[662,318],[721,324]]},
+    {id:'P6',nombre:"Calle junto a Nave Cate",sentido:'doble',pts:[[446,322],[420,393],[394,464],[384,525]]},
+    {id:'P7',nombre:"Plaza norte (entre Agua Viva y Barco Pesca)",sentido:'doble',pts:[[563,178],[580,252],[562,320]]},
+    {id:'P8',nombre:"Calle sur",sentido:'doble',pts:[[93,544],[274,531],[348,551],[384,525]]},
+    {id:'P9',nombre:"Calle sur (estadio)",sentido:'doble',pts:[[384,525],[419,584],[490,627],[546,666],[628,720]]},
+    {id:'P10',nombre:"Pasillo de buhoneros",sentido:'doble',pts:[[661,337],[582,649]]}]};
+const PLANO_BASE=3; // sube cuando se redibuja el plano inicial completo
 const planoCfg=()=>{const c=S.config&&S.config.plano;return c&&c.v===PV&&(c.base||1)>=PLANO_BASE?{...c,galpones:c.galpones||EDIF0,filas:c.filas||[]}:PLANO0};
 const centroPts=ps=>[ps.reduce((a,q)=>a+q[0],0)/ps.length,ps.reduce((a,q)=>a+q[1],0)/ps.length];
 function rotLargo(ps){const c=centroPts(ps);let sxx=0,syy=0,sxy=0;ps.forEach(q=>{const dx=q[0]-c[0],dy=q[1]-c[1];sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy});let a=Math.atan2(2*sxy,sxx-syy)/2*180/Math.PI;if(a>90)a-=180;if(a<-90)a+=180;return Math.round(a)}
@@ -75,7 +75,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.22',VERSION_FECHA='21/11/2026';
+const VERSION='2.23',VERSION_FECHA='21/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -258,7 +258,7 @@ function baseSVG(ocultar){baseSVG.ocultar=ocultar||null;const pl=planoCfg();
     ${pas.map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#fff" stroke-width="1.6" stroke-dasharray="6 6" opacity=".9"/>`).join('')}</g>`;
   (pl.pasillos||[]).filter(p=>p.sentido==='uno'&&p.pts.length>1).forEach(p=>{for(let i=0;i+1<p.pts.length;i++){const [a,b]=[p.pts[i],p.pts[i+1]],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
     s+=`<path d="M-5,-4 L5,0 L-5,4Z" fill="#7c8089" transform="translate(${f1(mx)} ${f1(my)}) rotate(${f1(g)})"/>`}});
-  s+=`<text x="630" y="517" font-family="Barlow Condensed" font-size="15" stroke="#f2dfc2" stroke-width="4" paint-order="stroke" fill="#a0784a" text-anchor="middle" transform="rotate(-78 630 517)">PUESTOS / BUHONEROS</text>`;
+  s+=`<text x="618" y="522" font-family="Barlow Condensed" font-size="15" stroke="#f2dfc2" stroke-width="4" paint-order="stroke" fill="#a0784a" text-anchor="middle" transform="rotate(-76 618 522)">PUESTOS / BUHONEROS</text>`;
   let galTxt='';
   (pl.galpones||[]).forEach(e=>{if(!e.pts||e.pts.length<3||e.id===baseSVG.ocultar)return;const c=centroPts(e.pts),r=e.rot!=null?e.rot:rotLargo(e.pts);s+=`<polygon points="${e.pts.map(q=>q.join(',')).join(' ')}" fill="#a39d8c" fill-opacity=".16" stroke="#6f6a5c" stroke-width="1.6" stroke-dasharray="8 4" stroke-linejoin="round"/>`;galTxt+=`<text x="${f1(c[0])}" y="${f1(c[1]+5)}" font-family="Barlow Condensed" font-weight="700" font-size="13" fill="#5d6169" fill-opacity=".85" stroke="#fff" stroke-width="3" stroke-opacity=".7" paint-order="stroke" text-anchor="middle" transform="rotate(${r} ${f1(c[0])} ${f1(c[1])})">${esc((e.nombre||'').toUpperCase())}</text>`});
   // filas de estacionamiento: cajones de 4 × 7 unidades (≈ 2,5 × 4,5 m) a lo largo de cada línea
@@ -1296,8 +1296,8 @@ function bindFondo(){const f=S.config.fondo||{};
   if($('fdArchivo'))$('fdArchivo').onchange=()=>{const a=$('fdArchivo').files[0];if(!a)return;const img=new Image();img.onload=async()=>{
       const sc=Math.min(1,2000/Math.max(img.width,img.height));const cv=document.createElement('canvas');cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
       toast('Subiendo la imagen…');let url;try{url=await subirFoto(cv.toDataURL('image/jpeg',.82),'fotos')}catch(e){toast('No se pudo subir: '+(e.message||e));return}
-      const asp=img.height/img.width;const mismo=Math.abs(asp-788/845)<.03; // la captura de nov-2026 ya viene calibrada
-      const n=mismo?{x:186.1,y:34.7,w:724.8,h:724.8*asp,rot:.23}:{x:190,y:30,w:720,h:720*asp,rot:0};
+      const asp=img.height/img.width; // capturas ya calibradas: 845×788 y 594×495 (nov-2026)
+      const n=Math.abs(asp-495/594)<.02?{x:95.3,y:50.5,w:843.0,h:843.0*asp,rot:0.32}:Math.abs(asp-788/845)<.02?{x:186.1,y:34.7,w:724.8,h:724.8*asp,rot:.23}:{x:190,y:30,w:720,h:720*asp,rot:0};
       await guardarFondo({id:'fondo',url,ver:true,op:.85,...n},true);log('Imagen satelital de fondo cargada en el plano');toast('✓ Imagen cargada');render()};img.src=URL.createObjectURL(a)};
   if(!f.url)return;
   $('fdVer').onchange=()=>{guardarFondo({...f,ver:$('fdVer').checked},true);render()};

@@ -8,7 +8,7 @@ def tocar(pg,sel,x,y):
     pg.mouse.click(pt[0],pt[1]);pg.wait_for_timeout(250)
 with sync_playwright() as p:
     b=p.chromium.launch()
-    cA,A=ctx(b,'A',URL+'admin.html',errs);A.set_viewport_size({'width':1100,'height':1000});A.fill('#lTel','0414-1111111');A.fill('#lPin','999999');A.click('#lGo');A.wait_for_timeout(1500)
+    cA,A=ctx(b,'A',URL+'admin.html',errs);A.set_viewport_size({'width':1100,'height':1500});A.fill('#lTel','0414-1111111');A.fill('#lPin','999999');A.click('#lGo');A.wait_for_timeout(1500)
     A.click('#nav button[data-v=zonas]');A.wait_for_timeout(400)
     P('galpones:',A.locator('[data-gedit]').count(),'filas:',A.locator('[data-fedit]').count())
     # redibujar Nave Cate más ancha

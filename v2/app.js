@@ -23,30 +23,35 @@ function distM(a,b){const R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.l
 function rumbo(a,b){const r=Math.PI/180,y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r),x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r);const g=(Math.atan2(y,x)/r+360)%360;return {g,txt:['norte','noreste','este','sureste','sur','suroeste','oeste','noroeste'][Math.round(g/45)%8]}}
 const enPlano=f=>f&&f.lat!=null&&distM(f,CENTRO)<=1500;
 const ANG=-60;
-const VZ={cx:520,cy:445}; // patio entre Nave Cate e INMERCA (camiones)
-const GEO=[[372,62],[800,62],[792,150],[772,330],[720,520],[690,640],[600,692],[470,620],[275,528],[285,420],[300,330],[340,180]];
-const EDIF=[
-  {n:'Galpón norte',p:'425,72 497,100 356,354 275,307',l:[386,213],r:-60},
-  {n:'Galpón Calle Zea',p:'522,87 750,87 750,148 560,148 515,192 500,140',l:[640,122],r:0},
-  {n:'Agua Viva',p:'462,186 544,233 509,294 427,247',l:[486,242],r:-60},
-  {n:'Barco Pesca',p:'630,190 685,205 645,300 597,280',l:[641,247],r:-67},
-  {n:'Nave Cate',p:'382,330 451,370 347,550 278,510',l:[364,440],r:-60},
-  {n:'INMERCA',p:'603,312 661,343 516,613 458,582',l:[560,465],r:-62},
+const VZ={cx:493,cy:430}; // patio entre Nave Cate e INMERCA (camiones)
+const GEO=[[376,66],[809,68],[786,136],[721,277],[721,406],[686,551],[651,712],[570,678],[439,593],[274,543],[260,361],[269,292]];
+const EDIF=[ // galpones (techos) trazados sobre la imagen satelital de nov-2026
+  {n:"Galpón norte",p:'382,74 488,80 372,354 271,311',l:[378,205],r:-64},
+  {n:"Galpón Calle Zea",p:'519,90 756,91 756,150 569,149 539,199 499,183 501,130',l:[591,142],r:0},
+  {n:"Agua Viva",p:'458,188 558,242 511,332 417,280',l:[486,260],r:28},
+  {n:"Barco Pesca",p:'657,195 696,214 640,307 601,283',l:[648,250],r:-58},
+  {n:"Nave Cate",p:'398,306 442,326 377,445 399,456 377,550 326,534 332,516 287,503',l:[367,454],r:-67},
+  {n:"INMERCA",p:'575,321 651,337 531,612 461,586',l:[554,464],r:-66},
 ];
-const PUESTOS=[[665,345],[775,335],[700,650],[600,692],[516,613]];
+const PUESTOS=[[655,335],[720,331],[720,406],[687,551],[653,697],[570,675],[534,612]];
 const EDIF0=EDIF.map((e,i)=>({id:'G'+(i+1),nombre:e.n,pts:e.p.split(' ').map(q=>q.split(',').map(Number)),rot:e.r}));
 // Entradas y pasillos iniciales (aproximados desde la imagen satelital). La administración los corrige en Zonas → Plano.
-const PLANO0={id:'plano',v:PV,galpones:EDIF0,filas:[],
-  entradas:[{id:'E1',nombre:'Calle Zea (oeste)',x:372,y:66},{id:'E2',nombre:'Calle Zea (Galpón Calle Zea)',x:512,y:70},{id:'E3',nombre:'Calle Zea (hospital)',x:800,y:66},{id:'E4',nombre:'Puerta 1 (Intercomunal)',x:780,y:745}],
+const PLANO0={id:'plano',v:PV,base:2,galpones:EDIF0,filas:[],
+  entradas:[{id:'E1',nombre:"Calle Zea (oeste)",x:362,y:70},{id:'E2',nombre:"Calle Zea (entre galpones)",x:503,y:70},{id:'E3',nombre:"Calle Zea (este)",x:774,y:73},{id:'E4',nombre:"Puerta sur",x:647,y:706}],
   pasillos:[
-    {id:'P1',nombre:'Calle interna oeste',sentido:'doble',pts:[[372,66],[300,330],[285,420],[275,525]]},
-    {id:'P2',nombre:'Entre Galpón norte y Agua Viva',sentido:'doble',pts:[[512,70],[507,106],[420,262],[372,322],[300,330]]},
-    {id:'P3',nombre:'Patio entre naves',sentido:'doble',pts:[[420,262],[525,300],[460,450],[398,565]]},
-    {id:'P4',nombre:'Calle sur',sentido:'doble',pts:[[275,525],[398,565],[470,615],[600,662],[700,700],[780,745]]},
-    {id:'P5',nombre:'Avenida de los puestos',sentido:'doble',pts:[[800,66],[745,230],[705,340],[650,500],[600,662]]},
-    {id:'P6',nombre:'Frente al Galpón Calle Zea',sentido:'doble',pts:[[507,106],[512,160],[560,168],[740,172],[745,230]]},
-    {id:'P7',nombre:'Pasillo Barco Pesca',sentido:'doble',pts:[[560,168],[590,250],[560,305],[525,300]]}]};
-const planoCfg=()=>{const c=S.config&&S.config.plano;return c&&c.v===PV?{...c,galpones:c.galpones||EDIF0,filas:c.filas||[]}:PLANO0};
+    {id:'P1',nombre:"Calle oeste (Galpón Norte)",sentido:'doble',pts:[[362,70],[338,121],[306,198],[271,284],[266,331],[262,361],[270,447],[274,537]]},
+    {id:'P2',nombre:"Entre Galpón Norte y Galpón Calle Zea",sentido:'doble',pts:[[503,70],[484,130],[460,182],[447,207],[410,284],[393,308]]},
+    {id:'P3',nombre:"Plaza sur del Galpón Norte",sentido:'doble',pts:[[393,308],[331,331],[266,331]]},
+    {id:'P4',nombre:"Patio entre Nave Cate e INMERCA",sentido:'doble',pts:[[614,178],[584,261],[562,311],[511,379],[459,465],[428,550],[439,589]]},
+    {id:'P5',nombre:"Plaza frente al Galpón Calle Zea",sentido:'doble',pts:[[460,182],[546,212],[614,178],[700,167],[762,183]]},
+    {id:'P6',nombre:"Entrada este (Galpón Calle Zea)",sentido:'doble',pts:[[774,73],[769,157],[762,183]]},
+    {id:'P7',nombre:"Calle este (frente al hospital)",sentido:'doble',pts:[[805,76],[786,136],[762,183],[739,234],[721,277],[721,328],[721,406],[703,483],[686,551],[664,628],[647,706]]},
+    {id:'P8',nombre:"Calle sur",sentido:'doble',pts:[[193,554],[274,537],[338,559],[439,589],[510,628],[570,673],[647,706]]},
+    {id:'P9',nombre:"Calle norte de INMERCA",sentido:'doble',pts:[[562,311],[640,318],[721,328]]},
+    {id:'P10',nombre:"Pasillo de buhoneros 1",sentido:'doble',pts:[[665,320],[587,680]]},
+    {id:'P11',nombre:"Pasillo de buhoneros 2",sentido:'doble',pts:[[708,327],[629,698]]}]};
+const PLANO_BASE=2; // sube cuando se redibuja el plano inicial completo
+const planoCfg=()=>{const c=S.config&&S.config.plano;return c&&c.v===PV&&(c.base||1)>=PLANO_BASE?{...c,galpones:c.galpones||EDIF0,filas:c.filas||[]}:PLANO0};
 const centroPts=ps=>[ps.reduce((a,q)=>a+q[0],0)/ps.length,ps.reduce((a,q)=>a+q[1],0)/ps.length];
 function rotLargo(ps){const c=centroPts(ps);let sxx=0,syy=0,sxy=0;ps.forEach(q=>{const dx=q[0]-c[0],dy=q[1]-c[1];sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy});let a=Math.atan2(2*sxy,sxx-syy)/2*180/Math.PI;if(a>90)a-=180;if(a<-90)a+=180;return Math.round(a)}
 function pip(x,y,poly){let a=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)a=!a}return a}
@@ -70,7 +75,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.19',VERSION_FECHA='18/11/2026';
+const VERSION='2.21',VERSION_FECHA='21/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -242,8 +247,7 @@ function baseSVG(ocultar){baseSVG.ocultar=ocultar||null;const pl=planoCfg();
   let s=`<rect x="-300" y="-300" width="1700" height="1400" fill="#e9e6dc"/>
   <polygon points="${GEO.map(p=>p.join(',')).join(' ')}" fill="#efede6" stroke="#3ddc84" stroke-width="2" stroke-dasharray="6 6"/>
   <g fill="none" stroke="#d3cfc2" stroke-linecap="round" stroke-linejoin="round"><polyline points="120,62 1063,58" stroke-width="18"/><polyline points="1015,70 962,300 905,560 868,780" stroke-width="22"/></g>
-  <polygon points="${PUESTOS.map(p=>p.join(',')).join(' ')}" fill="#f2dfc2"/>
-  <text x="682" y="575" font-family="Barlow Condensed" font-size="15" fill="#a0784a" text-anchor="middle" transform="rotate(-71 682 575)">PUESTOS / BUHONEROS</text>`;
+  <polygon points="${PUESTOS.map(p=>p.join(',')).join(' ')}" fill="#f2dfc2"/>`;
   // zonas dibujadas (con su color según el tipo)
   zonasActivas().filter(z=>z.pv===PV&&z.poly&&z.poly.length>2).forEach(z=>{const [f,c]=COL_ZONA[z.tipo]||COL_ZONA.otro;
     s+=`<polygon points="${z.poly.map(p=>p.join(',')).join(' ')}" fill="${f}" fill-opacity=".75" stroke="${c}" stroke-opacity=".6" stroke-dasharray="5 4"/>`});
@@ -252,6 +256,7 @@ function baseSVG(ocultar){baseSVG.ocultar=ocultar||null;const pl=planoCfg();
     ${(pl.pasillos||[]).map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#fff" stroke-width="1.6" stroke-dasharray="6 6" opacity=".9"/>`).join('')}</g>`;
   (pl.pasillos||[]).filter(p=>p.sentido==='uno'&&p.pts.length>1).forEach(p=>{for(let i=0;i+1<p.pts.length;i++){const [a,b]=[p.pts[i],p.pts[i+1]],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
     s+=`<path d="M-5,-4 L5,0 L-5,4Z" fill="#7c8089" transform="translate(${f1(mx)} ${f1(my)}) rotate(${f1(g)})"/>`}});
+  s+=`<text x="630" y="517" font-family="Barlow Condensed" font-size="15" stroke="#f2dfc2" stroke-width="4" paint-order="stroke" fill="#a0784a" text-anchor="middle" transform="rotate(-78 630 517)">PUESTOS / BUHONEROS</text>`;
   let galTxt='';
   (pl.galpones||[]).forEach(e=>{if(!e.pts||e.pts.length<3||e.id===baseSVG.ocultar)return;const c=centroPts(e.pts),r=e.rot!=null?e.rot:rotLargo(e.pts);s+=`<polygon points="${e.pts.map(q=>q.join(',')).join(' ')}" fill="#a39d8c" fill-opacity=".16" stroke="#6f6a5c" stroke-width="1.6" stroke-dasharray="8 4" stroke-linejoin="round"/>`;galTxt+=`<text x="${f1(c[0])}" y="${f1(c[1]+5)}" font-family="Barlow Condensed" font-weight="700" font-size="13" fill="#5d6169" fill-opacity=".85" stroke="#fff" stroke-width="3" stroke-opacity=".7" paint-order="stroke" text-anchor="middle" transform="rotate(${r} ${f1(c[0])} ${f1(c[1])})">${esc((e.nombre||'').toUpperCase())}</text>`});
   // filas de estacionamiento: cajones de 4 × 7 unidades (≈ 2,5 × 4,5 m) a lo largo de cada línea
@@ -729,7 +734,7 @@ function vZonas(){const ns=nombresZona();const pl=planoCfg();
     <div class="row" style="margin-top:8px"><div><label>Nombre (opcional)</label><input id="fNombre" placeholder="Ej: Fila frente a INMERCA" autocomplete="off"></div><div style="flex:0 0 150px"><label>Autos</label><select id="fLado"><option value="simple">De un lado</option><option value="doble">De los dos lados</option></select></div></div>
     <button class="btn y" id="fAgregar" style="width:100%;margin-top:8px">Dibujar en el plano</button></div>
    <div style="grid-column:1/-1">${planoSVG({nota:'<span><i style="background:#7b3fe4"></i>Entrada</span><span><i style="background:#d3cfc2"></i>Pasillo</span><span><i style="background:#e0ecff"></i>Compradores</span><span><i style="background:#fff3c4"></i>Camiones</span><span><i style="background:#f2dfc2"></i>Puestos</span><span><i style="background:#12a150"></i>Centro de zona</span>'})}</div></div>`}
-async function guardarPlano(cambio,msg){const pl=JSON.parse(JSON.stringify(planoCfg()));cambio(pl);pl.id='plano';pl.v=PV;await guardar('config',pl);if(msg)log(msg);render()}
+async function guardarPlano(cambio,msg){const pl=JSON.parse(JSON.stringify(planoCfg()));cambio(pl);pl.id='plano';pl.v=PV;pl.base=PLANO_BASE;await guardar('config',pl);if(msg)log(msg);render()}
 
 /* ---- Uso de la app (administración): métricas calculadas en el servidor ---- */
 let MET=null,metT=0,metCargando=false,metErr='',usoQ='',usoTab='compradores',usoOrden='d30';
@@ -1533,8 +1538,8 @@ const bind={
         await guardar('zona',{...z,poly:dibPts,pv:PV,x:centroOk?z.x:c[0],y:centroOk?z.y:c[1]});log(`Área de la zona "${z.nombre}" dibujada en el plano`);zonaDib=null;dibPts=[];render()};return}
     if(plEdit){const svg=$('plPick');const ent=plEdit.tipo==='entrada';if($('plVista'))$('plVista').onchange=()=>{plVista=$('plVista').value||null;render()};
       svg.onclick=ev=>{const q=svgXY(svg,ev);if(ent)plEdit.pts=[[q.x,q.y]];else plEdit.pts.push([q.x,q.y]);render()};
-      if($('plDeshacer'))$('plDeshacer').onclick=()=>{plEdit.pts.pop();render()};$('plCancelar').onclick=()=>{plEdit=null;render()};
-      $('plListo').onclick=async()=>{const e=plEdit;plEdit=null;const poner=(lista,o)=>{const i=lista.findIndex(x=>x.id===o.id);i>=0?lista[i]=o:lista.push(o)};
+      if($('plDeshacer'))$('plDeshacer').onclick=()=>{plEdit.pts.pop();render()};$('plCancelar').onclick=()=>{plEdit=null;plVista=null;render()};
+      $('plListo').onclick=async()=>{const e=plEdit;plEdit=null;plVista=null;const poner=(lista,o)=>{const i=lista.findIndex(x=>x.id===o.id);i>=0?lista[i]=o:lista.push(o)};
         if(ent)await guardarPlano(pl=>poner(pl.entradas,{id:e.id,nombre:e.nombre,x:e.pts[0][0],y:e.pts[0][1]}),`Entrada "${e.nombre}" marcada en el plano`);
         else if(e.tipo==='galpon')await guardarPlano(pl=>{pl.galpones=pl.galpones||[];poner(pl.galpones,{id:e.id,nombre:e.nombre,pts:e.pts,rot:rotLargo(e.pts)})},`Galpón "${e.nombre}" dibujado en el plano`);
         else if(e.tipo==='fila')await guardarPlano(pl=>{pl.filas=pl.filas||[];poner(pl.filas,{id:e.id,nombre:e.nombre,lado:e.lado,pts:e.pts})},`Fila de estacionamiento dibujada en el plano`);

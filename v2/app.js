@@ -75,7 +75,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.21',VERSION_FECHA='21/11/2026';
+const VERSION='2.22',VERSION_FECHA='21/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -244,23 +244,25 @@ function avisar(tipo,antes,d){if(tipo==='pago'&&ME&&ME.rol==='vendedor'&&d.vende
 function routePts(d){const c=comp(d.placa);if(!c||!enPlano(c))return null;const v=vend(d.vendedor);return rutaXY(v&&enPlano(v)?XY(v):null,XY(c))}
 const COL_ZONA={compradores:['#e0ecff','#1f6feb'],vendedores:['#fff3c4','#b08a1a'],puestos:['#f2dfc2','#a0784a'],otro:['#e6e6e6','#6b7078']};
 function baseSVG(ocultar){baseSVG.ocultar=ocultar||null;const pl=planoCfg();
-  let s=`<rect x="-300" y="-300" width="1700" height="1400" fill="#e9e6dc"/>
-  <polygon points="${GEO.map(p=>p.join(',')).join(' ')}" fill="#efede6" stroke="#3ddc84" stroke-width="2" stroke-dasharray="6 6"/>
+  const fd=fondoVisible();
+  let s=`<rect x="-300" y="-300" width="1700" height="1400" fill="#e9e6dc"/>${fd?`<g transform="rotate(${fd.rot||0} ${f1(fd.x+fd.w/2)} ${f1(fd.y+fd.h/2)})"><image href="${esc(fd.url)}" x="${f1(fd.x)}" y="${f1(fd.y)}" width="${f1(fd.w)}" height="${f1(fd.h)}" opacity="${fd.op??.85}" preserveAspectRatio="none"/></g>`:''}
+  <polygon points="${GEO.map(p=>p.join(',')).join(' ')}" fill="${fd?'none':'#efede6'}" stroke="#3ddc84" stroke-width="2" stroke-dasharray="6 6"/>
   <g fill="none" stroke="#d3cfc2" stroke-linecap="round" stroke-linejoin="round"><polyline points="120,62 1063,58" stroke-width="18"/><polyline points="1015,70 962,300 905,560 868,780" stroke-width="22"/></g>
-  <polygon points="${PUESTOS.map(p=>p.join(',')).join(' ')}" fill="#f2dfc2"/>`;
+  <polygon points="${PUESTOS.map(p=>p.join(',')).join(' ')}" fill="#f2dfc2" fill-opacity="${fd?.35:1}"/>`;
   // zonas dibujadas (con su color según el tipo)
   zonasActivas().filter(z=>z.pv===PV&&z.poly&&z.poly.length>2).forEach(z=>{const [f,c]=COL_ZONA[z.tipo]||COL_ZONA.otro;
     s+=`<polygon points="${z.poly.map(p=>p.join(',')).join(' ')}" fill="${f}" fill-opacity=".75" stroke="${c}" stroke-opacity=".6" stroke-dasharray="5 4"/>`});
   // pasillos
-  s+=`<g fill="none" stroke-linecap="round" stroke-linejoin="round">${(pl.pasillos||[]).map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#d3cfc2" stroke-width="13"/>`).join('')}
-    ${(pl.pasillos||[]).map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#fff" stroke-width="1.6" stroke-dasharray="6 6" opacity=".9"/>`).join('')}</g>`;
+  const pas=(pl.pasillos||[]).filter(p=>p.id!==baseSVG.ocultar);
+  s+=`<g fill="none" stroke-linecap="round" stroke-linejoin="round" ${fd?'opacity=".75"':''}>${pas.map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#d3cfc2" stroke-width="13"/>`).join('')}
+    ${pas.map(p=>`<polyline points="${p.pts.map(q=>q.join(',')).join(' ')}" stroke="#fff" stroke-width="1.6" stroke-dasharray="6 6" opacity=".9"/>`).join('')}</g>`;
   (pl.pasillos||[]).filter(p=>p.sentido==='uno'&&p.pts.length>1).forEach(p=>{for(let i=0;i+1<p.pts.length;i++){const [a,b]=[p.pts[i],p.pts[i+1]],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
     s+=`<path d="M-5,-4 L5,0 L-5,4Z" fill="#7c8089" transform="translate(${f1(mx)} ${f1(my)}) rotate(${f1(g)})"/>`}});
   s+=`<text x="630" y="517" font-family="Barlow Condensed" font-size="15" stroke="#f2dfc2" stroke-width="4" paint-order="stroke" fill="#a0784a" text-anchor="middle" transform="rotate(-78 630 517)">PUESTOS / BUHONEROS</text>`;
   let galTxt='';
   (pl.galpones||[]).forEach(e=>{if(!e.pts||e.pts.length<3||e.id===baseSVG.ocultar)return;const c=centroPts(e.pts),r=e.rot!=null?e.rot:rotLargo(e.pts);s+=`<polygon points="${e.pts.map(q=>q.join(',')).join(' ')}" fill="#a39d8c" fill-opacity=".16" stroke="#6f6a5c" stroke-width="1.6" stroke-dasharray="8 4" stroke-linejoin="round"/>`;galTxt+=`<text x="${f1(c[0])}" y="${f1(c[1]+5)}" font-family="Barlow Condensed" font-weight="700" font-size="13" fill="#5d6169" fill-opacity=".85" stroke="#fff" stroke-width="3" stroke-opacity=".7" paint-order="stroke" text-anchor="middle" transform="rotate(${r} ${f1(c[0])} ${f1(c[1])})">${esc((e.nombre||'').toUpperCase())}</text>`});
   // filas de estacionamiento: cajones de 4 × 7 unidades (≈ 2,5 × 4,5 m) a lo largo de cada línea
-  (pl.filas||[]).forEach(fl=>{for(let i=0;i+1<(fl.pts||[]).length;i++){const [a,b]=[fl.pts[i],fl.pts[i+1]],L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.floor(L/4.4),g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
+  (pl.filas||[]).forEach(fl=>{if(fl.id===baseSVG.ocultar)return;for(let i=0;i+1<(fl.pts||[]).length;i++){const [a,b]=[fl.pts[i],fl.pts[i+1]],L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.floor(L/4.4),g=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
     for(let k=0;k<n;k++){const t=(k+.5)/n,x=a[0]+t*(b[0]-a[0]),y=a[1]+t*(b[1]-a[1]);s+=`<rect x="-2" y="${fl.lado==='doble'?-7:0}" width="4" height="${fl.lado==='doble'?14:7}" fill="#f4f2ea" stroke="#9fa3ab" stroke-width=".6" transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(g)})"/>`}
     if(fl.nombre&&i===0){const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;s+=`<text x="${f1(mx)}" y="${f1(my-10)}" font-family="Barlow Condensed" font-size="10" fill="#7c8089" text-anchor="middle" transform="rotate(${f1(g>90||g<-90?g+180:g)} ${f1(mx)} ${f1(my-10)})">${esc(fl.nombre)}</text>`}}});
   s+=galTxt;
@@ -704,6 +706,13 @@ function vZonas(){const ns=nombresZona();const pl=planoCfg();
   if(zonaDib){const z=S.zona[zonaDib];return `<div class="card"><h2>Área de "${esc(z.nombre)}"</h2><p class="sub">Toca las esquinas de la zona una por una, siguiendo el borde. Con 3 o más puntos queda cerrada.</p>
     ${planoSVG({id:'zDib',pick:true,extra:trazoSVG(dibPts,true,'#1f6feb')})}
     <div class="row" style="margin-top:10px"><button class="btn o" id="dDeshacer" ${dibPts.length?'':'disabled'}>↶ Deshacer punto</button><button class="btn o" id="dCancelar">Cancelar</button><button class="btn y" id="dListo" ${dibPts.length>2?'':'disabled'}>Guardar área (${dibPts.length} puntos)</button></div></div>`}
+  if(plEdit&&plEdit.ajustar){const gal=plEdit.tipo==='galpon',min=gal?3:2;
+    return `<div class="card"><h2>Ajustar ${gal?'galpón':plEdit.tipo==='fila'?'fila':'pasillo'}: "${esc(plEdit.nombre||'')}"</h2>
+    <p class="sub"><b>Arrastra los puntos</b> para corregir la forma y el tamaño. Toca sobre un borde para <b>agregar un punto</b>. Para quitar uno, tócalo (queda amarillo) y toca <b>Quitar punto</b>.</p>
+    <div class="row" style="align-items:center;margin-bottom:6px"><label style="flex:0 0 auto;margin:0">🔍 Ver de cerca:</label><select id="plVista"><option value="">Todo el mercado</option><option value="__aj" ${plVista==='__aj'?'selected':''}>Lo que estoy ajustando</option>${(planoCfg().galpones||[]).filter(g=>g.pts&&g.pts.length>2).map(g=>`<option value="${esc(g.id)}" ${plVista===g.id?'selected':''}>🏭 ${esc(g.nombre)}</option>`).join('')}</select></div>
+    ${planoSVG({id:'plPick',pick:true,ocultar:plEdit.id,extra:'<g id="plTrazo">'+trazoAj()+'</g>',...(vistaGalpon()?{zoom:vistaGalpon(),minW:200}:{})})}
+    <div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn o" id="ajQuitar" ${ajSel!=null&&plEdit.pts.length>min?'':'disabled'}>🗑 Quitar punto</button><button class="btn o" id="plCancelar">Cancelar</button><button class="btn y" id="plListo">Guardar</button></div></div>
+    ${cardFondo()}`}
   if(plEdit){const ent=plEdit.tipo==='entrada',gal=plEdit.tipo==='galpon',fila=plEdit.tipo==='fila';const tit={entrada:'Marcar entrada',pasillo:'Dibujar pasillo',galpon:'Dibujar galpón',fila:'Dibujar fila de estacionamiento'}[plEdit.tipo];
     const ayuda=ent?'Toca en el plano dónde está la entrada o portón.':gal?'Toca las esquinas del galpón una por una, siguiendo el borde (3 o más puntos). El galpón que estás redibujando se muestra atenuado.':fila?'Toca el inicio y el final de la fila de autos (puedes agregar puntos intermedios si la fila dobla). Los cajones se dibujan solos. Puedes dibujarla <b>debajo de un galpón</b>: el techo se ve transparente. Para más precisión, elige el galpón en <b>Ver de cerca</b>.':`Toca los puntos del recorrido en orden${plEdit.sentido==='uno'?' (en el sentido en que se circula)':''}. Para que se conecte con otro pasillo, empieza o termina encima de él.`;
     const listo=ent?plEdit.pts.length===1:gal?plEdit.pts.length>2:plEdit.pts.length>1;
@@ -711,7 +720,7 @@ function vZonas(){const ns=nombresZona();const pl=planoCfg();
     <div class="row" style="align-items:center;margin-bottom:6px"><label style="flex:0 0 auto;margin:0">🔍 Ver de cerca:</label><select id="plVista"><option value="">Todo el mercado</option>${(planoCfg().galpones||[]).filter(g=>g.pts&&g.pts.length>2).map(g=>`<option value="${esc(g.id)}" ${plVista===g.id?'selected':''}>🏭 ${esc(g.nombre)}</option>`).join('')}</select></div>
     ${planoSVG({id:'plPick',pick:true,ocultar:gal?plEdit.id:null,extra:trazoSVG(plEdit.pts,gal,ent?'#7b3fe4':gal?'#6b7078':fila?'#1f6feb':'#e0362c'),...(vistaGalpon()?{zoom:vistaGalpon(),minW:220}:{})})}
     <div class="row" style="margin-top:10px">${ent?'':`<button class="btn o" id="plDeshacer" ${plEdit.pts.length?'':'disabled'}>↶ Deshacer punto</button>`}<button class="btn o" id="plCancelar">Cancelar</button><button class="btn y" id="plListo" ${listo?'':'disabled'}>Guardar${gal||fila?` (${plEdit.pts.length} puntos)`:''}</button></div></div>`}
-  return `<div class="grid g2"><div class="card"><h2>Zonas y sectores</h2>
+  return `<div class="grid g2">${cardFondo()}<div class="card"><h2>Zonas y sectores</h2>
    <p class="sub">Escribe los nombres que usa la gente para cada parte del mercado: dónde estacionan los compradores (ej: "Detrás del Barco", "La bomba"), dónde se ponen los camiones y dónde están los puestos (ej: "Zona de la cebolla"). Dibuja el área de cada una en el plano y marca su centro.</p>
    <div class="row"><div><label>Nombre de la zona</label><input id="zNombre" placeholder="Ej: Detrás del Barco" autocomplete="off"></div><button class="btn y" style="flex:0 0 auto;align-self:flex-end" id="zGuardar">Agregar</button></div></div>
    <div class="card"><h2>${ns.length} zonas</h2><div class="list">${ns.map(n=>{const z=zonasActivas().find(x=>x.nombre===n);const veh=compradoresActivos().filter(c=>c.zona===n).length;const area=z.pv===PV&&z.poly&&z.poly.length>2;
@@ -722,15 +731,15 @@ function vZonas(){const ns=nombresZona();const pl=planoCfg();
     <div class="list">${(pl.entradas||[]).map(e=>`<div class="row" style="align-items:center"><div>🚪 <b>${esc(e.nombre)}</b></div><button class="btn o" style="flex:0 0 auto" data-eedit="${esc(e.id)}">Mover</button><button class="btn o" style="flex:0 0 auto" data-edel="${esc(e.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin entradas</div>'}</div>
     <div class="row" style="margin-top:8px"><div><label>Nueva entrada</label><input id="eNombre" placeholder="Ej: Portón Calle Zea" autocomplete="off"></div><button class="btn y" style="flex:0 0 auto;align-self:flex-end" id="eAgregar">Marcar en el plano</button></div></div>
    <div class="card"><h2>Pasillos y calles internas</h2><p class="sub">Por aquí se calculan las rutas que ve el carretillero. Si un pasillo es de un solo sentido, dibújalo en el sentido de circulación.</p>
-    <div class="list">${(pl.pasillos||[]).map(q=>`<div class="row" style="align-items:center"><div>🛣 <b>${esc(q.nombre)}</b>${q.sentido==='uno'?' <span class="hint">· un solo sentido</span>':''}</div><button class="btn o" style="flex:0 0 auto" data-pedit="${esc(q.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-pdel="${esc(q.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin pasillos: las rutas se muestran en línea recta</div>'}</div>
+    <div class="list">${(pl.pasillos||[]).map(q=>`<div class="row" style="align-items:center"><div>🛣 <b>${esc(q.nombre)}</b>${q.sentido==='uno'?' <span class="hint">· un solo sentido</span>':''}</div><button class="btn o" style="flex:0 0 auto" data-paj="${esc(q.id)}">✏️ Ajustar</button><button class="btn o" style="flex:0 0 auto" data-pedit="${esc(q.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-pdel="${esc(q.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin pasillos: las rutas se muestran en línea recta</div>'}</div>
     <div class="row" style="margin-top:8px"><div><label>Nuevo pasillo</label><input id="pNombre" placeholder="Ej: Pasillo de la cebolla" autocomplete="off"></div><div style="flex:0 0 140px"><label>Sentido</label><select id="pSentido"><option value="doble">Doble sentido</option><option value="uno">Un solo sentido</option></select></div></div>
     <button class="btn y" id="pAgregar" style="width:100%;margin-top:8px">Dibujar en el plano</button>
     ${S.config.plano?`<button class="btn o" id="plReset" style="width:100%;margin-top:8px">Volver al plano inicial (entradas, pasillos, galpones y filas)</button>`:''}</div>
    <div class="card"><h2>Galpones y naves</h2><p class="sub">Los edificios del mercado. Redibújalos si cambian o si quedaron corridos.</p>
-    <div class="list">${(pl.galpones||[]).map(g=>`<div class="row" style="align-items:center"><div>🏭 <b>${esc(g.nombre)}</b></div><button class="btn o" style="flex:0 0 auto" data-gedit="${esc(g.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-gren="${esc(g.id)}">Nombre</button><button class="btn o" style="flex:0 0 auto" data-gdel="${esc(g.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin galpones</div>'}</div>
+    <div class="list">${(pl.galpones||[]).map(g=>`<div class="row" style="align-items:center"><div>🏭 <b>${esc(g.nombre)}</b></div><button class="btn o" style="flex:0 0 auto" data-gaj="${esc(g.id)}">✏️ Ajustar</button><button class="btn o" style="flex:0 0 auto" data-gedit="${esc(g.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-gren="${esc(g.id)}">Nombre</button><button class="btn o" style="flex:0 0 auto" data-gdel="${esc(g.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin galpones</div>'}</div>
     <div class="row" style="margin-top:8px"><div><label>Nuevo galpón</label><input id="gNombre" placeholder="Ej: Galpón 4" autocomplete="off"></div><button class="btn y" style="flex:0 0 auto;align-self:flex-end" id="gAgregar">Dibujar en el plano</button></div></div>
    <div class="card"><h2>Filas de estacionamiento</h2><p class="sub">Líneas donde se estacionan los autos; los cajones se dibujan solos sobre la línea. Sirven de referencia para marcar el vehículo.</p>
-    <div class="list">${(pl.filas||[]).map(fl=>`<div class="row" style="align-items:center"><div>🚗 <b>${esc(fl.nombre||'Fila')}</b> <span class="hint">· ${fl.lado==='doble'?'doble (autos a ambos lados)':'simple'}</span></div><button class="btn o" style="flex:0 0 auto" data-fedit="${esc(fl.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-fdel="${esc(fl.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin filas dibujadas</div>'}</div>
+    <div class="list">${(pl.filas||[]).map(fl=>`<div class="row" style="align-items:center"><div>🚗 <b>${esc(fl.nombre||'Fila')}</b> <span class="hint">· ${fl.lado==='doble'?'doble (autos a ambos lados)':'simple'}</span></div><button class="btn o" style="flex:0 0 auto" data-faj="${esc(fl.id)}">✏️ Ajustar</button><button class="btn o" style="flex:0 0 auto" data-fedit="${esc(fl.id)}">Redibujar</button><button class="btn o" style="flex:0 0 auto" data-fdel="${esc(fl.id)}">Quitar</button></div>`).join('')||'<div class="empty">Sin filas dibujadas</div>'}</div>
     <div class="row" style="margin-top:8px"><div><label>Nombre (opcional)</label><input id="fNombre" placeholder="Ej: Fila frente a INMERCA" autocomplete="off"></div><div style="flex:0 0 150px"><label>Autos</label><select id="fLado"><option value="simple">De un lado</option><option value="doble">De los dos lados</option></select></div></div>
     <button class="btn y" id="fAgregar" style="width:100%;margin-top:8px">Dibujar en el plano</button></div>
    <div style="grid-column:1/-1">${planoSVG({nota:'<span><i style="background:#7b3fe4"></i>Entrada</span><span><i style="background:#d3cfc2"></i>Pasillo</span><span><i style="background:#e0ecff"></i>Compradores</span><span><i style="background:#fff3c4"></i>Camiones</span><span><i style="background:#f2dfc2"></i>Puestos</span><span><i style="background:#12a150"></i>Centro de zona</span>'})}</div></div>`}
@@ -1269,8 +1278,41 @@ function selZona(id,actual){const ns=nombresZona();if(!ns.length)return `<input 
   return `<select id="${id}"><option value="">— Elige la zona —</option>${ns.map(n=>`<option ${actual===n?'selected':''}>${esc(n)}</option>`).join('')}<option value="__otra" ${otra?'selected':''}>Otra…</option></select>
    <input id="${id}T" placeholder="Escribe cómo le dicen a esa zona" value="${otra?esc(actual):''}" style="margin-top:6px;${otra?'':'display:none'}">`}
 function leerZona(id){const s=$(id),t=$(id+'T');if(!s)return t?t.value.trim():'';return s.value==='__otra'?(t?t.value.trim():''):s.value}
-let plVista=null;
-const vistaGalpon=()=>{const g=plVista&&(planoCfg().galpones||[]).find(x=>x.id===plVista);return g&&g.pts&&g.pts.length>2?g.pts:null};
+let plVista=null,ajDrag=null,ajSel=null,ajMovio=false,fondoT=null;
+const fondoVisible=()=>{const f=S.config&&S.config.fondo;return f&&f.url&&f.ver!==false&&ME&&ME.rol==='admin'&&view==='zonas'?f:null};
+function cardFondo(){const f=S.config.fondo;
+  return `<div class="card"><h2>🛰 Imagen satelital de fondo</h2><p class="sub">Sube una captura satelital del mercado y úsala de guía para corregir galpones, pasillos y filas. <b>Solo se ve aquí</b>: los vendedores, compradores y carretilleros ven el plano limpio.</p>
+   <label class="btn ${f&&f.url?'o':'y'}" style="display:block;text-align:center;margin:0">📤 ${f&&f.url?'Cambiar la imagen':'Subir imagen satelital'}<input type="file" accept="image/*" id="fdArchivo" class="hidden"></label>
+   ${f&&f.url?`<div class="row" style="align-items:center;margin-top:10px"><label style="display:flex;gap:8px;align-items:center;margin:0;flex:0 0 auto"><input type="checkbox" id="fdVer" style="width:auto" ${f.ver!==false?'checked':''}> Mostrar</label><label style="margin:0;flex:0 0 auto">Transparencia</label><input type="range" id="fdOp" min="0.15" max="1" step="0.05" value="${f.op??.85}"></div>
+    <p class="hint" style="margin:8px 0 4px">Si no calza con el plano, muévela o cambia su tamaño hasta que los techos coincidan:</p>
+    <div class="row" style="flex-wrap:wrap;gap:6px">${[['←',-1,0],['→',1,0],['↑',0,-1],['↓',0,1]].map(([t,dx,dy])=>`<button class="btn o" style="flex:0 0 auto;min-width:48px" data-fdm="${dx},${dy}">${t}</button>`).join('')}
+     <button class="btn o" style="flex:0 0 auto" data-fds="0.99">− Achicar</button><button class="btn o" style="flex:0 0 auto" data-fds="1.01">+ Agrandar</button>
+     <button class="btn o" style="flex:0 0 auto" data-fdr="-0.5">⟲</button><button class="btn o" style="flex:0 0 auto" data-fdr="0.5">⟳</button>
+     <select id="fdPaso" style="flex:0 0 120px"><option value="2">Paso fino</option><option value="10" ${fondoPaso===10?'selected':''}>Paso grande</option></select></div>
+    <button class="btn o" id="fdQuitar" style="width:100%;margin-top:8px">Quitar la imagen</button>`:''}</div>`}
+let fondoPaso=2;
+function guardarFondo(f,inmediato){S.config.fondo=f;clearTimeout(fondoT);const ir=()=>guardar('config',f);if(inmediato)return ir();fondoT=setTimeout(ir,700)}
+function bindFondo(){const f=S.config.fondo||{};
+  if($('fdArchivo'))$('fdArchivo').onchange=()=>{const a=$('fdArchivo').files[0];if(!a)return;const img=new Image();img.onload=async()=>{
+      const sc=Math.min(1,2000/Math.max(img.width,img.height));const cv=document.createElement('canvas');cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      toast('Subiendo la imagen…');let url;try{url=await subirFoto(cv.toDataURL('image/jpeg',.82),'fotos')}catch(e){toast('No se pudo subir: '+(e.message||e));return}
+      const asp=img.height/img.width;const mismo=Math.abs(asp-788/845)<.03; // la captura de nov-2026 ya viene calibrada
+      const n=mismo?{x:186.1,y:34.7,w:724.8,h:724.8*asp,rot:.23}:{x:190,y:30,w:720,h:720*asp,rot:0};
+      await guardarFondo({id:'fondo',url,ver:true,op:.85,...n},true);log('Imagen satelital de fondo cargada en el plano');toast('✓ Imagen cargada');render()};img.src=URL.createObjectURL(a)};
+  if(!f.url)return;
+  $('fdVer').onchange=()=>{guardarFondo({...f,ver:$('fdVer').checked},true);render()};
+  $('fdOp').oninput=()=>{const op=+$('fdOp').value;document.querySelectorAll('svg.map image').forEach(i=>i.setAttribute('opacity',op));guardarFondo({...f,op})};
+  $('fdPaso').onchange=()=>{fondoPaso=+$('fdPaso').value};
+  document.querySelectorAll('[data-fdm]').forEach(b=>b.onclick=()=>{const [dx,dy]=b.dataset.fdm.split(',').map(Number);const g=S.config.fondo;guardarFondo({...g,x:g.x+dx*fondoPaso,y:g.y+dy*fondoPaso});render()});
+  document.querySelectorAll('[data-fds]').forEach(b=>b.onclick=()=>{const k=+b.dataset.fds,g=S.config.fondo;const c=fondoPaso>2?(k>1?1.05:.95):k;const cx=g.x+g.w/2,cy=g.y+g.h/2;guardarFondo({...g,w:g.w*c,h:g.h*c,x:cx-g.w*c/2,y:cy-g.h*c/2});render()});
+  document.querySelectorAll('[data-fdr]').forEach(b=>b.onclick=()=>{const g=S.config.fondo;guardarFondo({...g,rot:(g.rot||0)+(+b.dataset.fdr)*(fondoPaso>2?4:1)});render()});
+  $('fdQuitar').onclick=async()=>{const b=$('fdQuitar');if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para quitarla';return}await guardarFondo({id:'fondo',url:null},true);log('Imagen satelital de fondo quitada');render()}}
+// punto más cercano de un segmento (para insertar vértices al ajustar)
+const distSeg=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;let t=l?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy)};
+const vistaGalpon=()=>{if(plVista==='__aj'&&plEdit&&plEdit.pts0)return plEdit.pts0;const g=plVista&&(planoCfg().galpones||[]).find(x=>x.id===plVista);return g&&g.pts&&g.pts.length>2?g.pts:null};
+function trazoAj(){const e=plEdit,gal=e.tipo==='galpon',col=gal?'#e8590c':e.tipo==='fila'?'#1f6feb':'#e0362c',ps=e.pts;
+  return `${ps.length>1?`<${gal?'polygon':'polyline'} points="${ps.map(q=>q.join(',')).join(' ')}" fill="${gal?col:'none'}" fill-opacity=".12" stroke="${col}" stroke-width="3" stroke-linejoin="round"/>`:''}
+   ${ps.map((q,i)=>`<circle data-v="${i}" cx="${q[0]}" cy="${q[1]}" r="${i===ajSel?11:9}" fill="${i===ajSel?'#ffc400':col}" stroke="#fff" stroke-width="3" style="cursor:grab"/>`).join('')}`}
 let verQuitadas=false,recFoto=null,recTarde=null;
 function formReclamo(d){return `<label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: llegaron 5 bultos, faltó 1">
    <div class="row" style="margin-top:6px;align-items:center"><label class="btn o" style="margin:0;text-align:center">📷 Foto (opcional)<input type="file" accept="image/*" capture="environment" id="rcFoto" class="hidden"></label><img id="rcFotoPrev" class="photo sm" style="flex:0 0 72px;${recFoto?'':'display:none'}" ${recFoto?`src="${esc(recFoto)}"`:''} alt=""></div>
@@ -1536,6 +1578,19 @@ const bind={
       $('dDeshacer').onclick=()=>{dibPts.pop();render()};$('dCancelar').onclick=()=>{zonaDib=null;dibPts=[];render()};
       $('dListo').onclick=async()=>{const z=S.zona[zonaDib];const c=centroide(dibPts);const centroOk=zEn(z)&&pip(z.x,z.y,dibPts);
         await guardar('zona',{...z,poly:dibPts,pv:PV,x:centroOk?z.x:c[0],y:centroOk?z.y:c[1]});log(`Área de la zona "${z.nombre}" dibujada en el plano`);zonaDib=null;dibPts=[];render()};return}
+    if(plEdit&&plEdit.ajustar){const svg=$('plPick'),gal=plEdit.tipo==='galpon';svg.style.touchAction='none';bindFondo();
+      if($('plVista'))$('plVista').onchange=()=>{plVista=$('plVista').value||null;render()};
+      const pinta=()=>{const g=$('plTrazo');if(g)g.innerHTML=trazoAj();const b=$('ajQuitar');if(b)b.disabled=!(ajSel!=null&&plEdit.pts.length>(gal?3:2))};
+      svg.addEventListener('pointerdown',ev=>{const c=ev.target.closest('circle[data-v]');if(!c){ajMovio=false;return}ajDrag=+c.dataset.v;ajSel=ajDrag;ajMovio=true;try{svg.setPointerCapture(ev.pointerId)}catch(e){}ev.preventDefault();pinta()});
+      svg.addEventListener('pointermove',ev=>{if(ajDrag==null)return;const q=svgXY(svg,ev);plEdit.pts[ajDrag]=[q.x,q.y];ajMovio=true;pinta()});
+      const fin=()=>{ajDrag=null};svg.addEventListener('pointerup',fin);svg.addEventListener('pointercancel',fin);
+      svg.onclick=ev=>{if(ajMovio){ajMovio=false;return}if(ev.target.closest('circle[data-v]'))return;const q=svgXY(svg,ev),P=[q.x,q.y],ps=plEdit.pts;
+        let best=-1,bd=1e9;const n=gal?ps.length:ps.length-1;for(let i=0;i<n;i++){const d=distSeg(P,ps[i],ps[(i+1)%ps.length]);if(d<bd){bd=d;best=i}}
+        if(best<0||bd>40){toast('Toca más cerca de un borde para agregar un punto');return}ps.splice(best+1,0,P);ajSel=best+1;pinta()};
+      $('ajQuitar').onclick=()=>{if(ajSel==null)return;plEdit.pts.splice(ajSel,1);ajSel=null;pinta()};
+      $('plCancelar').onclick=()=>{plEdit=null;plVista=null;ajSel=null;render()};
+      $('plListo').onclick=async()=>{const e=plEdit;plEdit=null;plVista=null;ajSel=null;const campo={galpon:'galpones',fila:'filas',pasillo:'pasillos'}[e.tipo];
+        await guardarPlano(pl=>{const x=(pl[campo]||[]).find(o=>o.id===e.id);if(x){x.pts=e.pts.map(q=>[Math.round(q[0]),Math.round(q[1])]);if(e.tipo==='galpon')x.rot=rotLargo(x.pts)}},`${{galpon:'Galpón',fila:'Fila',pasillo:'Pasillo'}[e.tipo]} ajustado en el plano: "${e.nombre||''}"`)};return}
     if(plEdit){const svg=$('plPick');const ent=plEdit.tipo==='entrada';if($('plVista'))$('plVista').onchange=()=>{plVista=$('plVista').value||null;render()};
       svg.onclick=ev=>{const q=svgXY(svg,ev);if(ent)plEdit.pts=[[q.x,q.y]];else plEdit.pts.push([q.x,q.y]);render()};
       if($('plDeshacer'))$('plDeshacer').onclick=()=>{plEdit.pts.pop();render()};$('plCancelar').onclick=()=>{plEdit=null;plVista=null;render()};
@@ -1550,7 +1605,10 @@ const bind={
     $('zGuardar').onclick=add;$('zNombre').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add()}};
     document.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=async()=>{const z=S.zona[b.dataset.zdel];if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Toca otra vez para quitar';return}
       await guardar('zona',{...z,baja:true});log(`Zona quitada: "${z.nombre}"`);render()});
-    const pl=planoCfg();
+    const pl=planoCfg();bindFondo();
+    const ajustar=(tipo,campo,attr)=>document.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{const x=pl[campo].find(o=>o.id===b.getAttribute(attr));if(!x)return;
+      plEdit={tipo,id:x.id,nombre:x.nombre,lado:x.lado,sentido:x.sentido,ajustar:true,pts:x.pts.map(q=>[...q]),pts0:x.pts.map(q=>[...q])};plVista='__aj';ajSel=null;render();window.scrollTo(0,0)});
+    ajustar('galpon','galpones','data-gaj');ajustar('fila','filas','data-faj');ajustar('pasillo','pasillos','data-paj');
     $('eAgregar').onclick=()=>{const n=$('eNombre').value.trim();if(!n){toast('Escribe el nombre de la entrada');return}plEdit={tipo:'entrada',id:'E'+Date.now().toString(36),nombre:n,pts:[]};render();window.scrollTo(0,0)};
     $('pAgregar').onclick=()=>{const n=$('pNombre').value.trim();if(!n){toast('Escribe el nombre del pasillo');return}plEdit={tipo:'pasillo',id:'P'+Date.now().toString(36),nombre:n,sentido:$('pSentido').value,pts:[]};render();window.scrollTo(0,0)};
     document.querySelectorAll('[data-eedit]').forEach(b=>b.onclick=()=>{const e=pl.entradas.find(x=>x.id===b.dataset.eedit);plEdit={tipo:'entrada',id:e.id,nombre:e.nombre,pts:[[e.x,e.y]]};render();window.scrollTo(0,0)});

@@ -36,7 +36,7 @@ with sync_playwright() as p:
     V.click('#nav button[data-v=misCarr]');V.fill('#kNom','José');V.click('#kAdd');V.wait_for_timeout(600)
     cC,C=ctx(b,'C',URL+'comprador.html',errs);C.fill('#lNombre','Rosa');C.fill('#lTel','0414-5551020');C.fill('#lPlaca','AB123CD');C.fill('#lPin','654321');C.click('#lGo');C.wait_for_timeout(1500)
     C.select_option('#rZona',label='Detrás del Barco');C.fill('#rVeh','Ford');C.click('text=Guardar y empezar a comprar');C.wait_for_timeout(1200)
-    V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(400);V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(900);V.locator('.it-desc').first.fill('Papa');V.locator('[data-ksel]').first.click();V.click('#fDesp button[type=submit]');V.wait_for_timeout(1200)
+    V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(400);V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(900);item(V,0,'Papa');V.locator('[data-ksel]').first.click();V.click('#fDesp button[type=submit]');V.wait_for_timeout(1200)
     P('ruta en ficha:',V.locator('polyline.route').count(),'puntos:',(V.locator('polyline.route').first.get_attribute('points') or '').count(' ')+1 if V.locator('polyline.route').count() else 0)
     V.screenshot(path='/tmp/full/v2_ficha.png',full_page=True)
     C.click('#nav button[data-v=vendC]');C.wait_for_timeout(800);C.screenshot(path='/tmp/full/v2_vendc.png',full_page=True)

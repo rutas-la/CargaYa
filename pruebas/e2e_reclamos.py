@@ -11,7 +11,7 @@ def t(pg,s):
 def despachar(V,desc,n):
     V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(400)
     V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(800)
-    V.locator('.it-desc').first.fill(desc);V.locator('.it-bul').first.fill(str(n))
+    item(V,0,desc);V.locator('.it-bul').first.fill(str(n))
     V.locator('[data-ksel]').first.click();V.wait_for_timeout(200);V.click('#fDesp button[type=submit]');V.wait_for_timeout(1000)
     if V.locator('#fvListo').count():V.click('#fvListo')
     V.wait_for_timeout(500)

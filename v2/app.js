@@ -75,7 +75,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.23',VERSION_FECHA='21/11/2026';
+const VERSION='2.24',VERSION_FECHA='22/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -308,6 +308,26 @@ const misCarr=vid=>(idx().kv[vid]||[]).filter(k=>!k.baja).sort((a,b)=>a.num.loca
 const itemsDe=d=>Array.isArray(d.items)&&d.items.length?d.items:[{desc:d.desc||'',bultos:+d.bultos||1}];
 const resumenItems=d=>itemsDe(d).map(i=>`${i.desc} (${i.bultos})`).join(', ');
 const htmlItems=d=>itemsDe(d).length>1?`<ul style="margin:4px 0 0;padding-left:20px">${itemsDe(d).map(i=>`<li>${esc(i.desc)} · <b>${i.bultos}</b> bulto${i.bultos==1?'':'s'}</li>`).join('')}</ul>`:'';
+const listaProd=v=>{const s=new Set(),o=[];String(v&&v.productos||'').split(',').map(x=>x.trim()).filter(Boolean).forEach(x=>{const k=normTxt(x);if(!s.has(k)){s.add(k);o.push(x)}});return o};
+const unirProd=arr=>{const s=new Set();return arr.map(x=>String(x).replace(/,/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean).map(x=>x[0].toUpperCase()+x.slice(1)).filter(x=>{const k=normTxt(x);if(s.has(k))return false;s.add(k);return true}).join(', ')};
+let REG_PROD='',prodEdit=false;
+function cardProductos(v){const ps=listaProd(v);
+  return `<div class="card" id="cardProd" style="border:2px solid var(--yel)"><h2>📋 Mis productos (${ps.length})</h2>
+   <p class="sub">Aparecen en la lista desplegable al despachar, y los compradores los ven en el directorio.</p>
+   <div class="list">${ps.map((x,i)=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:4px 0"><div style="flex:1;font-size:17px">${esc(x)}</div>
+     ${i>0?`<button type="button" class="btn o" style="flex:0 0 auto;padding:6px 10px" data-pup="${i}" aria-label="Subir">↑</button>`:''}
+     <button type="button" class="btn o" style="flex:0 0 auto;padding:6px 10px" data-pren="${i}" aria-label="Cambiar nombre">✏️</button>
+     <button type="button" class="btn o" style="flex:0 0 auto;padding:6px 10px" data-pdel="${i}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="empty">Todavía no agregaste productos</div>'}</div>
+   <div class="row" style="margin-top:8px"><input id="prodNuevo" placeholder="Ej: Papa, Ñame" autocomplete="off"><button type="button" class="btn y" style="flex:0 0 auto" id="prodAdd">Agregar</button></div>
+   <button type="button" class="btn o" id="prodListo" style="width:100%;margin-top:8px">Listo</button></div>`}
+function bindProductos(v){const g=async arr=>{await guardar('vendedor',{...vend(v.id),productos:unirProd(arr)});render();setTimeout(()=>{const i=$('prodNuevo');if(i)i.focus()},30)};
+  if(!$('cardProd'))return;
+  const add=()=>{const n=$('prodNuevo').value.split(',').map(x=>x.trim()).filter(Boolean);if(!n.length)return;g([...listaProd(vend(v.id)),...n])};
+  $('prodAdd').onclick=add;$('prodNuevo').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add()}};
+  $('prodListo').onclick=()=>{prodEdit=false;render()};
+  document.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=()=>{const a=listaProd(vend(v.id));a.splice(+b.dataset.pdel,1);g(a)});
+  document.querySelectorAll('[data-pup]').forEach(b=>b.onclick=()=>{const a=listaProd(vend(v.id)),i=+b.dataset.pup;[a[i-1],a[i]]=[a[i],a[i-1]];g(a)});
+  document.querySelectorAll('[data-pren]').forEach(b=>b.onclick=()=>{const a=listaProd(vend(v.id)),i=+b.dataset.pren;const n=prompt('Nombre del producto',a[i]);if(n==null||!n.trim())return;a[i]=n.trim();g(a)})}
 const tituloItems=d=>itemsDe(d).length>1?`${itemsDe(d).length} productos · ${d.bultos} bultos`:`${esc(itemsDe(d)[0].desc)} · ${d.bultos} bulto${d.bultos==1?'':'s'}`;
 const nro=d=>d.ficha?'Ficha '+d.ficha.num:'Despacho '+d.id.slice(-4);
 
@@ -400,7 +420,7 @@ async function entrar(user){USER=user;const md=user.user_metadata||{};let admin=
   else setME(null);
   return admin}
 async function trasEntrar(){await cargar();cargado=true;
-  if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now()});try{await traerTodo(sel('config'),'config')}catch(e){}};
+  if(ME&&ME.rol==='vendedor'&&!S.vendedor[ME.id]){await guardar('vendedor',{id:ME.id,nombre:ME.nombre,tel:ME.tel,creado:Date.now(),...(REG_PROD?{productos:REG_PROD}:{})});REG_PROD='';try{await traerTodo(sel('config'),'config')}catch(e){}};
   rolElegido=null;render();aplicarFavPend().then(aplicarAmigo);revisarPalabra();revisarPush()}
 async function salir(){await bajaPush();try{await sb.auth.signOut()}catch(e){}setME(null);try{localStorage.removeItem(QKEY)}catch(e){}location.href=location.pathname}
 /* ---- Recuperar el PIN con la PALABRA SECRETA (autogestión) ---- */
@@ -499,6 +519,7 @@ function vLogin(){
    ${r==='comprador'&&amigoPend()?'<div class="found" style="margin:8px 0">👥 Te invitó un amigo: cuando registres tu vehículo, recibirás sus vendedores favoritos.</div>':''}
    <form id="fLogin">
     ${crear?`<label>${r==='vendedor'?'Nombre de tu puesto o negocio':'Tu nombre o negocio'}</label><input id="lNombre" required autocomplete="organization">`:''}
+    ${crear&&r==='vendedor'?`<label>¿Qué vendes? (opcional)</label><input id="lProd" placeholder="Ej: Papa, cebolla, zanahoria, tomate" autocomplete="off"><p class="hint">Sepáralos con comas. Al despachar los eliges de una lista; puedes cambiarlos cuando quieras.</p>`:''}
     <label>Teléfono</label><input id="lTel" inputmode="tel" placeholder="0414-000-0000" required autocomplete="username">
     ${crear&&r==='comprador'?'<label>Placa de tu vehículo</label><input id="lPlaca" placeholder="Ej: AB123CD" required autocapitalize="characters">':''}
     <label>${crear?'Inventa un PIN de 6 números':'PIN'}</label><input id="lPin" type="password" inputmode="numeric" ${crear?'maxlength="6" pattern="[0-9]{6}"':''} required autocomplete="${crear?'new-password':'current-password'}">
@@ -520,7 +541,7 @@ function bindLogin(){
     if(crear&&!/^\d{6}$/.test(pin))return err('El PIN debe tener 6 números.');const pal=crear?palabraNormal($('lPal').value):'';if(crear&&pal.length<4)return err('Escribe una palabra secreta de al menos 4 letras.');if(pin.length<6)return err('El PIN tiene al menos 6 caracteres.');
     const btn=$('lGo'),txt=btn.textContent,listo=()=>{btn.disabled=false;btn.textContent=txt};btn.disabled=true;btn.textContent='Un momento…';
     try{let user;
-      if(crear){const nombre=$('lNombre').value.trim();const md={rol:r,nombre,tel};
+      if(crear){const nombre=$('lNombre').value.trim();const md={rol:r,nombre,tel};if($('lProd'))REG_PROD=unirProd($('lProd').value.split(','));
         if(r==='comprador'){const p=normPlaca($('lPlaca').value);if(p.length<6){listo();return err('Revisa la placa.')}md.placa=p}
         const {data,error}=await sb.auth.signUp({email:emailDeTel(tel),password:pin,options:{data:md}});
         if(error){const m=error.message||'';listo();
@@ -1152,18 +1173,20 @@ function vVendedor(){
   const mis=L('despacho').filter(d=>d.vendedor===v.id&&!d.archivado).sort((a,b)=>b.t.creado-a.t.creado);
   const cerrados=mis.filter(d=>d.estado==='entregado').length;
   const k=desp.k?carr(desp.k):null;
-  return `${cardReclamosVend(v)}<div class="grid g2"><div class="grid" style="align-content:start">
+  return `${cardReclamosVend(v)}${prodEdit?cardProductos(v):''}<div class="grid g2"><div class="grid" style="align-content:start">
    ${avisoSusc(v)||`<div class="hint" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:10px"><span>💳 Mensualidad: <b>${(ETQS[suscripcion(v).estado]||[''])[0]}</b>${suscripcion(v).hasta?' hasta el '+fmtFecha(suscripcion(v).hasta):''}</span><a href="#" data-irv="miSusc" style="white-space:nowrap">Ver / Pagar</a></div>`}
    <div class="card" style="${suscripcion(v).puedeDespachar?'':'opacity:.45;pointer-events:none'}"><h2>Nuevo despacho</h2>
    <form id="fDesp"><label>1 · Placa del comprador</label>
     <input id="placa" list="placas" placeholder="Ej: AB123CD" autocomplete="off" value="${esc(desp.placa||'')}" required>
     <datalist id="placas">${compradoresActivos().map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')}</datalist>
     <div id="placaInfo"></div>
-    <label>2 · Mercancía</label>
-    <datalist id="misProductos">${String(v.productos||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
-    ${(desp.items&&desp.items.length?desp.items:[{desc:'',bultos:1}]).map((it,i,arr)=>`<div class="row it-row" style="margin-top:6px;align-items:center"><input class="it-desc" list="misProductos" placeholder="Ej: Papa" value="${esc(it.desc||'')}" autocomplete="off">
+    <div class="row" style="align-items:flex-end"><label style="flex:1">2 · Mercancía</label><button type="button" class="btn o" id="prodEditar" style="flex:0 0 auto;padding:6px 12px;font-size:14px">📋 Mis productos (${listaProd(v).length})</button></div>
+    ${(desp.items&&desp.items.length?desp.items:[{desc:'',bultos:1}]).map((it,i,arr)=>{const ps=listaProd(v),en=ps.some(x=>normTxt(x)===normTxt(it.desc||'')),otro=!!(it.desc&&!en)||it.otro;
+      return `<div class="row it-row" style="margin-top:6px;align-items:center;flex-wrap:wrap">${ps.length?`<select class="it-sel" style="flex:1 1 150px"><option value="">— Elige el producto —</option>${ps.map(x=>`<option ${en&&normTxt(x)===normTxt(it.desc)?'selected':''}>${esc(x)}</option>`).join('')}<option value="__otro" ${otro?'selected':''}>✏️ Otro (escribir)</option></select>`:''}
+      <input class="it-desc" placeholder="${ps.length?'Escribe el producto':'Ej: Papa'}" value="${esc(it.desc||'')}" autocomplete="off" style="${ps.length&&!otro?'display:none':''};flex:1 1 150px">
       <input class="it-bul" type="number" min="1" inputmode="numeric" style="flex:0 0 76px" value="${esc(it.bultos||1)}" aria-label="Bultos">
-      ${arr.length>1?`<button type="button" class="btn o" style="flex:0 0 auto;padding:8px 12px" data-itdel="${i}" aria-label="Quitar">✕</button>`:''}</div>`).join('')}
+      ${arr.length>1?`<button type="button" class="btn o" style="flex:0 0 auto;padding:8px 12px" data-itdel="${i}" aria-label="Quitar">✕</button>`:''}</div>`}).join('')}
+    ${listaProd(v).length?'':'<p class="hint" style="margin-top:4px">💡 Toca <b>📋 Mis productos</b> y agrega lo que vendes: después lo eliges de una lista.</p>'}
     <div class="row" style="margin-top:8px;align-items:center"><button type="button" class="btn o" id="itAdd">➕ Agregar ítem</button><div class="hint" style="text-align:right" id="itTot">Total: ${((n)=>`<b>${n}</b> bulto${n==1?'':'s'}`)((desp.items||[{bultos:1}]).reduce((a,x)=>a+(parseInt(x.bultos)||0),0))}</div></div>
     <label>3 · Carretillero</label>
     ${misCarr(v.id).length?`<div style="display:flex;flex-wrap:wrap;gap:8px">${misCarr(v.id).map(x=>`<button type="button" class="btn ${desp.k===x.id?'y':'o'}" style="padding:10px 12px" data-ksel="${esc(x.id)}">${conTel(x.id)?'📱 ':''}#${esc(x.num)} ${esc(x.nombre||'')}</button>`).join('')}</div>${misCarr(v.id).some(x=>conTel(x.id))?'<p class="hint" style="margin-top:4px">📱 = tiene la app: la entrega le llega sola a su teléfono.</p>':''}`
@@ -1705,6 +1728,8 @@ const bind={
     const keep=()=>{desp.placa=$('placa').value;desp.items=leerItems()};
     const tot=()=>{const it=leerItems()||[];if($('itTot'))$('itTot').innerHTML=`Total: ${((n)=>`<b>${n}</b> bulto${n==1?'':'s'}`)(it.reduce((a,x)=>a+(parseInt(x.bultos)||0),0))}`};
     document.querySelectorAll('.it-bul').forEach(x=>x.oninput=tot);
+    bindProductos(v);if($('prodEditar'))$('prodEditar').onclick=()=>{keep();prodEdit=!prodEdit;render();if(prodEdit)setTimeout(()=>{const c=$('cardProd');if(c)c.scrollIntoView({behavior:'smooth'});const i=$('prodNuevo');if(i)i.focus()},50)};
+    document.querySelectorAll('.it-sel').forEach(s=>s.onchange=()=>{const inp=s.parentElement.querySelector('.it-desc');if(s.value==='__otro'){inp.value='';inp.style.display='';inp.focus()}else{inp.value=s.value;inp.style.display='none';const b=s.parentElement.querySelector('.it-bul');if(b){b.focus();b.select()}}});
     if($('itAdd'))$('itAdd').onclick=()=>{keep();desp.items=[...desp.items,{desc:'',bultos:1}];render();const ds=document.querySelectorAll('.it-desc');ds[ds.length-1].focus()};
     document.querySelectorAll('[data-itdel]').forEach(b=>b.onclick=()=>{keep();desp.items.splice(+b.dataset.itdel,1);render()});
     const pin=$('placa'),info=$('placaInfo');
@@ -1721,7 +1746,8 @@ const bind={
     $('fDesp').onsubmit=async e=>{e.preventDefault();keep();if(!suscripcion(v).puedeDespachar){toast('Tu suscripción venció. Paga para seguir despachando.');return}const p=normPlaca(desp.placa);if(ONLINE&&!S.comprador[p]){delete NOEX['comprador|'+p];await asegurar('comprador',[p])}const c=comp(p);if(!c||c.activo===false){toast('Placa no registrada');return}
       const kk=carr(desp.k);if(!kk||kk.baja||(ajeno(kk,v.id)&&desp.kScan!==kk.id)){toast('Elige el carretillero que lleva la mercancía (si es de otro vendedor, escanea su credencial)');return}
       const items=(desp.items||[]).map(x=>({desc:String(x.desc||'').trim(),bultos:Math.max(1,parseInt(x.bultos)||1)})).filter(x=>x.desc);
-      if(!items.length){toast('Escribe al menos una mercancía');return}
+      if(!items.length){toast('Elige o escribe al menos un producto');return}
+      {const ps=listaProd(v),nuevos=items.map(x=>x.desc).filter(x=>!ps.some(y=>normTxt(y)===normTxt(x)));if(nuevos.length)guardar('vendedor',{...vend(v.id),productos:unirProd([...ps,...nuevos])})}
       const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,items,desc:items.map(x=>x.desc).join(', '),bultos:items.reduce((a,x)=>a+x.bultos,0),carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
       {const f0=$('fDesp');if(f0)f0.remove()}desp={};fichaVista=id;fichaCompleta=false;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${resumenItems(d)}; ${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});

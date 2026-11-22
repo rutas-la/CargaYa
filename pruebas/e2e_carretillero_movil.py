@@ -48,7 +48,7 @@ with sync_playwright() as p:
     # despacho asignado a José
     V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(500)
     V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(900)
-    V.locator('.it-desc').first.fill('Papa');V.locator('.it-bul').first.fill('4')
+    item(V,0,'Papa');V.locator('.it-bul').first.fill('4')
     P('chip:',V.locator('[data-ksel]').first.inner_text());V.locator('[data-ksel]').first.click();V.wait_for_timeout(200);V.click('#fDesp button[type=submit]');V.wait_for_timeout(1000);P('tras despachar:',t(V,'.trip h2').replace('\n',' '),'| botón ficha completa:',V.locator('#fvCompleta').count());V.locator('.trip').screenshot(path='/tmp/km/v_enviado.png')
     if V.locator('#fvListo').count():V.click('#fvListo')
     K.wait_for_timeout(2500);P('K recibe en vivo:',K.locator('[data-kir]').count(),'| foto en lista:',K.locator('img[data-kfoto]').count(),K.evaluate("[...document.querySelectorAll('img[data-kfoto]')].map(i=>i.naturalWidth+' '+i.src.slice(0,60))"),'| toast:',t(K,'#toast'));shot(K,'k_lista')

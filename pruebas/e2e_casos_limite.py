@@ -21,7 +21,7 @@ with sync_playwright() as p:
     V1.click('#nav button[data-v=vendedor]');V1.wait_for_timeout(300);V1.fill('#placa','AB123CD');V1.dispatch_event('#placa','input');V1.wait_for_timeout(1200);P('placa nueva encontrada:',V1.inner_text('#placaInfo')[:30].replace('\n',' '))
     # carretillero ajeno escaneado
     V1.evaluate(f"escanear=async()=>'K:{kV2['id']}'");V1.click('#dScanK');V1.wait_for_timeout(1200);P('ajeno:',toast(V1))
-    V1.locator('.it-desc').first.fill('Papa');V1.click('#fDesp button[type=submit]');V1.wait_for_timeout(1200);V1.click('#fvListo');V1.wait_for_timeout(500)
+    item(V1,0,'Papa');V1.click('#fDesp button[type=submit]');V1.wait_for_timeout(1200);V1.click('#fvListo');V1.wait_for_timeout(500)
     d=R('despachos')[0];P('despacho con ajeno:',d['carretillero']==kV2['id'])
     P('lista V1 muestra ajeno:',V1.locator('text=Doña Ana').count()>0)
     # privacidad en la app
@@ -36,7 +36,7 @@ with sync_playwright() as p:
     P('V1 offline ve:',V1.evaluate(f"S.despacho['{d['id']}'].estado"))
     cV1.set_offline(False);V1.wait_for_timeout(9000);P('V1 tras reconectar ve:',V1.evaluate(f"S.despacho['{d['id']}'].estado"))
     # despacho sin conexión queda en cola y se envía
-    cV1.set_offline(True);V1.fill('#placa','XY987ZZ');V1.dispatch_event('#placa','input');V1.locator('.it-desc').first.fill('Cebolla');V1.locator('[data-ksel]').first.click();V1.click('#fDesp button[type=submit]');V1.wait_for_timeout(800)
+    cV1.set_offline(True);V1.fill('#placa','XY987ZZ');V1.dispatch_event('#placa','input');item(V1,0,'Cebolla');V1.locator('[data-ksel]').first.click();V1.click('#fDesp button[type=submit]');V1.wait_for_timeout(800)
     if V1.is_visible('#fvListo'):V1.click('#fvListo')
     P('offline en servidor:',len(R('despachos')));cV1.set_offline(False);V1.evaluate("window.dispatchEvent(new Event('online'))");V1.wait_for_timeout(3000);P('tras volver:',len(R('despachos')))
     # mensualidad vencida: el servidor rechaza aunque la app no lo sepa

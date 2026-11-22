@@ -36,7 +36,7 @@ with sync_playwright() as p:
     # DESPACHO
     V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(500)
     V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(900);P('placaInfo:',V.inner_text('#placaInfo')[:70].replace('\n',' '))
-    V.locator('.it-desc').first.fill('Papa');V.locator('.it-bul').first.fill('2');V.click('#itAdd');V.locator('.it-desc').nth(1).fill('Tomate');V.locator('.it-bul').nth(1).fill('3')
+    item(V,0,'Papa');V.locator('.it-bul').first.fill('2');V.click('#itAdd');item(V,1,'Tomate');V.locator('.it-bul').nth(1).fill('3')
     V.locator('[data-ksel]').first.click();V.wait_for_timeout(200)
     V.click('#fDesp button[type=submit]');V.wait_for_timeout(1000);P('ficha visible:',V.is_visible('#fvListo'));V.click('#fvListo');V.wait_for_timeout(400)
     d=R('despachos');P('despacho:',[(x['id'],x['bultos'],x['estado'],len(x['items'])) for x in d])

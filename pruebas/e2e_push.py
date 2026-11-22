@@ -35,7 +35,7 @@ with sync_playwright() as p:
     X("delete from net.log")
     V.click('#nav button[data-v=misCarr]');V.wait_for_timeout(300);V.fill('#kNom','José');V.click('#kAdd');V.wait_for_timeout(800)
     V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(400);V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(800)
-    V.locator('.it-desc').first.fill('Papa');V.locator('.it-bul').first.fill('5');V.locator('[data-ksel]').first.click();V.click('#fDesp button[type=submit]');V.wait_for_timeout(1500)
+    item(V,0,'Papa');V.locator('.it-bul').first.fill('5');V.locator('[data-ksel]').first.click();V.click('#fDesp button[type=submit]');V.wait_for_timeout(1500)
     lg=sql("select body from net.log");P('avisos enviados:',[(m['titulo'],m['texto'],[s['endpoint'][:30] for s in m['subs']]) for r in lg for m in r[0]['msgs']])
     # el service worker muestra el aviso
     cdp=cC.new_cdp_session(C);regs=[]

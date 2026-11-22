@@ -48,7 +48,7 @@ with sync_playwright() as p:
     C.click('text=Guardar y empezar a comprar');C.wait_for_timeout(1200);vista(C,'c03_inicio',0)
     # despacho
     V.click('#nav button[data-v=vendedor]');V.wait_for_timeout(400);V.fill('#placa','AB123CD');V.dispatch_event('#placa','input');V.wait_for_timeout(1000)
-    item(V,0,'Papa');V.locator('.it-bul').first.fill('2');V.click('#itAdd');item(V,1,'Cebolla');V.locator('.it-bul').nth(1).fill('3');V.locator('[data-ksel]').first.click();V.wait_for_timeout(300)
+    item(V,0,'Papa','saco');V.locator('.it-bul').first.fill('2');V.click('#itAdd');item(V,1,'Cebolla','cesta');V.locator('.it-bul').nth(1).fill('3');V.locator('[data-ksel]').first.click();V.wait_for_timeout(300)
     elem(V,'.card:has(#fDesp)','v07_despachar')
     V.click('#fDesp button[type=submit]');V.wait_for_timeout(1200);vista(V,'v08_ficha',0);V.evaluate("window.scrollTo(0,document.body.scrollHeight)");V.wait_for_timeout(200);V.screenshot(path=OUT+'v08b_ficha_plano.png')
     V.click('#fvListo');V.wait_for_timeout(400);V.evaluate("window.scrollTo(0,0)")

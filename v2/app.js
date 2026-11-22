@@ -75,7 +75,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.24',VERSION_FECHA='22/11/2026';
+const VERSION='2.25',VERSION_FECHA='22/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -234,8 +234,8 @@ function avisar(tipo,antes,d){if(tipo==='pago'&&ME&&ME.rol==='vendedor'&&d.vende
     return}
   if(ME.rol==='vendedor'&&d.vendedor===ME.id&&d.estado==='reclamo'){alarmaReclamo(d);return}
   let m=null;
-  if(ME.rol==='comprador'&&d.placa===ME.id&&!antes)m=`${vend(d.vendedor)?.nombre||'Un vendedor'} despachó ${d.bultos} bultos a tu vehículo`;
-  else if(ME.rol==='carretillero'&&d.carretillero===ME.id&&!antes){m=`📦 Nueva entrega: ${d.bultos} bultos para ${d.placa}`;pedir('comprador',d.placa);try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+  if(ME.rol==='comprador'&&d.placa===ME.id&&!antes)m=`${vend(d.vendedor)?.nombre||'Un vendedor'} despachó ${totalTxt(d)} a tu vehículo`;
+  else if(ME.rol==='carretillero'&&d.carretillero===ME.id&&!antes){m=`📦 Nueva entrega: ${totalTxt(d)} para ${d.placa}`;pedir('comprador',d.placa);try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
   else if(ME.rol==='carretillero'&&d.carretillero===ME.id&&antes&&d.estado==='entregado'){m=`✅ ${d.placa} confirmó que recibió la carga`;if(kEntrega===d.id)cerrarEntrega()}
   else if(ME.rol==='vendedor'&&d.vendedor===ME.id&&antes&&d.estado!=='en_ruta')m=`${nro(d)} para ${d.placa}: ${ETQ[d.estado]}`;
   if(m){toast(m);sonar()}}
@@ -305,9 +305,14 @@ const nuevoIdK=()=>'K'+[...Array(6)].map(()=>COD_ALF[Math.floor(Math.random()*CO
 const ajeno=(k,vid)=>k&&k.vendedor&&k.vendedor!==vid;
 const etqCarr=(k,vid)=>k?`#${k.num} ${k.nombre||''}${ajeno(k,vid)?' (de '+(vend(k.vendedor)?.nombre||'otro vendedor')+')':''}`.replace(/\s+\(/,' ('):'';
 const misCarr=vid=>(idx().kv[vid]||[]).filter(k=>!k.baja).sort((a,b)=>a.num.localeCompare(b.num));
-const itemsDe=d=>Array.isArray(d.items)&&d.items.length?d.items:[{desc:d.desc||'',bultos:+d.bultos||1}];
-const resumenItems=d=>itemsDe(d).map(i=>`${i.desc} (${i.bultos})`).join(', ');
-const htmlItems=d=>itemsDe(d).length>1?`<ul style="margin:4px 0 0;padding-left:20px">${itemsDe(d).map(i=>`<li>${esc(i.desc)} · <b>${i.bultos}</b> bulto${i.bultos==1?'':'s'}</li>`).join('')}</ul>`:'';
+const UNID={bulto:['bulto','bultos','bto'],cesta:['cesta','cestas','cesta'],saco:['saco','sacos','saco'],unidad:['unidad','unidades','und'],kilo:['kilo','kilos','kg']};
+const cant=(n,u)=>`${n} ${(UNID[u]||UNID.bulto)[+n===1?0:1]}`;
+const itemsDe=d=>(Array.isArray(d.items)&&d.items.length?d.items:[{desc:d.desc||'',bultos:+d.bultos||1}]).map(i=>({...i,unidad:UNID[i.unidad]?i.unidad:'bulto'}));
+// total por unidad: "5 unidades + 2 sacos"
+const totalItems=its=>{const m={};its.forEach(i=>{const u=UNID[i.unidad]?i.unidad:'bulto';m[u]=(m[u]||0)+(parseInt(i.bultos)||0)});return Object.entries(m).filter(([,n])=>n>0).map(([u,n])=>cant(n,u)).join(' + ')||'0 bultos'};
+const totalTxt=d=>totalItems(itemsDe(d));
+const resumenItems=d=>itemsDe(d).map(i=>`${i.desc}: ${cant(i.bultos,i.unidad)}`).join(', ');
+const htmlItems=d=>itemsDe(d).length>1?`<ul style="margin:4px 0 0;padding-left:20px">${itemsDe(d).map(i=>`<li>${esc(i.desc)} · <b>${cant(i.bultos,i.unidad)}</b></li>`).join('')}</ul>`:'';
 const listaProd=v=>{const s=new Set(),o=[];String(v&&v.productos||'').split(',').map(x=>x.trim()).filter(Boolean).forEach(x=>{const k=normTxt(x);if(!s.has(k)){s.add(k);o.push(x)}});return o};
 const unirProd=arr=>{const s=new Set();return arr.map(x=>String(x).replace(/,/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean).map(x=>x[0].toUpperCase()+x.slice(1)).filter(x=>{const k=normTxt(x);if(s.has(k))return false;s.add(k);return true}).join(', ')};
 let REG_PROD='',prodEdit=false;
@@ -328,7 +333,7 @@ function bindProductos(v){const g=async arr=>{await guardar('vendedor',{...vend(
   document.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=()=>{const a=listaProd(vend(v.id));a.splice(+b.dataset.pdel,1);g(a)});
   document.querySelectorAll('[data-pup]').forEach(b=>b.onclick=()=>{const a=listaProd(vend(v.id)),i=+b.dataset.pup;[a[i-1],a[i]]=[a[i],a[i-1]];g(a)});
   document.querySelectorAll('[data-pren]').forEach(b=>b.onclick=()=>{const a=listaProd(vend(v.id)),i=+b.dataset.pren;const n=prompt('Nombre del producto',a[i]);if(n==null||!n.trim())return;a[i]=n.trim();g(a)})}
-const tituloItems=d=>itemsDe(d).length>1?`${itemsDe(d).length} productos · ${d.bultos} bultos`:`${esc(itemsDe(d)[0].desc)} · ${d.bultos} bulto${d.bultos==1?'':'s'}`;
+const tituloItems=d=>itemsDe(d).length>1?`${itemsDe(d).length} productos · ${totalTxt(d)}`:`${esc(itemsDe(d)[0].desc)} · ${cant(itemsDe(d)[0].bultos,itemsDe(d)[0].unidad)}`;
 const nro=d=>d.ficha?'Ficha '+d.ficha.num:'Despacho '+d.id.slice(-4);
 
 /* ===================== Escáner con la cámara ===================== */
@@ -355,7 +360,7 @@ function escanear(titulo,ayuda){return new Promise(async res=>{
 let view=null,pendiente=false,cargado=false;
 function vistasDe(){if(!ME)return [];if(ME.rol==='admin')return ['mercado','uso','cobros','comprAdm','zonas','carretilleros','imprimir'];if(ME.rol==='vendedor')return ['vendedor','pagosK','histVend','misCarr','miUbic','miSusc'];if(ME.rol==='carretillero')return ['entregas'];return ['comprador','vendC']}
 const NOMBRES={entregas:'Mis entregas',uso:'Uso',comprAdm:'Compradores',miUbic:'Mi ubicación',miSusc:'Mensualidad',vendC:'Vendedores',pagosK:'Pago carretilleros',histVend:'Historial',misCarr:'Mis carretilleros',mercado:'Panel',cobros:'Cobros',zonas:'Plano y zonas',carretilleros:'Carretilleros',imprimir:'Compartir',calibrar:'Calibrar plano',vendedor:'Despachar',comprador:'Mis compras'};
-function leerItems(){const f=document.getElementById('fDesp');if(!f)return null;return [...f.querySelectorAll('.it-row')].map(r=>({desc:r.querySelector('.it-desc').value,bultos:r.querySelector('.it-bul').value}))}
+function leerItems(){const f=document.getElementById('fDesp');if(!f)return null;return [...f.querySelectorAll('.it-row')].map(r=>({desc:r.querySelector('.it-desc').value,bultos:r.querySelector('.it-bul').value,unidad:(r.querySelector('.it-uni')||{}).value||'bulto'}))}
 function guardarFormDesp(){const f=document.getElementById('fDesp');if(!f)return;desp.placa=f.querySelector('#placa')?.value??desp.placa;const it=leerItems();if(it)desp.items=it}
 function pedirRender(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea,select')))guardarFormDesp();if(a&&a.matches&&a.matches('input,textarea,select')||ocupado()){pendiente=true;return}render()}
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pendiente&&!(document.activeElement&&document.activeElement.matches('input,textarea,select'))&&!ocupado()){pendiente=false;render()}},50));
@@ -601,8 +606,8 @@ function vFichaURL(){const p=fichaURL;const d=despDeFicha(p);
    <div class="item" style="margin-top:8px"><div class="top"><b>${tituloItems(d)}</b>${chip(d.estado)}</div>${htmlItems(d)}
     <div class="meta">De <b>${esc(v?.nombre||'')}</b> · Para <span class="plate">${esc(d.placa)}</span>${k?` · Carretillero #${esc(k.num)} ${esc(k.nombre||'')}`:''}</div></div>
    ${d.estado==='en_ruta'?(esMio?`<p class="sub" style="margin-top:12px">Revisa la mercancía y confirma.</p>
-      <button class="btn g big" id="fuOk">Recibí ${d.bultos} bultos completos</button>
-      <label>¿Falta algo? Escribe qué</label><input id="fuRecl" placeholder="Ej: llegaron 5 bultos, faltó 1"><button class="btn o" id="fuMal" style="width:100%;margin-top:8px">Reportar faltante</button>`
+      <button class="btn g big" id="fuOk">Recibí todo completo (${totalTxt(d)})</button>
+      <label>¿Falta algo? Escribe qué</label><input id="fuRecl" placeholder="Ej: faltó 1 saco de papa"><button class="btn o" id="fuMal" style="width:100%;margin-top:8px">Reportar faltante</button>`
       :`<div class="notfound" style="margin-top:12px">${ME&&ME.rol==='comprador'?`Esta ficha es para el vehículo ${esc(d.placa)}, no para el tuyo (${esc(ME.id)}).`:`Para confirmar, entra a la app como comprador con la placa ${esc(d.placa)} y vuelve a escanear la ficha.`}</div>`)
     :`<div class="found" style="margin-top:12px">${d.estado==='entregado'?`Ya fue recibida a las ${hhmm(d.t.entregado)}.`:'Tiene un reclamo registrado.'}</div>`}${cerrar}</div>`}
 function bindFichaURL(){const salir=()=>{fichaURL=null;try{history.replaceState(null,'',location.pathname)}catch(e){}render()};
@@ -795,7 +800,7 @@ function vUso(){if(!MET&&!metCargando&&!metErr)cargarMetricas();
     <h3 style="margin:14px 0 6px">Vendedores</h3>
     <div class="kpis">${kpi(fmtN(V.total),'Registrados',`+${fmtN(V.nuevos_30d)} en 30 días`)}${kpi(fmtN(V.con_despacho_7d),'Despacharon esta semana',pct(V.con_despacho_7d,V.total))}${kpi(fmtN(V.con_despacho_30d),'Despacharon en 30 días',pct(V.con_despacho_30d,V.total))}${kpi(fmtN(V.al_dia),'Pueden despachar (al día o en prueba)',`${fmtN(V.pagaron_alguna_vez)} pagaron alguna vez`)}${kpi(fmtN(V.carretilleros_activos),'Carretilleros activos','')}${kpi(fmtN(P.aprobados_30d),'Mensualidades cobradas (30 d)',`US$ ${fmtN(P.monto_usd_30d)} · ${fmtN(P.pendientes)} por aprobar`)}</div>
     <h3 style="margin:14px 0 6px">Despachos</h3>
-    <div class="kpis">${kpi(fmtN(D.hoy),'Hoy','')}${kpi(fmtN(D.d7),'Últimos 7 días','')}${kpi(fmtN(D.d30),'Últimos 30 días',`${fmtN(D.bultos_30d)} bultos`)}${kpi(pct(D.confirmados_30d,D.d30),'Confirmados por el comprador (30 d)',`${pct(D.por_carnet_30d,D.d30)} escaneando la credencial · ${pct(D.por_vendedor_30d,D.d30)} de palabra`)}${kpi(pct(D.reclamos_30d,D.d30),'Con reclamo (30 d)',fmtN(D.reclamos_30d)+' reclamos')}${kpi(D.prom_min_30d+' min','Del despacho a la confirmación','promedio 30 días')}</div></div>
+    <div class="kpis">${kpi(fmtN(D.hoy),'Hoy','')}${kpi(fmtN(D.d7),'Últimos 7 días','')}${kpi(fmtN(D.d30),'Últimos 30 días',`${fmtN(D.bultos_30d)} en cantidad`)}${kpi(pct(D.confirmados_30d,D.d30),'Confirmados por el comprador (30 d)',`${pct(D.por_carnet_30d,D.d30)} escaneando la credencial · ${pct(D.por_vendedor_30d,D.d30)} de palabra`)}${kpi(pct(D.reclamos_30d,D.d30),'Con reclamo (30 d)',fmtN(D.reclamos_30d)+' reclamos')}${kpi(D.prom_min_30d+' min','Del despacho a la confirmación','promedio 30 días')}</div></div>
    <div class="grid g2">
     <div class="card"><h2>Despachos por día · 30 días</h2>${barras(MET.por_dia,'despachos','#1f6feb','Despachos')}</div>
     <div class="card"><h2>Compradores que recibieron por día · 30 días</h2>${barras(MET.por_dia,'compradores','#12a150','Compradores distintos')}</div>
@@ -813,7 +818,7 @@ function vUso(){if(!MET&&!metCargando&&!metErr)cargarMetricas();
 function excelUso(){const M=MET;const f=t=>t?new Date(+t).toLocaleDateString('es-VE'):'';const C=M.compradores,V=M.vendedores,D=M.despachos,P=M.pagos;
   const res=[['Compradores registrados',C.total],['Compradores nuevos (30 días)',C.nuevos_30d],['Compradores nuevos (7 días)',C.nuevos_7d],['Compradores que recibieron mercancía (30 días)',C.con_despacho_30d],['Compradores que usaron la app alguna vez',C.con_despacho_total],['Compradores en el mercado ahora',C.activos_ahora],['Compradores invitados por vendedores',C.invitados_vendedor],['Compradores invitados por amigos',C.invitados_amigo],['Compradores con favoritos',C.con_favoritos],
     ['Vendedores registrados',V.total],['Vendedores nuevos (30 días)',V.nuevos_30d],['Vendedores que despacharon (7 días)',V.con_despacho_7d],['Vendedores que despacharon (30 días)',V.con_despacho_30d],['Vendedores al día o en prueba',V.al_dia],['Vendedores que pagaron alguna vez',V.pagaron_alguna_vez],['Carretilleros activos',V.carretilleros_activos],
-    ['Despachos hoy',D.hoy],['Despachos 7 días',D.d7],['Despachos 30 días',D.d30],['Despachos total',D.total],['Bultos 30 días',D.bultos_30d],['Confirmados por el comprador (30 días)',D.confirmados_30d],['Confirmados escaneando credencial (30 días)',D.por_carnet_30d],['Confirmados con el botón (30 días)',D.por_boton_30d],['Confirmados de palabra por el vendedor (30 días)',D.por_vendedor_30d],['Reclamos (30 días)',D.reclamos_30d],['Minutos promedio hasta confirmar (30 días)',D.prom_min_30d],
+    ['Despachos hoy',D.hoy],['Despachos 7 días',D.d7],['Despachos 30 días',D.d30],['Despachos total',D.total],['Cantidad despachada 30 días (bultos, sacos, kilos…)',D.bultos_30d],['Confirmados por el comprador (30 días)',D.confirmados_30d],['Confirmados escaneando credencial (30 días)',D.por_carnet_30d],['Confirmados con el botón (30 días)',D.por_boton_30d],['Confirmados de palabra por el vendedor (30 días)',D.por_vendedor_30d],['Reclamos (30 días)',D.reclamos_30d],['Minutos promedio hasta confirmar (30 días)',D.prom_min_30d],
     ['Mensualidades aprobadas (30 días)',P.aprobados_30d],['Monto cobrado US$ (30 días)',+P.monto_usd_30d],['Pagos pendientes de aprobar',P.pendientes]].map(([a,b])=>[a,+b||0]);
   descargarLibro(`CargaYa-uso-${hoyLocal()}`,[
     {nombre:'Resumen',cab:['Indicador','Valor'],filas:res},
@@ -906,7 +911,7 @@ async function respaldoExcel(){const r=await sb.rpc('respaldo');if(r.error)throw
      filas:(R.pagos||[]).sort((a,b)=>(b.t||0)-(a.t||0)).map(p=>[fh(p.t),vn[p.vendedor]||'',/^\d{4}-\d\d-\d\d$/.test(p.fecha||'')?p.fecha.split('-').reverse().join('/'):p.fecha,p.referencia,p.banco,p.telefono,+p.monto||0,+p.montoUSD||0,+p.tasa||0,({pendiente:'Pendiente',aprobado:'Aprobado',rechazado:'Rechazado'})[p.estado]||p.estado,p.motivo||''])},
     {nombre:'Zonas',cab:['Nombre','Tipo','Área dibujada','Centro marcado','Estado'],
      filas:(R.zonas||[]).map(z=>[z.nombre,(TIPOS_ZONA.find(t=>t[0]===(z.tipo||'compradores'))||['',''])[1],z.pv===PV&&z.poly&&z.poly.length>2?'Sí':'No',zEn(z)?'Sí':'No',z.baja?'Quitada':'Activa'])},
-    {nombre:'Despachos 7 días',cab:['Fecha','Salida','Recibido','Vendedor','Despacho','Placa','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago'],
+    {nombre:'Despachos 7 días',cab:['Fecha','Salida','Recibido','Vendedor','Despacho','Placa','Mercancía','Cantidad total','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago'],
      filas:ds.map(d=>{const k=kn[d.carretillero];return [fe(d.t.creado),hhmm(d.t.creado),d.t.entregado?hhmm(d.t.entregado):'',vn[d.vendedor]||'',nro(d),d.placa,resumenItems(d),+d.bultos||0,k?'#'+k.num+' '+(k.nombre||''):'',ETQ[d.estado]||d.estado,
        ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',txtReclamo(d),d.pagoK?(+d.pagoK.monto||0):'',d.pagoK?MON[d.pagoK.moneda]:'',d.pagoK?(d.pagoK.metodo==='pago_movil'?'Pago Móvil':'Efectivo'):(d.estado!=='en_ruta'&&d.carretillero?'SIN PAGAR':'')]})}];
   descargarLibro(`CargaYa-respaldo-${hoyLocal()}`,hojas);toast('Respaldo descargado')}
@@ -950,14 +955,14 @@ function papeleta(d,v){const c=d?comp(d.placa):null;const vv=v||(d?vend(d.vended
   const q=c?posComp(c):null;const pv=vv?posVend(vv):null;
   const mapa=planoSVG({vb:'245 35 585 725',zonaHL:c?c.zona:null,dest:q,destTxt:q?c.id:'',camion:pv,camionTxt:'CAMIÓN',ruta:q&&pv?pv:null});
   const linea=(t,val,w)=>`<div class="pl" style="${w?`flex:0 0 ${w}`:''}"><span>${t}</span><b>${val!=null&&val!==''?esc(String(val)):''}</b></div>`;
-  const its=d?itemsDe(d):[];const filas=[0,1,2].map(i=>its[i]?`<div class="pi"><b>${its[i].bultos}</b><span>${esc(its[i].desc)}</span></div>`:'<div class="pi"><b></b><span></span></div>').join('');
+  const its=d?itemsDe(d):[];const filas=[0,1,2].map(i=>its[i]?`<div class="pi"><b>${its[i].bultos} ${UNID[its[i].unidad][2]}</b><span>${esc(its[i].desc)}</span></div>`:'<div class="pi"><b></b><span></span></div>').join('');
   return `<div class="pap"><div class="in">
    <div class="ph"><b>CargaYa</b><span>PAPELETA DE ENTREGA</span><em>${d?esc(nro(d)):'N° ______'}</em></div>
    <div class="pr">${linea('Placa',c?c.id:'', '48%')}${linea('Hora',d?hhmm(d.t.creado):'','48%')}</div>
    <div class="pr">${linea('Recibe',c?c.nombre:'','52%')}${linea('Tel.',c?c.tel:'','44%')}</div>
    <div class="pr">${linea('Zona',c?c.zona:'','48%')}${linea('Vehículo',c?c.vehiculo:'','48%')}</div>
    <div class="pr">${linea('Referencia / color',c?c.ref:'')}</div>
-   <div class="pits"><div class="pit"><span>Bultos</span><span>Mercancía</span></div>${filas}<div class="ptot">Total bultos: <b>${d?d.bultos:''}</b></div></div>
+   <div class="pits"><div class="pit"><span>Cant.</span><span>Mercancía</span></div>${filas}<div class="ptot">Total: <b>${d?totalTxt(d):''}</b></div></div>
    <div class="pr">${linea('Vendedor',vv?vv.nombre:'','58%')}${linea('Carretillero N°',k?k.num:'','38%')}</div>
    <div class="pmap">${mapa}<div class="pleg">${q?'● Vehículo del comprador':'Marca con una ✗ dónde está el vehículo'} · ▬ Camión del vendedor · Norte →</div></div>
    <div class="pfirma"><span>Recibido conforme · firma y nombre de quien recibe</span><span>Fecha ${d?fmtFecha(d.t.creado):'___/___/_____'}</span></div>
@@ -1131,10 +1136,10 @@ function vHistVend(){const v=vendActual();if(!v)return '<div class="card empty">
    <div class="row"><div><label>Período</label><select id="hPer">${[['hoy','Hoy'],['7','Últimos 7 días'],['30','Últimos 30 días'],['todo','Todo']].map(([k,t])=>`<option value="${k}" ${hPer===k?'selected':''}>${t}</option>`).join('')}</select></div>
     <div><label>Estado</label><select id="hEst">${[['todos','Todos'],['entregado','Recibidos'],['en_ruta','En camino'],['reclamo','Reclamos']].map(([k,t])=>`<option value="${k}" ${hEst===k?'selected':''}>${t}</option>`).join('')}</select></div></div>
    <button class="btn y" id="hCsv" style="width:100%;margin-top:12px" ${ds.length&&!histC.cargando?'':'disabled'}>⬇ Descargar en Excel (${ds.length})</button>${histC.cargando?'<p class="hint" style="margin-top:8px">Cargando historial…</p>':''}${histC.error?`<p class="bad" style="margin-top:8px">${esc(histC.error)}</p>`:''}</div>
-  <div class="kpis"><div class="kpi"><b>${ds.length}</b><span>Despachos</span></div><div class="kpi"><b>${bultos}</b><span>Bultos</span></div><div class="kpi"><b>${n('entregado')}</b><span>Recibidos</span></div><div class="kpi"><b>${n('en_ruta')}</b><span>En camino</span></div><div class="kpi"><b>${n('reclamo')}</b><span>Reclamos</span></div>${(()=>{const t={};ds.filter(d=>d.pagoK).forEach(d=>{t[d.pagoK.moneda]=(t[d.pagoK.moneda]||0)+(+d.pagoK.monto||0)});return `<div class="kpi"><b style="font-size:24px">${Object.entries(t).map(([m,x])=>fmtMon(x,m)).join(' + ')||'—'}</b><span>Pagado a carretilleros</span></div>`})()}</div>
+  <div class="kpis"><div class="kpi"><b>${ds.length}</b><span>Despachos</span></div><div class="kpi"><b>${bultos}</b><span>Cantidad total</span></div><div class="kpi"><b>${n('entregado')}</b><span>Recibidos</span></div><div class="kpi"><b>${n('en_ruta')}</b><span>En camino</span></div><div class="kpi"><b>${n('reclamo')}</b><span>Reclamos</span></div>${(()=>{const t={};ds.filter(d=>d.pagoK).forEach(d=>{t[d.pagoK.moneda]=(t[d.pagoK.moneda]||0)+(+d.pagoK.monto||0)});return `<div class="kpi"><b style="font-size:24px">${Object.entries(t).map(([m,x])=>fmtMon(x,m)).join(' + ')||'—'}</b><span>Pagado a carretilleros</span></div>`})()}</div>
   <div class="card">${ds.length>300?`<p class="hint">Se muestran los 300 más recientes de ${ds.length}. El Excel trae todos.</p>`:''}<div class="list">${ds.slice(0,300).map(d=>`${itemDesp(d,'vendedor')}${d.pagoK?`<div class="hint" style="margin-top:-4px">${txtPagoK(d)}</div>`:d.estado!=='en_ruta'&&d.carretillero?'<div class="hint bad" style="margin-top:-4px">Carretillero sin pagar</div>':''}${d.archivado?`<div class="row"><span class="hint">Quitado de la lista</span><button class="btn o" style="flex:0 0 auto" data-desarch="${esc(d.id)}">Volver a la lista</button></div>`:''}`).join('')||(histC.cargando?'<div class="empty">Cargando…</div>':'<div class="empty">No hay despac')+'hos en este período</div>'}</div></div></div>`}
 function csvHist(v,ds){const f=t=>t?new Date(t):null;
-  const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Bultos','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago','Referencia','Hora de pago'];
+  const cab=['Fecha','Salida','Recibido','Despacho','Placa','Comprador','Zona','Mercancía','Cantidad total','Carretillero','Estado','Cómo se confirmó','Reclamo','Pago carretillero','Moneda','Forma de pago','Referencia','Hora de pago'];
   const filas=ds.map(d=>{const c=comp(d.placa),k=carr(d.carretillero),s=f(d.t.creado),r=f(d.t.entregado);
     return [s?s.toLocaleDateString('es-VE'):'',s?hhmm(s):'',r?hhmm(r):'',nro(d),d.placa,c?.nombre||'',c?.zona||'',resumenItems(d),+d.bultos||0,k?etqCarr(k,d.vendedor):'',ETQ[d.estado]||d.estado,
       ({carnet:'Escaneó la credencial',boton:'Confirmó el comprador',vendedor:'Confirmó el vendedor',ficha:'Ficha'})[d.verif?.metodo]||'',txtReclamo(d),
@@ -1157,7 +1162,7 @@ function vVendedor(){
     if(k&&conTel(k.id)&&!fichaCompleta)return `<div class="trip" style="max-width:640px;margin:0 auto;text-align:center">
      <div style="font-size:64px;line-height:1">📱</div><h2 style="margin:6px 0">Enviado al teléfono de<br><b>${esc(etqCarr(k,d.vendedor))}</b></h2>
      <p class="sub">Le llegó con un aviso. Su app le muestra el vehículo, la foto y el camino por GPS.</p>
-     <div class="stepbox" style="margin-top:10px;border-style:solid;text-align:left"><span class="plate" style="font-size:22px">${esc(c.id)}</span> · <b>${esc(l.zona)}</b>${c.vehiculo?` · ${esc(c.vehiculo)}`:''}<div style="margin-top:6px">${itemsDe(d).map(i=>`<b>${i.bultos}</b> × ${esc(i.desc)}`).join(' · ')}</div></div>
+     <div class="stepbox" style="margin-top:10px;border-style:solid;text-align:left"><span class="plate" style="font-size:22px">${esc(c.id)}</span> · <b>${esc(l.zona)}</b>${c.vehiculo?` · ${esc(c.vehiculo)}`:''}<div style="margin-top:6px">${itemsDe(d).map(i=>`<b>${cant(i.bultos,i.unidad)}</b> de ${esc(i.desc)}`).join(' · ')}</div></div>
      <button class="btn y big" id="fvListo" style="margin-top:12px">Listo</button>
      <button class="btn o" id="fvCompleta" style="width:100%;margin-top:8px">Ver la ficha completa</button>
      <button class="btn o" id="fvPap" style="width:100%;margin-top:8px">🖨 Imprimir papeleta en papel</button></div>`;
@@ -1165,7 +1170,7 @@ function vVendedor(){
      <div class="hint" style="margin-top:8px;text-transform:uppercase;letter-spacing:1px">Zona</div><div style="font-family:'Barlow Condensed';font-weight:800;font-size:${l.zona.length<=10?72:l.zona.length<=18?54:40}px;line-height:1.02">${esc(l.zona)}</div>
      <div class="carbox" style="margin-top:12px">${c.foto?`<img class="photo" style="width:140px;height:105px" src="${c.foto}" alt="Foto del vehículo">`:''}
       <div><div style="font-size:22px;font-weight:700">${esc(c.vehiculo)}</div><span class="plate" style="font-size:24px">${esc(c.id)}</span>${c.ref?`<div style="font-size:17px;margin-top:4px">📌 ${esc(c.ref)}</div>`:''}</div></div>
-     <div class="stepbox" style="margin-top:12px;border-style:solid"><div class="hint">Lleva</div>${itemsDe(d).map(i=>`<div style="font-size:20px"><b>${i.bultos}</b> × ${esc(i.desc)}</div>`).join('')}<div class="hint">Total: ${d.bultos} bultos</div></div>
+     <div class="stepbox" style="margin-top:12px;border-style:solid"><div class="hint">Lleva</div>${itemsDe(d).map(i=>`<div style="font-size:20px"><b>${cant(i.bultos,i.unidad)}</b> de ${esc(i.desc)}</div>`).join('')}<div class="hint">Total: ${totalTxt(d)}</div></div>
      ${c.foto?`<img class="photo" style="margin-top:10px;max-height:320px" src="${c.foto}" alt="">`:''}
      ${posComp(c)?`<div style="margin-top:12px">${planoSVG({zoom:[posComp(c),...(posVend(vend(d.vendedor))?[posVend(vend(d.vendedor))]:[])],minW:420,zonaHL:c.zona,dest:posComp(c),destTxt:c.id,camion:posVend(vend(d.vendedor)),camionTxt:'TÚ ESTÁS AQUÍ',ruta:posVend(vend(d.vendedor))})}</div>
        <p class="hint" style="margin-top:4px">${tienePos(c)?'El punto rojo es donde el comprador marcó su vehículo.':'El punto rojo es la zona; el comprador no marcó el lugar exacto.'}${posVend(vend(d.vendedor))?'':' Ubica tu camión en el plano para ver el camino.'}</p>`:''}
@@ -1182,12 +1187,13 @@ function vVendedor(){
     <div id="placaInfo"></div>
     <div class="row" style="align-items:flex-end"><label style="flex:1">2 · Mercancía</label><button type="button" class="btn o" id="prodEditar" style="flex:0 0 auto;padding:6px 12px;font-size:14px">📋 Mis productos (${listaProd(v).length})</button></div>
     ${(desp.items&&desp.items.length?desp.items:[{desc:'',bultos:1}]).map((it,i,arr)=>{const ps=listaProd(v),en=ps.some(x=>normTxt(x)===normTxt(it.desc||'')),otro=!!(it.desc&&!en)||it.otro;
-      return `<div class="row it-row" style="margin-top:6px;align-items:center;flex-wrap:wrap">${ps.length?`<select class="it-sel" style="flex:1 1 150px"><option value="">— Elige el producto —</option>${ps.map(x=>`<option ${en&&normTxt(x)===normTxt(it.desc)?'selected':''}>${esc(x)}</option>`).join('')}<option value="__otro" ${otro?'selected':''}>✏️ Otro (escribir)</option></select>`:''}
-      <input class="it-desc" placeholder="${ps.length?'Escribe el producto':'Ej: Papa'}" value="${esc(it.desc||'')}" autocomplete="off" style="${ps.length&&!otro?'display:none':''};flex:1 1 150px">
-      <input class="it-bul" type="number" min="1" inputmode="numeric" style="flex:0 0 76px" value="${esc(it.bultos||1)}" aria-label="Bultos">
+      return `<div class="row it-row" style="margin-top:6px;align-items:center;flex-wrap:wrap;gap:6px;${i?'padding-top:8px;border-top:1px dashed var(--line)':''}">${ps.length?`<select class="it-sel" style="flex:1 1 100%"><option value="">— Elige el producto —</option>${ps.map(x=>`<option ${en&&normTxt(x)===normTxt(it.desc)?'selected':''}>${esc(x)}</option>`).join('')}<option value="__otro" ${otro?'selected':''}>✏️ Otro (escribir)</option></select>`:''}
+      <input class="it-desc" placeholder="${ps.length?'Escribe el producto':'Ej: Papa'}" value="${esc(it.desc||'')}" autocomplete="off" style="${ps.length&&!otro?'display:none':''};flex:1 1 100%">
+      <input class="it-bul" type="number" min="1" inputmode="numeric" style="flex:0 0 84px" value="${esc(it.bultos||1)}" aria-label="Cantidad">
+      <select class="it-uni" style="flex:1 1 120px" aria-label="Unidad">${Object.entries(UNID).map(([k,u])=>`<option value="${k}" ${(it.unidad||'bulto')===k?'selected':''}>${u[1][0].toUpperCase()+u[1].slice(1)}</option>`).join('')}</select>
       ${arr.length>1?`<button type="button" class="btn o" style="flex:0 0 auto;padding:8px 12px" data-itdel="${i}" aria-label="Quitar">✕</button>`:''}</div>`}).join('')}
     ${listaProd(v).length?'':'<p class="hint" style="margin-top:4px">💡 Toca <b>📋 Mis productos</b> y agrega lo que vendes: después lo eliges de una lista.</p>'}
-    <div class="row" style="margin-top:8px;align-items:center"><button type="button" class="btn o" id="itAdd">➕ Agregar ítem</button><div class="hint" style="text-align:right" id="itTot">Total: ${((n)=>`<b>${n}</b> bulto${n==1?'':'s'}`)((desp.items||[{bultos:1}]).reduce((a,x)=>a+(parseInt(x.bultos)||0),0))}</div></div>
+    <div class="row" style="margin-top:8px;align-items:center"><button type="button" class="btn o" id="itAdd">➕ Agregar ítem</button><div class="hint" style="text-align:right" id="itTot">Total: <b>${totalItems(desp.items&&desp.items.length?desp.items:[{bultos:1,unidad:'bulto'}])}</b></div></div>
     <label>3 · Carretillero</label>
     ${misCarr(v.id).length?`<div style="display:flex;flex-wrap:wrap;gap:8px">${misCarr(v.id).map(x=>`<button type="button" class="btn ${desp.k===x.id?'y':'o'}" style="padding:10px 12px" data-ksel="${esc(x.id)}">${conTel(x.id)?'📱 ':''}#${esc(x.num)} ${esc(x.nombre||'')}</button>`).join('')}</div>${misCarr(v.id).some(x=>conTel(x.id))?'<p class="hint" style="margin-top:4px">📱 = tiene la app: la entrega le llega sola a su teléfono.</p>':''}`
       :`<p class="hint">Todavía no tienes carretilleros propios (créalos en <a href="#" id="irCarr">Mis carretilleros</a>). Puedes usar el de otro vendedor escaneando su credencial.</p>`}
@@ -1337,7 +1343,7 @@ function trazoAj(){const e=plEdit,gal=e.tipo==='galpon',col=gal?'#e8590c':e.tipo
   return `${ps.length>1?`<${gal?'polygon':'polyline'} points="${ps.map(q=>q.join(',')).join(' ')}" fill="${gal?col:'none'}" fill-opacity=".12" stroke="${col}" stroke-width="3" stroke-linejoin="round"/>`:''}
    ${ps.map((q,i)=>`<circle data-v="${i}" cx="${q[0]}" cy="${q[1]}" r="${i===ajSel?11:9}" fill="${i===ajSel?'#ffc400':col}" stroke="#fff" stroke-width="3" style="cursor:grab"/>`).join('')}`}
 let verQuitadas=false,recFoto=null,recTarde=null;
-function formReclamo(d){return `<label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: llegaron 5 bultos, faltó 1">
+function formReclamo(d){return `<label>¿Falta algo? Escribe qué</label><input id="rcRecl" placeholder="Ej: faltó 1 saco de papa">
    <div class="row" style="margin-top:6px;align-items:center"><label class="btn o" style="margin:0;text-align:center">📷 Foto (opcional)<input type="file" accept="image/*" capture="environment" id="rcFoto" class="hidden"></label><img id="rcFotoPrev" class="photo sm" style="flex:0 0 72px;${recFoto?'':'display:none'}" ${recFoto?`src="${esc(recFoto)}"`:''} alt=""></div>
    <div class="row" style="margin-top:8px"><button class="btn r" data-rmal="${esc(d.id)}" style="background:#e0362c;color:#fff;border-color:#e0362c">⚠ Reportar faltante</button><button class="btn o" style="flex:0 0 auto" id="rcCancel">Cancelar</button></div>`}
 function vComprador(){
@@ -1359,7 +1365,7 @@ function vComprador(){
       ${abierto?`${carnetOk[d.id]?`<div class="found" style="margin-top:8px;font-size:17px">✓ Carnet <b>#${esc(carnetOk[d.id])}</b> verificado: es el carretillero de este despacho</div>`
         :`<button class="btn y big" data-rscan="${esc(d.id)}" style="margin-top:8px">📷 Escanear el carnet del carretillero</button>
         <label>¿No puedes escanearlo? Escribe su número (si lo viste)</label><input id="rcN" inputmode="numeric" placeholder="Ej: 07">`}
-        <button class="btn g big" data-rok="${esc(d.id)}" style="margin-top:10px">Recibí ${d.bultos} bultos completos</button>
+        <button class="btn g big" data-rok="${esc(d.id)}" style="margin-top:10px">Recibí todo completo (${totalTxt(d)})</button>
         ${formReclamo(d)}`
        :`<button class="btn y" data-rabrir="${esc(d.id)}">Ya me llegó</button>`}</div>`}).join('')||'<div class="empty">No tienes mercancía en camino</div>'}</div></div>
   <div class="card"><h2>Mis compras</h2>${(()=>{const ocu=new Set(c.ocultos||[]);
@@ -1699,7 +1705,7 @@ const bind={
     if($('mpEditar'))$('mpEditar').onclick=()=>{editPuesto=true;render()};
     if($('mpCancel'))$('mpCancel').onclick=()=>{editPuesto=false;render()};
     if($('mpZona'))$('mpZona').onchange=()=>{const t=$('mpZonaT');t.style.display=$('mpZona').value==='__otra'?'':'none'};
-    if($('mpOk'))$('mpOk').onclick=async()=>{const prod=$('mpProd').value.trim(),ref=$('mpRef').value.trim(),sec=leerZona('mpZona');const prev=S.vendedor[v.id];editPuesto=false;
+    if($('mpOk'))$('mpOk').onclick=async()=>{const prod=unirProd($('mpProd').value.split(',')),ref=$('mpRef').value.trim(),sec=leerZona('mpZona');const prev=S.vendedor[v.id];editPuesto=false;
       await guardar('vendedor',{...prev,productos:prod,refPuesto:ref,sector:sec,...(sec!==prev.sector?{px:null,py:null,ubicT:Date.now()}:{})});toast('Guardado');render()};
   },
   miSusc(){const v=vendYo();if(!v)return;
@@ -1726,10 +1732,10 @@ const bind={
     document.querySelectorAll('[data-irv]').forEach(a=>a.onclick=e=>{e.preventDefault();view=a.dataset.irv;render()});
     if($('papBlanco'))$('papBlanco').onclick=()=>imprimirPapeletas([],v);
     const keep=()=>{desp.placa=$('placa').value;desp.items=leerItems()};
-    const tot=()=>{const it=leerItems()||[];if($('itTot'))$('itTot').innerHTML=`Total: ${((n)=>`<b>${n}</b> bulto${n==1?'':'s'}`)(it.reduce((a,x)=>a+(parseInt(x.bultos)||0),0))}`};
-    document.querySelectorAll('.it-bul').forEach(x=>x.oninput=tot);
+    const tot=()=>{const it=leerItems()||[];if($('itTot'))$('itTot').innerHTML=`Total: <b>${totalItems(it)}</b>`};
+    document.querySelectorAll('.it-bul').forEach(x=>x.oninput=tot);document.querySelectorAll('.it-uni').forEach(x=>x.onchange=tot);
     bindProductos(v);if($('prodEditar'))$('prodEditar').onclick=()=>{keep();prodEdit=!prodEdit;render();if(prodEdit)setTimeout(()=>{const c=$('cardProd');if(c)c.scrollIntoView({behavior:'smooth'});const i=$('prodNuevo');if(i)i.focus()},50)};
-    document.querySelectorAll('.it-sel').forEach(s=>s.onchange=()=>{const inp=s.parentElement.querySelector('.it-desc');if(s.value==='__otro'){inp.value='';inp.style.display='';inp.focus()}else{inp.value=s.value;inp.style.display='none';const b=s.parentElement.querySelector('.it-bul');if(b){b.focus();b.select()}}});
+    document.querySelectorAll('.it-sel').forEach(s=>s.onchange=()=>{const inp=s.parentElement.querySelector('.it-desc');if(s.value==='__otro'){inp.value='';inp.style.display='';inp.focus()}else{inp.value=s.value;inp.style.display='none';const u=(vend(v.id).uProd||{})[normTxt(s.value)],us=s.parentElement.querySelector('.it-uni');if(u&&us&&UNID[u]){us.value=u;tot()}const b=s.parentElement.querySelector('.it-bul');if(b){b.focus();b.select()}}});
     if($('itAdd'))$('itAdd').onclick=()=>{keep();desp.items=[...desp.items,{desc:'',bultos:1}];render();const ds=document.querySelectorAll('.it-desc');ds[ds.length-1].focus()};
     document.querySelectorAll('[data-itdel]').forEach(b=>b.onclick=()=>{keep();desp.items.splice(+b.dataset.itdel,1);render()});
     const pin=$('placa'),info=$('placaInfo');
@@ -1745,11 +1751,13 @@ const bind={
     if($('kQuitar'))$('kQuitar').onclick=e=>{e.preventDefault();keep();desp.k=null;desp.kScan=null;render()};
     $('fDesp').onsubmit=async e=>{e.preventDefault();keep();if(!suscripcion(v).puedeDespachar){toast('Tu suscripción venció. Paga para seguir despachando.');return}const p=normPlaca(desp.placa);if(ONLINE&&!S.comprador[p]){delete NOEX['comprador|'+p];await asegurar('comprador',[p])}const c=comp(p);if(!c||c.activo===false){toast('Placa no registrada');return}
       const kk=carr(desp.k);if(!kk||kk.baja||(ajeno(kk,v.id)&&desp.kScan!==kk.id)){toast('Elige el carretillero que lleva la mercancía (si es de otro vendedor, escanea su credencial)');return}
-      const items=(desp.items||[]).map(x=>({desc:String(x.desc||'').trim(),bultos:Math.max(1,parseInt(x.bultos)||1)})).filter(x=>x.desc);
+      const items=(desp.items||[]).map(x=>({desc:String(x.desc||'').trim(),bultos:Math.max(1,parseInt(x.bultos)||1),unidad:UNID[x.unidad]?x.unidad:'bulto'})).filter(x=>x.desc);
       if(!items.length){toast('Elige o escribe al menos un producto');return}
-      {const ps=listaProd(v),nuevos=items.map(x=>x.desc).filter(x=>!ps.some(y=>normTxt(y)===normTxt(x)));if(nuevos.length)guardar('vendedor',{...vend(v.id),productos:unirProd([...ps,...nuevos])})}
-      const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,items,desc:items.map(x=>x.desc).join(', '),bultos:items.reduce((a,x)=>a+x.bultos,0),carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
-      {const f0=$('fDesp');if(f0)f0.remove()}desp={};fichaVista=id;fichaCompleta=false;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${resumenItems(d)}; ${d.bultos} bultos) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
+      {const vv=vend(v.id),ps=listaProd(vv),nuevos=items.map(x=>x.desc).filter(x=>!ps.some(y=>normTxt(y)===normTxt(x)));const up={...(vv.uProd||{})};let cambio=nuevos.length>0;
+       items.forEach(x=>{const k=normTxt(x.desc);if(up[k]!==x.unidad){up[k]=x.unidad;cambio=true}});
+       if(cambio)guardar('vendedor',{...vv,productos:unirProd([...ps,...nuevos]),uProd:up})}
+      const id=nuevoId('D');const d={id,vendedor:v.id,placa:p,items,desc:items.map(x=>x.desc).join(', '),bultos:items.reduce((a,x)=>a+x.bultos,0),resumen:totalItems(items),carretillero:desp.k,ficha:null,estado:'en_ruta',t:{creado:Date.now()},verif:null};
+      {const f0=$('fDesp');if(f0)f0.remove()}desp={};fichaVista=id;fichaCompleta=false;await guardar('despacho',d);const k=carr(d.carretillero);log(`${v.nombre} despachó ${nro(d)} (${resumenItems(d)}) a ${p} en ${lugar(c).zona} con el carretillero ${etqCarr(k,v.id)}`);render()};
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{fichaVista=b.dataset.ver;render()});
     document.querySelectorAll('[data-pagk]').forEach(b=>b.onclick=()=>{pagandoK=b.dataset.pagk;pagandoLote=null;pkMetodo='efectivo';render()});
     if(pagandoK)bindPagoForm(()=>[S.despacho[pagandoK]],v,false);

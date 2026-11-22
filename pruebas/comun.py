@@ -21,9 +21,13 @@ def ctx(b,name,url,errs,geo=None):
     pg.add_init_script("try{['vendedor','comprador','admin'].forEach(m=>localStorage.setItem('cy-inst-'+m,'ok'))}catch(e){}");pg.add_init_script("document.addEventListener('click',e=>{if(e.target&&e.target.id==='lGo'&&!window.__noAutoPal){const p=document.getElementById('lPal');if(p&&!p.value)p.value='palabra'}},true)");pg.add_init_script("window.print=()=>{window.__printed=(window.__printed||0)+1};window.open=(u)=>{window.__opened=u;return null}")
     pg.goto(url);pg.wait_for_timeout(900);return c,pg
 
-def item(pg,i,val):
-    """Elige el producto de la fila i del despacho (lista desplegable o 'Otro')."""
+def item(pg,i,val,unidad=None):
+    """Elige el producto de la fila i del despacho (lista desplegable o 'Otro') y, si se indica, la unidad."""
     r=pg.locator('.it-row').nth(i)
+    if unidad:
+        _item(r,val);r.locator('.it-uni').select_option(unidad);return
+    _item(r,val)
+def _item(r,val):
     if r.locator('.it-sel').count():
         opts=[o.strip() for o in r.locator('.it-sel option').all_inner_texts()]
         if val in opts:r.locator('.it-sel').select_option(label=val)

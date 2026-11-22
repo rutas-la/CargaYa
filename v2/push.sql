@@ -109,13 +109,13 @@ begin
   select coalesce(data->>'nombre', 'Tu vendedor') into vn from vendedores where id = n->>'vendedor';
   vn := coalesce(vn, 'Tu vendedor');
   if tg_op = 'INSERT' then
-    m := push_msg(cu, '📦 Te despacharon mercancía', vn || ' despachó ' || coalesce(n->>'bultos', '') || ' bultos a tu vehículo ' || coalesce(n->>'placa', ''), 'comprador.html', 'd-' || new.id, false);
+    m := push_msg(cu, '📦 Te despacharon mercancía', vn || ' despachó ' || coalesce(n->>'resumen', coalesce(n->>'bultos', '') || ' bultos') || ' a tu vehículo ' || coalesce(n->>'placa', ''), 'comprador.html', 'd-' || new.id, false);
     if m is not null then msgs := msgs || m; end if;
-    m := push_msg(ku, '📦 Nueva entrega', coalesce(n->>'bultos', '') || ' bultos para ' || coalesce(n->>'placa', '') || ' · ' || vn, 'carretillero.html', 'k-' || new.id, true);
+    m := push_msg(ku, '📦 Nueva entrega', coalesce(n->>'resumen', coalesce(n->>'bultos', '') || ' bultos') || ' para ' || coalesce(n->>'placa', '') || ' · ' || vn, 'carretillero.html', 'k-' || new.id, true);
     if m is not null then msgs := msgs || m; end if;
   else
     if o->>'estado' = 'en_ruta' and n->>'estado' = 'entregado' then
-      m := push_msg(vu, '✅ Mercancía recibida', coalesce(n->>'placa', '') || ' confirmó que recibió ' || coalesce(n->>'bultos', '') || ' bultos', 'vendedor.html', 'e-' || new.id, false);
+      m := push_msg(vu, '✅ Mercancía recibida', coalesce(n->>'placa', '') || ' confirmó que recibió ' || coalesce(n->>'resumen', coalesce(n->>'bultos', '') || ' bultos'), 'vendedor.html', 'e-' || new.id, false);
       if m is not null then msgs := msgs || m; end if;
       m := push_msg(ku, '✅ Entrega confirmada', coalesce(n->>'placa', '') || ' confirmó que recibió la carga', 'carretillero.html', 'k-' || new.id, false);
       if m is not null then msgs := msgs || m; end if;

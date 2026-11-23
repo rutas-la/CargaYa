@@ -1,0 +1,13 @@
+Fotos reales del mercado para la página principal de CargaYa.
+Súbelas a esta carpeta con estos nombres exactos (JPG, horizontales, idealmente 1600 px de ancho y menos de 400 KB):
+
+  portada.jpg  -> foto grande de la portada (reemplaza a los teléfonos). Ideal: el mercado lleno, con gente y carretillas.
+  foto1.jpg    -> Vendedores (vertical o cuadrada, ocupa dos filas)
+  foto2.jpg    -> Carretilleros
+  foto3.jpg    -> Compradores
+  foto4.jpg    -> Los puestos
+  foto5.jpg    -> Los camiones
+  foto6.jpg    -> El mercado
+
+La sección "Nuestro mercado" aparece sola en cuanto haya al menos una foto.
+Pide permiso a las personas que salen en las fotos.

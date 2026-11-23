@@ -1,12 +1,380 @@
 <!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CargaYa</title><meta name="robots" content="noindex">
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script>
-// CargaYa se mudó a /v2/. Se conservan los datos del enlace (?k= credencial, ?v= invitación, ?a= amigo).
-location.replace('v2/index.html'+location.search+location.hash);
+// Enlaces de invitación y credenciales (?k= ?v= ?a= …) siguen yendo directo a la app.
+if(location.search.length>1||location.hash.length>1)location.replace('v2/index.html'+location.search+location.hash);
 </script>
-<meta http-equiv="refresh" content="0; url=v2/index.html">
+<title>CargaYa · Mercado Mayor de Coche</title>
+<meta name="description" content="CargaYa conecta a vendedores, compradores y carretilleros del Mercado Mayor de Coche: cada carga a la vista, del puesto al vehículo.">
+<meta property="og:title" content="CargaYa · Cada carga, a la vista">
+<meta property="og:description" content="La app del Mercado Mayor de Coche para vendedores, compradores y carretilleros.">
+<meta property="og:image" content="v2/icon-512.png">
+<meta name="theme-color" content="#ffc400">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-</head><body style="font-family:system-ui,sans-serif;text-align:center;padding:40px">
-<p>CargaYa se actualizó. Si no se abre sola, <a href="v2/index.html">toca aquí</a>.</p>
-</body></html>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--fh:"Barlow Condensed","Arial Narrow",Arial,sans-serif;--fb:Barlow,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--y:#ffc400;--y2:#ffe27a;--ink:#16181c;--ink2:#2a2d33;--bg:#f6f4ee;--line:#e4e0d4;--g:#22a05a;--r:#e13c32;--blue:#2f6fe4;--org:#f08a00;--mut:#5c5f66}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--fb);color:var(--ink);background:var(--bg);font-size:17px;line-height:1.45}
+h1,h2,h3{font-family:var(--fh);line-height:1;margin:0;letter-spacing:.2px}
+a{color:inherit}
+img{max-width:100%;display:block}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+/* encabezado */
+.top{position:sticky;top:0;z-index:50;background:var(--ink);color:#fff}
+.top .wrap{display:flex;align-items:center;gap:14px;height:60px}
+.marca{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--fh);font-weight:800;font-size:26px}
+.marca b{color:var(--y)}
+.marca .m{width:36px;height:36px;border-radius:10px;background:var(--y);color:var(--ink);display:grid;place-items:center;font-size:22px}
+.top nav{margin-left:auto;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.top nav a{text-decoration:none;font-weight:600;font-size:15px;padding:8px 10px;border-radius:8px;white-space:nowrap;color:#d6d7da}
+.top nav a:hover{background:var(--ink2);color:#fff}
+@media(max-width:720px){.top nav{display:none}}
+/* botones */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font:700 18px var(--fb);padding:14px 22px;border-radius:14px;text-decoration:none;border:0;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.btn:active{transform:translateY(1px)}
+.btn.y{background:var(--y);color:var(--ink);box-shadow:0 4px 0 #c99a00}
+.btn.k{background:var(--ink);color:#fff;box-shadow:0 4px 0 #000}
+.btn.o{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+.btn img{width:28px;height:28px;border-radius:7px}
+/* portada */
+.hero{background:var(--y);position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 34px,rgba(255,255,255,.16) 34px 60px)}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;padding-top:48px;padding-bottom:56px}
+.chip{display:inline-block;background:var(--ink);color:var(--y);font-weight:700;font-size:14px;letter-spacing:.6px;text-transform:uppercase;padding:7px 14px;border-radius:99px}
+.hero h1{font-size:clamp(58px,10vw,112px);font-weight:900;margin:18px 0 14px;text-transform:uppercase}
+.hero h1 span{display:block;color:#fff;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill}
+.hero p.lead{font-size:clamp(19px,2.4vw,23px);font-weight:500;max-width:520px;margin:0 0 24px}
+.roles{display:grid;gap:10px;max-width:470px}
+.roles a{justify-content:flex-start;font-size:19px}
+.roles a small{margin-left:auto;font-weight:500;font-size:14px;opacity:.75}
+.hero-vis{position:relative;min-height:520px}
+.foto-hero{position:absolute;inset:0;border-radius:28px;overflow:hidden;border:6px solid var(--ink);box-shadow:12px 12px 0 var(--ink)}
+.foto-hero img{width:100%;height:100%;object-fit:cover}
+.sinfoto .foto-hero{display:none}
+.tel{width:260px;border-radius:38px;background:#121214;padding:10px;box-shadow:0 24px 50px rgba(0,0,0,.35);position:absolute}
+.tel>img{border-radius:28px;width:100%;height:470px;object-fit:cover;object-position:left top}
+.hero-vis .t1{left:6%;top:0;transform:rotate(-5deg)}
+.hero-vis .t2{right:4%;top:60px;transform:rotate(4deg)}
+.hero:not(.sinfoto) .tel{display:none}
+.burb{position:absolute;background:#fff;border-radius:18px;padding:10px 16px;font-weight:700;box-shadow:0 8px 20px rgba(0,0,0,.18);font-size:16px;z-index:2}
+.burb.b1{left:-2%;bottom:40px}.burb.b2{right:0;bottom:-6px;background:var(--g);color:#fff}
+.hero:not(.sinfoto) .burb.b1{left:-14px;bottom:24px}.hero:not(.sinfoto) .burb.b2{right:-10px;bottom:-14px}
+@media(max-width:880px){.hero .wrap{grid-template-columns:1fr}.hero-vis{min-height:470px;margin-top:10px}.tel{width:220px}.tel img{height:400px}}
+/* secciones */
+section{padding:72px 0}
+.sec-t{font-size:clamp(40px,6vw,64px);font-weight:900;text-transform:uppercase;margin-bottom:10px}
+.sec-s{font-size:20px;color:var(--mut);max-width:640px;margin:0 0 34px}
+.oscura{background:var(--ink);color:#fff}
+.oscura .sec-s{color:#b9bcc2}
+.dolores{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.dolor{background:var(--ink2);border-radius:20px;padding:22px;border-top:6px solid var(--r)}
+.dolor .q{font-family:var(--fh);font-weight:800;font-size:28px;line-height:1.05;margin-bottom:8px}
+.dolor p{margin:0;color:#c7c9cd;font-size:16px}
+@media(max-width:880px){.dolores{grid-template-columns:1fr 1fr}}@media(max-width:520px){.dolores{grid-template-columns:1fr}}
+.pasos{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;counter-reset:p}
+.paso{background:#fff;border-radius:22px;overflow:hidden;border:2px solid var(--line);display:flex;flex-direction:column}
+.paso .img{height:250px;background:#efece3;overflow:hidden;border-bottom:2px solid var(--line)}
+.paso .img img{width:100%;height:100%;object-fit:cover;object-position:top}
+.paso .txt{padding:18px}
+.paso .n{counter-increment:p;display:flex;align-items:center;gap:10px;font-family:var(--fh);font-weight:800;font-size:26px;margin-bottom:6px}
+.paso .n:before{content:counter(p);width:38px;height:38px;border-radius:50%;background:var(--y);display:grid;place-items:center;font-size:24px;flex:0 0 auto}
+.paso p{margin:0;color:var(--mut);font-size:16px}
+@media(max-width:880px){.pasos{grid-template-columns:1fr 1fr}}@media(max-width:520px){.pasos{grid-template-columns:1fr}}
+/* roles */
+.rol{display:grid;grid-template-columns:1fr 340px;gap:40px;align-items:start;background:#fff;border-radius:30px;padding:40px;border:3px solid var(--ink);box-shadow:10px 10px 0 var(--ink);margin-bottom:46px;scroll-margin-top:80px}
+.rol .cab{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.rol .cab img{width:70px;height:70px;border-radius:18px}
+.rol .tag{display:inline-block;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.6px;padding:5px 12px;border-radius:99px;color:#fff}
+.rol h2{font-size:clamp(40px,5vw,58px);font-weight:900;text-transform:uppercase;margin-top:6px}
+.rol .bajada{font-size:20px;margin:0 0 20px;color:var(--mut)}
+.vent{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:10px}
+.vent li{display:flex;gap:12px;align-items:flex-start;font-size:18px}
+.vent li:before{content:"✓";flex:0 0 30px;height:30px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px;margin-top:-1px}
+.vent b{font-weight:700}
+.empieza{background:var(--bg);border-radius:20px;padding:20px 22px;margin-bottom:22px}
+.empieza h3{font-size:26px;font-weight:800;margin-bottom:10px}
+.empieza ol{margin:0;padding-left:22px;display:grid;gap:6px}
+.acc{display:flex;flex-wrap:wrap;gap:10px}
+.rol .tel2{width:100%;border-radius:40px;background:#121214;padding:11px;box-shadow:0 24px 50px rgba(0,0,0,.25);position:sticky;top:90px}
+.rol .tel2 img{border-radius:30px;width:100%;height:620px;object-fit:cover;object-position:left top}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+.dos>div{border-radius:20px;padding:18px;border:2px solid var(--line)}
+.dos h3{font-size:26px;font-weight:800;margin-bottom:6px}
+.dos p{margin:0 0 12px;font-size:16px;color:var(--mut)}
+.dos img{border-radius:12px;border:1px solid var(--line);width:100%;max-height:330px;object-fit:cover;object-position:top}
+@media(max-width:880px){.rol{grid-template-columns:1fr;padding:26px 20px;box-shadow:6px 6px 0 var(--ink)}.rol .tel2{position:static;max-width:300px;margin:0 auto}.rol .tel2 img{height:520px}}
+@media(max-width:560px){.dos{grid-template-columns:1fr}.rol .cab{flex-direction:column;align-items:flex-start;gap:10px}.rol .cab img{width:56px;height:56px}}
+.c-v{background:var(--y);color:var(--ink)!important}.c-c{background:var(--blue)}.c-k{background:var(--org)}
+.promo{background:var(--ink);color:#fff;border-radius:18px;padding:14px 18px;display:flex;gap:12px;align-items:center;margin-bottom:22px;font-size:17px}
+.promo:before{content:"🤝";font-size:28px}
+/* videos */
+.videos{display:grid;grid-template-columns:1fr 1fr;gap:26px;max-width:860px}
+.video{background:var(--ink2);border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.video video{width:100%;aspect-ratio:9/16;border-radius:14px;background:#000;object-fit:cover}
+.video h3{font-size:28px;font-weight:800}
+.video p{margin:0;color:#b9bcc2;font-size:15px}
+@media(max-width:640px){.videos{grid-template-columns:1fr}}
+/* descargas */
+.descargas{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.dl{background:#fff;border-radius:24px;border:2px solid var(--line);padding:22px;display:flex;flex-direction:column;gap:12px}
+.dl .cab{display:flex;gap:12px;align-items:center}
+.dl .cab img{width:54px;height:54px;border-radius:14px}
+.dl h3{font-size:28px;font-weight:800}
+.dl .btn{width:100%;font-size:17px;padding:13px 16px}
+.instalar{margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.instalar>div{background:var(--y2);border-radius:20px;padding:20px 22px}
+.instalar h3{font-size:26px;font-weight:800;margin-bottom:8px}
+.instalar ol{margin:0;padding-left:22px}
+@media(max-width:880px){.descargas{grid-template-columns:1fr}.instalar{grid-template-columns:1fr}}
+/* galería */
+.galeria{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.galeria figure{margin:0;border-radius:20px;overflow:hidden;position:relative;aspect-ratio:4/3;background:#ddd}
+.galeria figure.alta{grid-row:span 2;aspect-ratio:auto}
+.galeria img{width:100%;height:100%;object-fit:cover}
+.galeria figcaption{position:absolute;left:12px;bottom:12px;background:rgba(22,24,28,.82);color:#fff;font-weight:600;font-size:15px;padding:6px 12px;border-radius:10px}
+@media(max-width:640px){.galeria{grid-template-columns:1fr 1fr}}
+#mercado.vacia{display:none}
+/* preguntas */
+.faq{max-width:820px;display:grid;gap:12px}
+.faq details{background:#fff;border:2px solid var(--line);border-radius:18px;padding:4px 20px}
+.faq summary{cursor:pointer;font-family:var(--fh);font-weight:800;font-size:26px;padding:14px 0;list-style:none;display:flex;justify-content:space-between;gap:12px}
+.faq summary:after{content:"+";color:var(--org)}
+.faq details[open] summary:after{content:"–"}
+.faq p{margin:0 0 16px;color:var(--mut)}
+/* cierre */
+.cierre{background:var(--y);text-align:center}
+.cierre h2{font-size:clamp(48px,8vw,90px);font-weight:900;text-transform:uppercase}
+.cierre p{font-size:21px;margin:14px auto 28px;max-width:620px}
+.cierre .acc{justify-content:center}
+footer{background:var(--ink);color:#9a9da3;font-size:15px;padding:28px 0;text-align:center}
+footer b{color:#fff}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <a class="marca" href="#"><span class="m">C</span><span>Carga<b>Ya</b></span></a>
+  <nav>
+    <a href="#como">Cómo funciona</a><a href="#vendedores">Vendedores</a><a href="#compradores">Compradores</a><a href="#carretilleros">Carretilleros</a><a href="#videos">Videos</a><a href="#descargas">Descargas</a>
+  </nav>
+</div></header>
+
+<!-- PORTADA: si existe sitio/fotos/portada.jpg se muestra la foto; si no, los teléfonos -->
+<div class="hero sinfoto" id="hero"><div class="wrap">
+  <div>
+    <span class="chip">Mercado Mayor de Coche · Caracas</span>
+    <h1>Cada carga,<span>a la vista.</span></h1>
+    <p class="lead">La app que une a <b>vendedores, compradores y carretilleros</b>: sabes qué salió del puesto, quién lo lleva y cuándo llegó al vehículo.</p>
+    <div class="roles">
+      <a class="btn k" href="#vendedores"><img src="v2/icon-vendedor-192.png" alt="">Soy vendedor <small>despacho con prueba</small></a>
+      <a class="btn k" href="#compradores"><img src="v2/icon-comprador-192.png" alt="">Soy comprador <small>sé qué viene</small></a>
+      <a class="btn k" href="#carretilleros"><img src="v2/icon-carretillero-192.png" alt="">Soy carretillero <small>llego directo</small></a>
+    </div>
+  </div>
+  <div class="hero-vis">
+    <div class="foto-hero"><img src="sitio/fotos/portada.jpg" alt="Mercado Mayor de Coche" onload="document.getElementById('hero').classList.remove('sinfoto')" onerror="this.remove()"></div>
+    <div class="tel t1"><img src="v2/ayuda/v07_despachar.jpg" alt="App del vendedor: despachar mercancía"></div>
+    <div class="tel t2"><img src="v2/ayuda/k03_llevame.jpg" alt="App del carretillero: guía hasta el vehículo"></div>
+    <div class="burb b1">📦 Papa · 2 sacos → AB123CD</div>
+    <div class="burb b2">✅ Recibido completo</div>
+  </div>
+</div></div>
+
+<!-- PROBLEMA -->
+<section class="oscura"><div class="wrap">
+  <h2 class="sec-t">¿Te suena conocido?</h2>
+  <p class="sec-s">Todos los días, en el mercado, se pierde tiempo, mercancía y clientes por lo mismo.</p>
+  <div class="dolores">
+    <div class="dolor"><div class="q">“La papa no me llegó”</div><p>Y nadie sabe a qué carretillero se la dieron ni a qué hora salió.</p></div>
+    <div class="dolor"><div class="q">“¿Dónde está el camión?”</div><p>El carretillero da vueltas entre cientos de vehículos buscando una placa.</p></div>
+    <div class="dolor"><div class="q">“Faltó un saco”</div><p>Sin pruebas, el reclamo termina en discusión y el cliente no vuelve.</p></div>
+    <div class="dolor"><div class="q">“¿Ya le pagué?”</div><p>Los viajes y pagos de los carretilleros se llevan de memoria.</p></div>
+  </div>
+</div></section>
+
+<!-- CÓMO FUNCIONA -->
+<section id="como"><div class="wrap">
+  <h2 class="sec-t">Así funciona</h2>
+  <p class="sec-s">Cuatro pasos, desde el puesto hasta el vehículo. Cada uno queda anotado.</p>
+  <div class="pasos">
+    <div class="paso"><div class="img"><img src="v2/ayuda/c02_llegue.jpg" alt="" loading="lazy"></div><div class="txt"><div class="n">Llega el comprador</div><p>Marca en el plano dónde estacionó, con la placa y el color del vehículo.</p></div></div>
+    <div class="paso"><div class="img"><img src="v2/ayuda/v07_despachar.jpg" alt="" loading="lazy"></div><div class="txt"><div class="n">El vendedor despacha</div><p>Elige producto, cantidad (sacos, cestas, kilos…) y carretillero. Listo en segundos.</p></div></div>
+    <div class="paso"><div class="img"><img src="sitio/img/papeleta.jpg" alt="" loading="lazy" style="object-position:center 30%"></div><div class="txt"><div class="n">El carretillero lo lleva</div><p>Con la papeleta impresa y el mapa marcado, o con el GPS en su celular.</p></div></div>
+    <div class="paso"><div class="img"><img src="v2/ayuda/c06_recibido.jpg" alt="" loading="lazy"></div><div class="txt"><div class="n">El comprador confirma</div><p>Revisa y toca “Recibí todo completo”. Si falta algo, reclama con foto.</p></div></div>
+  </div>
+</div></section>
+
+<!-- ROLES -->
+<section style="padding-top:20px"><div class="wrap">
+
+  <article class="rol" id="vendedores">
+    <div>
+      <div class="cab"><img src="v2/icon-vendedor-192.png" alt=""><div><span class="tag c-v">Para vendedores</span><h2>Despacha con prueba de entrega</h2></div></div>
+      <p class="bajada">Tu puesto más ordenado, menos reclamos y clientes que vuelven.</p>
+      <ul class="vent">
+        <li><span><b>Prueba de cada entrega:</b> el comprador confirma que recibió todo. Se acabó el “no me llegó”.</span></li>
+        <li><span><b>Despachas en segundos</b> desde tu lista de productos: sacos, cestas, bultos, unidades o kilos.</span></li>
+        <li><span><b>Sabes dónde va cada carga:</b> quién la lleva, a qué vehículo y a qué hora salió.</span></li>
+        <li><span><b>Reclamos en orden:</b> llegan con foto y tú decides: repuesto, descuento o no corresponde.</span></li>
+        <li><span><b>Pagos a carretilleros claros</b> y todo tu historial descargable en Excel.</span></li>
+        <li><span><b>Más clientes te encuentran:</b> te buscan por producto, te marcan favorito y te escriben por WhatsApp.</span></li>
+      </ul>
+      <div class="promo"><span>¿Primera vez? <b>El promotor de CargaYa</b> te da tu enlace en el mercado y te ayuda a registrarte.</span></div>
+      <div class="empieza"><h3>Cómo empiezas</h3><ol>
+        <li>Abre el enlace del promotor y toca <b>Soy nuevo</b>.</li>
+        <li>Escribe el nombre de tu puesto, tu teléfono, un PIN de 6 números y tu palabra secreta.</li>
+        <li>Instala el ícono amarillo y agrega a tus carretilleros: la app imprime sus credenciales.</li>
+      </ol></div>
+      <div class="acc">
+        <a class="btn y" href="v2/vendedor.html"><img src="v2/icon-vendedor-192.png" alt="">Abrir CargaYa Vendedor</a>
+        <a class="btn o" href="sitio/guias/CargaYa-guia-vendedor.pdf" download>⬇ Guía en PDF</a>
+        <a class="btn o" href="#videos">▶ Ver el video</a>
+      </div>
+    </div>
+    <div class="tel2"><img src="v2/ayuda/v03_inicio.jpg" alt="Pantalla de inicio del vendedor" loading="lazy"></div>
+  </article>
+
+  <article class="rol" id="compradores">
+    <div>
+      <div class="cab"><img src="v2/icon-comprador-192.png" alt=""><div><span class="tag c-c">Para compradores</span><h2>Sabes qué viene y quién lo trae</h2></div></div>
+      <p class="bajada">Compra tranquilo: tu mercancía llega a tu vehículo, sin perseguir a nadie.</p>
+      <ul class="vent">
+        <li><span><b>Marca dónde estacionaste</b> y el carretillero llega directo a tu vehículo.</span></li>
+        <li><span><b>Te avisa</b> cuando te despachan, con cada producto y su cantidad, aunque la app esté cerrada.</span></li>
+        <li><span><b>Confirmas con un toque</b> al escanear el carnet del carretillero.</span></li>
+        <li><span><b>¿Faltó algo?</b> Reclamas con foto en la app y al vendedor le suena una alarma.</span></li>
+        <li><span><b>Encuentra vendedores</b> por producto, guarda tus favoritos y escríbeles por WhatsApp.</span></li>
+      </ul>
+      <div class="empieza"><h3>Cómo empiezas</h3><ol>
+        <li>Abre CargaYa Comprador y toca <b>Soy nuevo</b>.</li>
+        <li>Escribe tu nombre, teléfono, la placa de tu vehículo, un PIN y tu palabra secreta.</li>
+        <li>Cada vez que llegues, marca en el plano dónde estacionaste. ¡Listo para comprar!</li>
+      </ol></div>
+      <div class="acc">
+        <a class="btn y" href="v2/comprador.html"><img src="v2/icon-comprador-192.png" alt="">Abrir CargaYa Comprador</a>
+        <a class="btn o" href="sitio/guias/CargaYa-guia-comprador.pdf" download>⬇ Guía en PDF</a>
+      </div>
+    </div>
+    <div class="tel2"><img src="v2/ayuda/c03_inicio.jpg" alt="Pantalla de inicio del comprador" loading="lazy"></div>
+  </article>
+
+  <article class="rol" id="carretilleros">
+    <div>
+      <div class="cab"><img src="v2/icon-carretillero-192.png" alt=""><div><span class="tag c-k">Para carretilleros</span><h2>Llegas directo, sin buscar</h2></div></div>
+      <p class="bajada">Con papel o con celular: siempre sabes a dónde va cada carga.</p>
+      <div class="dos">
+        <div><h3>📄 En papel</h3><p>Tu vendedor te da la <b>papeleta</b> con la placa, la zona, el vehículo, lo que llevas y el <b>mapa marcado</b>. Y una credencial con tu número.</p><img src="sitio/img/papeleta.jpg" alt="Papeleta impresa de CargaYa" loading="lazy"></div>
+        <div><h3>📱 En tu celular</h3><p>La app te <b>guía en tiempo real</b>: cuántos metros faltan, hacia dónde ir y el camino por los pasillos. Te avisa de cada nueva entrega.</p><img src="v2/ayuda/k02_lista.jpg" alt="Entregas en la app del carretillero" loading="lazy"></div>
+      </div>
+      <ul class="vent">
+        <li><span><b>Ves la foto del vehículo</b>, la placa y una referencia para encontrarlo rápido.</span></li>
+        <li><span><b>Muestras tu credencial</b> al comprador y la entrega queda confirmada.</span></li>
+        <li><span><b>Tus viajes quedan anotados</b>: tu pago es claro, sin enredos.</span></li>
+      </ul>
+      <div class="empieza"><h3>Cómo empiezas</h3><ol>
+        <li>Tu vendedor te agrega en la app y te da tu credencial impresa.</li>
+        <li>¿Tienes teléfono? Pídele el código de <b>Activar su teléfono</b> y escanéalo.</li>
+        <li>Crea tu PIN y tu palabra secreta, instala el ícono y activa los avisos.</li>
+      </ol></div>
+      <div class="acc">
+        <a class="btn y" href="v2/carretillero.html"><img src="v2/icon-carretillero-192.png" alt="">Abrir CargaYa Carretillero</a>
+        <a class="btn o" href="sitio/guias/CargaYa-guia-carretillero.pdf" download>⬇ Guía en PDF</a>
+      </div>
+    </div>
+    <div class="tel2"><img src="v2/ayuda/k03_llevame.jpg" alt="Guía GPS del carretillero" loading="lazy"></div>
+  </article>
+
+</div></section>
+
+<!-- GALERÍA: aparece sola cuando se suben fotos a sitio/fotos/ -->
+<section id="mercado" class="vacia"><div class="wrap">
+  <h2 class="sec-t">Nuestro mercado</h2>
+  <p class="sec-s">La gente que mueve el Mercado Mayor de Coche todos los días.</p>
+  <div class="galeria">
+    <figure class="alta"><img src="sitio/fotos/foto1.jpg" alt="" loading="lazy"><figcaption>Vendedores</figcaption></figure>
+    <figure><img src="sitio/fotos/foto2.jpg" alt="" loading="lazy"><figcaption>Carretilleros</figcaption></figure>
+    <figure><img src="sitio/fotos/foto3.jpg" alt="" loading="lazy"><figcaption>Compradores</figcaption></figure>
+    <figure><img src="sitio/fotos/foto4.jpg" alt="" loading="lazy"><figcaption>Los puestos</figcaption></figure>
+    <figure><img src="sitio/fotos/foto5.jpg" alt="" loading="lazy"><figcaption>Los camiones</figcaption></figure>
+    <figure><img src="sitio/fotos/foto6.jpg" alt="" loading="lazy"><figcaption>El mercado</figcaption></figure>
+  </div>
+</div></section>
+
+<!-- VIDEOS -->
+<section class="oscura" id="videos"><div class="wrap">
+  <h2 class="sec-t">Míralo en un minuto</h2>
+  <p class="sec-s">Descárgalos y compártelos por WhatsApp.</p>
+  <div class="videos">
+    <div class="video">
+      <video src="sitio/videos/CargaYa-vendedores.mp4" poster="sitio/img/poster-vendedores.jpg" controls playsinline preload="none"></video>
+      <h3>Para vendedores</h3><p>Las ventajas de despachar con CargaYa. 1 minuto.</p>
+      <a class="btn y" href="sitio/videos/CargaYa-vendedores.mp4" download>⬇ Descargar video</a>
+    </div>
+    <div class="video">
+      <video src="sitio/videos/CargaYa-presentacion.mp4" poster="sitio/img/poster-presentacion.jpg" controls playsinline preload="none"></video>
+      <h3>Para todos</h3><p>Cómo funciona para vendedores, compradores y carretilleros.</p>
+      <a class="btn y" href="sitio/videos/CargaYa-presentacion.mp4" download>⬇ Descargar video</a>
+    </div>
+  </div>
+</div></section>
+
+<!-- DESCARGAS -->
+<section id="descargas"><div class="wrap">
+  <h2 class="sec-t">Descarga la app</h2>
+  <p class="sec-s">No hace falta Play Store: se instala desde el navegador en un toque y ocupa muy poco.</p>
+  <div class="descargas">
+    <div class="dl"><div class="cab"><img src="v2/icon-vendedor-192.png" alt=""><h3>Vendedor</h3></div>
+      <a class="btn y" href="v2/vendedor.html">📲 Abrir e instalar</a><a class="btn o" href="sitio/guias/CargaYa-guia-vendedor.pdf" download>⬇ Guía PDF</a></div>
+    <div class="dl"><div class="cab"><img src="v2/icon-comprador-192.png" alt=""><h3>Comprador</h3></div>
+      <a class="btn y" href="v2/comprador.html">📲 Abrir e instalar</a><a class="btn o" href="sitio/guias/CargaYa-guia-comprador.pdf" download>⬇ Guía PDF</a></div>
+    <div class="dl"><div class="cab"><img src="v2/icon-carretillero-192.png" alt=""><h3>Carretillero</h3></div>
+      <a class="btn y" href="v2/carretillero.html">📲 Abrir e instalar</a><a class="btn o" href="sitio/guias/CargaYa-guia-carretillero.pdf" download>⬇ Guía PDF</a></div>
+  </div>
+  <div class="instalar">
+    <div><h3>🤖 En Android</h3><ol><li>Toca <b>Abrir e instalar</b> en tu app.</li><li>Entra o crea tu cuenta.</li><li>Abajo aparece <b>Instala el ícono</b>: toca <b>Instalar</b>.</li></ol></div>
+    <div><h3>🍎 En iPhone</h3><ol><li>Abre la app en <b>Safari</b>.</li><li>Toca <b>Compartir</b> (el cuadrito con la flecha).</li><li>Elige <b>Agregar a pantalla de inicio</b>.</li></ol></div>
+  </div>
+</div></section>
+
+<!-- PREGUNTAS -->
+<section style="padding-top:10px"><div class="wrap">
+  <h2 class="sec-t">Preguntas</h2>
+  <div class="faq">
+    <details><summary>¿Tengo que bajarla de Play Store?</summary><p>No. CargaYa se abre desde el navegador y se instala como un ícono en tu pantalla, igual que cualquier aplicación.</p></details>
+    <details><summary>¿Cómo me registro como vendedor?</summary><p>El promotor de CargaYa te da tu enlace en el mercado y te acompaña en el registro. Solo necesitas tu teléfono.</p></details>
+    <details><summary>¿Y si el carretillero no tiene celular?</summary><p>Funciona igual: el vendedor le imprime la papeleta con todos los datos y el mapa marcado, y él usa su credencial impresa para que el comprador confirme.</p></details>
+    <details><summary>¿Me avisa aunque la app esté cerrada?</summary><p>Sí. Al entrar, toca <b>Activar avisos</b> y luego <b>Permitir</b>. En iPhone primero instala la app en la pantalla de inicio (iOS 16.4 o más nuevo).</p></details>
+    <details><summary>¿Y si olvido mi PIN?</summary><p>Toca <b>¿Olvidaste tu PIN?</b>, escribe tu teléfono y tu palabra secreta, e inventa un PIN nuevo. Sin llamar a nadie.</p></details>
+    <details><summary>¿Qué pasa si falta mercancía?</summary><p>El comprador lo reporta en la app, con foto si puede. Al vendedor le suena una alarma y resuelve: repone, hace un descuento o indica que no corresponde. Todo queda anotado.</p></details>
+  </div>
+</div></section>
+
+<!-- CIERRE -->
+<section class="cierre"><div class="wrap">
+  <h2>Empieza hoy</h2>
+  <p>Busca al <b>promotor de CargaYa</b> en el Mercado Mayor de Coche, o abre tu app aquí mismo.</p>
+  <div class="acc">
+    <a class="btn k" href="v2/vendedor.html"><img src="v2/icon-vendedor-192.png" alt="">Vendedor</a>
+    <a class="btn k" href="v2/comprador.html"><img src="v2/icon-comprador-192.png" alt="">Comprador</a>
+    <a class="btn k" href="v2/carretillero.html"><img src="v2/icon-carretillero-192.png" alt="">Carretillero</a>
+  </div>
+</div></section>
+
+<footer><b>CargaYa</b> · Mercado Mayor de Coche · Caracas</footer>
+
+<script>
+// La galería se muestra solo si hay fotos cargadas en sitio/fotos/
+(function(){const s=document.getElementById('mercado');let ok=0;
+  s.querySelectorAll('figure img').forEach(i=>{i.loading='eager';
+    const bien=()=>{ok++;s.classList.remove('vacia')};
+    if(i.complete&&i.naturalWidth)bien();else{i.addEventListener('load',bien);i.addEventListener('error',()=>i.closest('figure').remove())}});
+})();
+</script>
+</body>
+</html>

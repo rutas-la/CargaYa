@@ -75,7 +75,7 @@ function mejorFix(ms=12000){return new Promise((res,rej)=>{
 const S={vendedor:{},comprador:{},carretillero:{},despacho:{},calibracion:{},zona:{},config:{},pago:{},log:[]};
 let conexion=ONLINE?'conectando':'local';
 // Versión visible en la app (también en version.json para detectar copias viejas en el teléfono)
-const VERSION='2.25',VERSION_FECHA='22/11/2026';
+const VERSION='2.26',VERSION_FECHA='23/11/2026';
 const LKEY='cargaya-v2-local',QKEY='cargaya-v2-cola',MEKEY='cargaya-v2-yo';
 let ME=null;try{ME=JSON.parse(localStorage.getItem(MEKEY)||'null')}catch(e){}
 function setME(m){ME=m;try{m?localStorage.setItem(MEKEY,JSON.stringify(m)):localStorage.removeItem(MEKEY)}catch(e){}}
@@ -306,6 +306,7 @@ const ajeno=(k,vid)=>k&&k.vendedor&&k.vendedor!==vid;
 const etqCarr=(k,vid)=>k?`#${k.num} ${k.nombre||''}${ajeno(k,vid)?' (de '+(vend(k.vendedor)?.nombre||'otro vendedor')+')':''}`.replace(/\s+\(/,' ('):'';
 const misCarr=vid=>(idx().kv[vid]||[]).filter(k=>!k.baja).sort((a,b)=>a.num.localeCompare(b.num));
 const UNID={bulto:['bulto','bultos','bto'],cesta:['cesta','cestas','cesta'],saco:['saco','sacos','saco'],unidad:['unidad','unidades','und'],kilo:['kilo','kilos','kg']};
+const abrev=(n,u)=>{const a=(UNID[u]||UNID.bulto)[2];return +n===1||a==='und'||a==='kg'?a:a+'s'};
 const cant=(n,u)=>`${n} ${(UNID[u]||UNID.bulto)[+n===1?0:1]}`;
 const itemsDe=d=>(Array.isArray(d.items)&&d.items.length?d.items:[{desc:d.desc||'',bultos:+d.bultos||1}]).map(i=>({...i,unidad:UNID[i.unidad]?i.unidad:'bulto'}));
 // total por unidad: "5 unidades + 2 sacos"
@@ -955,7 +956,7 @@ function papeleta(d,v){const c=d?comp(d.placa):null;const vv=v||(d?vend(d.vended
   const q=c?posComp(c):null;const pv=vv?posVend(vv):null;
   const mapa=planoSVG({vb:'245 35 585 725',zonaHL:c?c.zona:null,dest:q,destTxt:q?c.id:'',camion:pv,camionTxt:'CAMIÓN',ruta:q&&pv?pv:null});
   const linea=(t,val,w)=>`<div class="pl" style="${w?`flex:0 0 ${w}`:''}"><span>${t}</span><b>${val!=null&&val!==''?esc(String(val)):''}</b></div>`;
-  const its=d?itemsDe(d):[];const filas=[0,1,2].map(i=>its[i]?`<div class="pi"><b>${its[i].bultos} ${UNID[its[i].unidad][2]}</b><span>${esc(its[i].desc)}</span></div>`:'<div class="pi"><b></b><span></span></div>').join('');
+  const its=d?itemsDe(d):[];const filas=[0,1,2].map(i=>its[i]?`<div class="pi"><b>${its[i].bultos} <small>${abrev(its[i].bultos,its[i].unidad)}</small></b><span>${esc(its[i].desc)}</span></div>`:'<div class="pi"><b></b><span></span></div>').join('');
   return `<div class="pap"><div class="in">
    <div class="ph"><b>CargaYa</b><span>PAPELETA DE ENTREGA</span><em>${d?esc(nro(d)):'N° ______'}</em></div>
    <div class="pr">${linea('Placa',c?c.id:'', '48%')}${linea('Hora',d?hhmm(d.t.creado):'','48%')}</div>
